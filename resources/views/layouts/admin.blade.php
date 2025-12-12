@@ -27,25 +27,70 @@
             <nav class="mt-4 px-2">
                 {{-- Use Route::has() to avoid requiring new routes; fallback to '#' --}}
                 <a href="{{ Route::has('admin.dashboard') ? route('admin.dashboard') : '#' }}"
-                   class="block py-2.5 px-4 rounded hover:bg-gray-700 {{ request()->routeIs('admin.dashboard') ? 'bg-gray-700' : '' }}">
+                class="block py-2.5 px-4 rounded hover:bg-gray-700 {{ request()->routeIs('admin.dashboard') ? 'bg-gray-700' : '' }}">
                     <span class="mr-2">🏠</span> Home Dashboard
                 </a>
 
                 <a href="{{ Route::has('admin.file_manager.index') ? route('admin.file_manager.index') : '#' }}"
-                   class="block py-2.5 px-4 rounded hover:bg-gray-700 mt-1 {{ request()->routeIs('admin.file_manager.*') ? 'bg-gray-700' : '' }}">
+                class="block py-2.5 px-4 rounded hover:bg-gray-700 mt-1 {{ request()->routeIs('admin.file_manager.*') ? 'bg-gray-700' : '' }}">
                     <span class="mr-2">📁</span> File Manager
                 </a>
 
                 <!-- ENGAGE section -->
                 <div class="mt-6 px-4 text-xs text-teal-300 uppercase font-semibold">Engage</div>
 
-                <a href="{{ Route::has('admin.tests.index') ? route('admin.tests.index') : '#' }}"
-                   class="block py-2.5 px-4 rounded hover:bg-gray-700 mt-1 {{ request()->routeIs('admin.tests.*') ? 'bg-gray-700' : '' }}">
-                    <span class="mr-2">📝</span> Manage Tests
-                </a>
+                <!-- Manage Tests dropdown (keeps design & icons) -->
+                <div x-data="{ open: {{ request()->routeIs('admin.tests.*','admin.quizzes.*','admin.exams.*','admin.quiztypes.*','admin.examtypes.*') ? 'true' : 'false' }} }" class="relative">
+                    <button
+                        @click="open = !open"
+                        type="button"
+                        class="w-full flex items-center justify-between py-2.5 px-4 rounded hover:bg-gray-700 mt-1
+                            {{ request()->routeIs('admin.tests.*','admin.quizzes.*','admin.exams.*','admin.quiztypes.*','admin.examtypes.*') ? 'bg-gray-700' : '' }}">
+                        <span class="mr-2">📝</span>
+                        <span class="flex-1 text-left">Manage Tests</span>
+
+                        <!-- small chevron to indicate dropdown - matches neutral look -->
+                        <svg :class="open ? 'transform rotate-180' : ''" class="h-4 w-4 text-gray-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+
+                    <!-- Submenu: keep same visual style as other menu items, slightly indented -->
+                    <div
+                        x-show="open"
+                        x-cloak
+                        x-transition:enter="transition ease-out duration-150"
+                        x-transition:enter-start="opacity-0 -translate-y-1"
+                        x-transition:enter-end="opacity-100 translate-y-0"
+                        x-transition:leave="transition ease-in duration-100"
+                        x-transition:leave-start="opacity-100 translate-y-0"
+                        x-transition:leave-end="opacity-0 -translate-y-1"
+                        class="mt-1" style="margin-left: 20%;">
+
+                        <a href="{{ Route::has('admin.quizzes.index') ? route('admin.quizzes.index') : '#' }}"
+                        class="block py-2.5 pl-8 pr-4 rounded hover:bg-gray-700 {{ request()->routeIs('admin.quizzes.*') ? 'bg-gray-700' : '' }}">
+                            <span class="mr-2">📚</span> Quizzes
+                        </a>
+
+                        <a href="{{ Route::has('admin.exams.index') ? route('admin.exams.index') : '#' }}"
+                        class="block py-2.5 pl-8 pr-4 rounded hover:bg-gray-700 {{ request()->routeIs('admin.exams.*') ? 'bg-gray-700' : '' }}">
+                            <span class="mr-2">🎓</span> Exams
+                        </a>
+
+                        <a href="{{ Route::has('admin.quiztypes.index') ? route('admin.quiztypes.index') : '#' }}"
+                        class="block py-2.5 pl-8 pr-4 rounded hover:bg-gray-700 {{ request()->routeIs('admin.quiztypes.*') ? 'bg-gray-700' : '' }}">
+                            <span class="mr-2">⚙️</span> Quiz Types
+                        </a>
+
+                        <a href="{{ Route::has('admin.examtypes.index') ? route('admin.examtypes.index') : '#' }}"
+                        class="block py-2.5 pl-8 pr-4 rounded hover:bg-gray-700 {{ request()->routeIs('admin.examtypes.*') ? 'bg-gray-700' : '' }}">
+                            <span class="mr-2">🧭</span> Exam Types
+                        </a>
+                    </div>
+                </div>
 
                 <a href="{{ Route::has('admin.learning.index') ? route('admin.learning.index') : '#' }}"
-                   class="block py-2.5 px-4 rounded hover:bg-gray-700 mt-1 {{ request()->routeIs('admin.learning.*') ? 'bg-gray-700' : '' }}">
+                class="block py-2.5 px-4 rounded hover:bg-gray-700 mt-1 {{ request()->routeIs('admin.learning.*') ? 'bg-gray-700' : '' }}">
                     <span class="mr-2">💡</span> Manage Learning
                 </a>
 
@@ -53,17 +98,17 @@
                 <div class="mt-6 px-4 text-xs text-teal-300 uppercase font-semibold">Library</div>
 
                 <a href="{{ Route::has('admin.question_bank.index') ? route('admin.question_bank.index') : '#' }}"
-                   class="block py-2.5 px-4 rounded hover:bg-gray-700 mt-1 {{ request()->routeIs('admin.question_bank.*') ? 'bg-gray-700' : '' }}">
+                class="block py-2.5 px-4 rounded hover:bg-gray-700 mt-1 {{ request()->routeIs('admin.question_bank.*') ? 'bg-gray-700' : '' }}">
                     <span class="mr-2">📚</span> Question Bank
                 </a>
 
                 <a href="{{ Route::has('admin.lesson_bank.index') ? route('admin.lesson_bank.index') : '#' }}"
-                   class="block py-2.5 px-4 rounded hover:bg-gray-700 mt-1 {{ request()->routeIs('admin.lesson_bank.*') ? 'bg-gray-700' : '' }}">
+                class="block py-2.5 px-4 rounded hover:bg-gray-700 mt-1 {{ request()->routeIs('admin.lesson_bank.*') ? 'bg-gray-700' : '' }}">
                     <span class="mr-2">📘</span> Lesson Bank
                 </a>
 
                 <a href="{{ Route::has('admin.video_bank.index') ? route('admin.video_bank.index') : '#' }}"
-                   class="block py-2.5 px-4 rounded hover:bg-gray-700 mt-1 {{ request()->routeIs('admin.video_bank.*') ? 'bg-gray-700' : '' }}">
+                class="block py-2.5 px-4 rounded hover:bg-gray-700 mt-1 {{ request()->routeIs('admin.video_bank.*') ? 'bg-gray-700' : '' }}">
                     <span class="mr-2">🎥</span> Video Bank
                 </a>
 
@@ -71,38 +116,38 @@
                 <div class="mt-6 px-4 text-xs text-teal-300 uppercase font-semibold">Configuration</div>
 
                 <a href="{{ Route::has('admin.monetization.index') ? route('admin.monetization.index') : '#' }}"
-                   class="block py-2.5 px-4 rounded hover:bg-gray-700 mt-1 {{ request()->routeIs('admin.monetization.*') ? 'bg-gray-700' : '' }}">
+                class="block py-2.5 px-4 rounded hover:bg-gray-700 mt-1 {{ request()->routeIs('admin.monetization.*') ? 'bg-gray-700' : '' }}">
                     <span class="mr-2">💰</span> Monetization
                 </a>
 
                 <a href="{{ Route::has('admin.users.index') ? route('admin.users.index') : '#' }}"
-                   class="block py-2.5 px-4 rounded hover:bg-gray-700 mt-1 {{ request()->routeIs('admin.users.*') ? 'bg-gray-700' : '' }}">
+                class="block py-2.5 px-4 rounded hover:bg-gray-700 mt-1 {{ request()->routeIs('admin.users.*') ? 'bg-gray-700' : '' }}">
                     <span class="mr-2">👥</span> Manage Users
                 </a>
 
                 <a href="{{ Route::has('admin.categories.index') ? route('admin.categories.index') : '#' }}"
-                   class="block py-2.5 px-4 rounded hover:bg-gray-700 mt-1 {{ request()->routeIs('admin.categories.*') ? 'bg-gray-700' : '' }}">
+                class="block py-2.5 px-4 rounded hover:bg-gray-700 mt-1 {{ request()->routeIs('admin.categories.*') ? 'bg-gray-700' : '' }}">
                     <span class="mr-2">📂</span> Manage Categories
                 </a>
 
                 <a href="{{ Route::has('admin.subjects.index') ? route('admin.subjects.index') : '#' }}"
-                   class="block py-2.5 px-4 rounded hover:bg-gray-700 mt-1 {{ request()->routeIs('admin.subjects.*') ? 'bg-gray-700' : '' }}">
+                class="block py-2.5 px-4 rounded hover:bg-gray-700 mt-1 {{ request()->routeIs('admin.subjects.*') ? 'bg-gray-700' : '' }}">
                     <span class="mr-2">🧭</span> Manage Subjects
                 </a>
 
                 <a href="{{ Route::has('admin.settings') ? route('admin.settings') : '#' }}"
-                   class="block py-2.5 px-4 rounded hover:bg-gray-700 mt-1 {{ request()->routeIs('admin.settings') ? 'bg-gray-700' : '' }}">
+                class="block py-2.5 px-4 rounded hover:bg-gray-700 mt-1 {{ request()->routeIs('admin.settings') ? 'bg-gray-700' : '' }}">
                     <span class="mr-2">⚙️</span> Settings
                 </a>
 
                 <!-- keep the small admin utilities (roles/logs) present like original -->
                 <div class="mt-6 border-t border-gray-700 pt-4 px-2">
                     <a href="{{ Route::has('admin.roles_permissions.index') ? route('admin.roles_permissions.index') : '#' }}"
-                       class="block py-2.5 px-4 rounded hover:bg-gray-700 {{ request()->routeIs('admin.roles_permissions.*') ? 'bg-gray-700' : '' }}">
+                    class="block py-2.5 px-4 rounded hover:bg-gray-700 {{ request()->routeIs('admin.roles_permissions.*') ? 'bg-gray-700' : '' }}">
                         <span class="mr-2">🔑</span> Roles & Permissions
                     </a>
                     <a href="{{ Route::has('admin.logs') ? route('admin.logs') : '#' }}"
-                       class="block py-2.5 px-4 rounded hover:bg-gray-700 mt-1 {{ request()->routeIs('admin.logs') ? 'bg-gray-700' : '' }}">
+                    class="block py-2.5 px-4 rounded hover:bg-gray-700 mt-1 {{ request()->routeIs('admin.logs') ? 'bg-gray-700' : '' }}">
                         <span class="mr-2">📜</span> Activity Logs
                     </a>
                 </div>

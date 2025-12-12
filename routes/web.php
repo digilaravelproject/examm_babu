@@ -7,6 +7,8 @@ use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\RolePermissionController;
 use App\Http\Controllers\Admin\ActivityLogController;
 use App\Http\Controllers\Student\StudentDashboardController;
+use App\Http\Controllers\Admin\QuizController;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -55,6 +57,8 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::get('/activity-logs', [ActivityLogController::class, 'index'])
         ->middleware('can:view logs')
         ->name('logs');
+
+    Route::get('/quizzes/index', [QuizController::class, 'index'])->name('quizzes.index');
 });
 
 /*
