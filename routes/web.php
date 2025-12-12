@@ -20,6 +20,14 @@ Route::get('/', function () {
 });
 
 /*
+|
+|
+*/
+Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('home');
+
+/*
 |--------------------------------------------------------------------------
 | Default / Fallback Dashboard
 |--------------------------------------------------------------------------
@@ -68,6 +76,9 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
 */
 Route::middleware(['auth', 'verified', 'role:student'])->prefix('student')->name('student.')->group(function () {
     Route::get('/dashboard', [StudentDashboardController::class, 'index'])->name('dashboard');
+    Route::get('/exam-demo', function () {
+    return view('student.exam-interface');
+})->name('exam_demo');
 });
 
 /*
