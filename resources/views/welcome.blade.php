@@ -1564,9 +1564,10 @@
                 </div>
             </div>
 
-            <div class="pt-8 text-center border-t border-slate-800">
+            <div class="pt-8 text-center border-t border-slate-800 flex justify-center items-center space-x-6">
                 <p class="text-sm text-slate-500">&copy; 2025 Exam Babu. All rights reserved. Made with ❤️ in India.
                 </p>
+                &nbsp; <p class="text-sm text-slate-500">Design and Developed By Digi Emperor</p>
             </div>
         </div>
     </footer>
