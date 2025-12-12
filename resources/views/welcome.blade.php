@@ -12,6 +12,7 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
         rel="stylesheet">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
     <!-- Scripts -->
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -1564,10 +1565,11 @@
                 </div>
             </div>
 
-            <div class="pt-8 text-center border-t border-slate-800 flex justify-center items-center space-x-6">
-                <p class="text-sm text-slate-500">&copy; 2025 Exam Babu. All rights reserved. Made with ❤️ in India.
+            <div class="pt-8 border-t border-slate-800 flex justify-between items-center px-6">
+                <p class="text-sm text-slate-500">&copy; 2025 Exam Babu. All rights reserved. Made with ❤️ in India.</p>
+                <p class="text-sm text-slate-500">
+                    Design and Developed By <a href="https://www.digiemperor.com" class="text-blue-500 hover:underline">Digi Emperor</a>
                 </p>
-                &nbsp; <p class="text-sm text-slate-500">Design and Developed By Digi Emperor</p>
             </div>
         </div>
     </footer>
