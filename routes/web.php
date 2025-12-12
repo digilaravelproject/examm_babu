@@ -18,6 +18,14 @@ Route::get('/', function () {
 });
 
 /*
+|
+|
+*/
+Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('home');
+
+/*
 |--------------------------------------------------------------------------
 | Default / Fallback Dashboard
 |--------------------------------------------------------------------------

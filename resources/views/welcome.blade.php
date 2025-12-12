@@ -910,7 +910,7 @@
                     </div>
 
                     @auth
-                        <a href="{{ url('/dashboard') }}"
+                        <a href="{{ route('home') }}"
                             class="font-bold text-slate-700 hover:text-blue-600">Dashboard</a>
                     @else
                         <a href="{{ route('login') }}"
