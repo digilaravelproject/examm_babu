@@ -8,10 +8,12 @@
     <div class="flex items-center justify-between mb-6">
         <h3 class="text-2xl font-semibold text-gray-800">Quizzes</h3>
 
-        <?php /*<a href="{{ route('quizzes.create') ?? route('admin.quizzes.create') }}"
-           class="inline-flex items-center bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded shadow">
-            NEW QUIZ
-        </a>*/?>
+        <a href="{{ route('admin.quizzes.create') }}"
+   class="inline-flex items-center bg-green-500 hover:bg-green-600 text-white font-semibold px-4 py-2 rounded shadow">
+    NEW QUIZ
+</a>
+
+
     </div>
 
     <div class="bg-white p-6 rounded shadow">

@@ -184,7 +184,7 @@
                 <div>
                     <label class="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">Email
                         Address</label>
-                    <input name="email" type="email"
+                    <input type="email"
                         class="block w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 text-gray-900 text-sm focus:bg-white focus:ring-2 focus:ring-brand-blue focus:border-transparent outline-none transition-all shadow-sm placeholder-gray-400"
                         placeholder="student@example.com">
                 </div>
@@ -192,7 +192,7 @@
                 <div x-data="{ show: false }">
                     <label class="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">Password</label>
                     <div class="relative">
-                        <input :type="show ? 'text' : 'password'" name="password"
+                        <input :type="show ? 'text' : 'password'"
                             class="block w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 text-gray-900 text-sm focus:bg-white focus:ring-2 focus:ring-brand-blue focus:border-transparent outline-none transition-all shadow-sm pr-10"
                             placeholder="••••••••">
                         <button type="button" @click="show = !show"
@@ -204,7 +204,7 @@
 
                 <div class="flex items-center justify-between pt-1">
                     <label class="flex items-center cursor-pointer">
-                        <input type="checkbox" name="remember"
+                        <input type="checkbox"
                             class="h-4 w-4 text-brand-blue rounded border-gray-300 focus:ring-brand-blue cursor-pointer">
                         <span class="ml-2 text-sm text-gray-600 select-none">Remember me</span>
                     </label>
