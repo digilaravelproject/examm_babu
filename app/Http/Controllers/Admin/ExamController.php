@@ -8,17 +8,17 @@ use App\Models\Quiz;
 // use App\Models\Category;    // optional: for filter selects
 // use App\Models\QuizType;    // optional: for filter selects
 
-class QuizController extends Controller
+class ExamController extends Controller
 {
     public function index(Request $request)
     {
         $data['quizzes'] = [];
-        return view('admin.quizzes.index', $data);
+        return view('admin.exam.index', $data);
     }
 
     // placeholder create method link (you can implement form in future)
     public function create()
     {
-        return view('admin.quizzes.create'); // optional; create this later
+        return view('admin.exam.create'); // optional; create this later
     }
 }

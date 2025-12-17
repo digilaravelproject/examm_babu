@@ -72,27 +72,71 @@
                             <span class="mr-2">📚</span> Quizzes
                         </a>
 
-                        <a href="{{ Route::has('admin.exams.index') ? route('admin.exams.index') : '#' }}"
-                        class="block py-2.5 pl-8 pr-4 rounded hover:bg-gray-700 {{ request()->routeIs('admin.exams.*') ? 'bg-gray-700' : '' }}">
+                        <a href="{{ Route::has('admin.exam.index') ? route('admin.exam.index') : '#' }}"
+                        class="block py-2.5 pl-8 pr-4 rounded hover:bg-gray-700 {{ request()->routeIs('admin.exam.*') ? 'bg-gray-700' : '' }}">
                             <span class="mr-2">🎓</span> Exams
                         </a>
 
-                        <a href="{{ Route::has('admin.quiztypes.index') ? route('admin.quiztypes.index') : '#' }}"
-                        class="block py-2.5 pl-8 pr-4 rounded hover:bg-gray-700 {{ request()->routeIs('admin.quiztypes.*') ? 'bg-gray-700' : '' }}">
+                        <a href="{{ Route::has('admin.quiz-types.index') ? route('admin.quiz-types.index') : '#' }}"
+                        class="block py-2.5 pl-8 pr-4 rounded hover:bg-gray-700 {{ request()->routeIs('admin.quiz-types.*') ? 'bg-gray-700' : '' }}">
                             <span class="mr-2">⚙️</span> Quiz Types
                         </a>
 
-                        <a href="{{ Route::has('admin.examtypes.index') ? route('admin.examtypes.index') : '#' }}"
-                        class="block py-2.5 pl-8 pr-4 rounded hover:bg-gray-700 {{ request()->routeIs('admin.examtypes.*') ? 'bg-gray-700' : '' }}">
+                        <a href="{{ Route::has('admin.exam-types.index') ? route('admin.exam-types.index') : '#' }}"
+                        class="block py-2.5 pl-8 pr-4 rounded hover:bg-gray-700 {{ request()->routeIs('admin.exam-types.*') ? 'bg-gray-700' : '' }}">
                             <span class="mr-2">🧭</span> Exam Types
                         </a>
                     </div>
                 </div>
 
-                <a href="{{ Route::has('admin.learning.index') ? route('admin.learning.index') : '#' }}"
-                class="block py-2.5 px-4 rounded hover:bg-gray-700 mt-1 {{ request()->routeIs('admin.learning.*') ? 'bg-gray-700' : '' }}">
-                    <span class="mr-2">💡</span> Manage Learning
-                </a>
+                {{-- Manage Learning sidebar block (copy/paste alongside your existing Manage Tests block) --}}
+                <div x-data="{ open: {{ request()->routeIs(
+                        'admin.practice-sets.*',
+                        'admin.lessons.*',
+                        'admin.videos.*'
+                    ) ? 'true' : 'false' }} }" class="relative">
+                    <button
+                        @click="open = !open"
+                        type="button"
+                        class="w-full flex items-center justify-between py-2.5 px-4 rounded hover:bg-gray-700 mt-1
+                            {{ request()->routeIs('admin.practice-sets.*','admin.lessons.*','admin.videos.*') ? 'bg-gray-700' : '' }}">
+                        <span class="mr-2">💡</span>
+                        <span class="flex-1 text-left">Manage Learning</span>
+
+                        <!-- chevron -->
+                        <svg :class="open ? 'transform rotate-180' : ''" class="h-4 w-4 text-gray-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+
+                    <div
+                        x-show="open"
+                        x-cloak
+                        x-transition:enter="transition ease-out duration-150"
+                        x-transition:enter-start="opacity-0 -translate-y-1"
+                        x-transition:enter-end="opacity-100 translate-y-0"
+                        x-transition:leave="transition ease-in duration-100"
+                        x-transition:leave-start="opacity-100 translate-y-0"
+                        x-transition:leave-end="opacity-0 -translate-y-1"
+                        class="mt-1"
+                        style="margin-left: 20%;">
+
+                        <a href="{{ Route::has('admin.practice-sets.index') ? route('admin.practice-sets.index') : '#' }}"
+                        class="block py-2.5 pl-8 pr-4 rounded hover:bg-gray-700 {{ request()->routeIs('admin.practice-sets.*') ? 'bg-gray-700' : '' }}">
+                            <span class="mr-2">🧩</span> Practice Sets
+                        </a>
+
+                        <a href="{{ Route::has('admin.lessons.index') ? route('admin.lessons.index') : '#' }}"
+                        class="block py-2.5 pl-8 pr-4 rounded hover:bg-gray-700 {{ request()->routeIs('admin.lessons.*') ? 'bg-gray-700' : '' }}">
+                            <span class="mr-2">📘</span> Lessons
+                        </a>
+
+                        <a href="{{ Route::has('admin.videos.index') ? route('admin.videos.index') : '#' }}"
+                        class="block py-2.5 pl-8 pr-4 rounded hover:bg-gray-700 {{ request()->routeIs('admin.videos.*') ? 'bg-gray-700' : '' }}">
+                            <span class="mr-2">🎬</span> Videos
+                        </a>
+                    </div>
+                </div>
 
                 <!-- LIBRARY section -->
                 <div class="mt-6 px-4 text-xs text-teal-300 uppercase font-semibold">Library</div>

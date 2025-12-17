@@ -8,7 +8,10 @@ use App\Http\Controllers\Admin\RolePermissionController;
 use App\Http\Controllers\Admin\ActivityLogController;
 use App\Http\Controllers\Student\StudentDashboardController;
 use App\Http\Controllers\Admin\QuizController;
-
+use App\Http\Controllers\Admin\ExamController;
+use App\Http\Controllers\Admin\QuizTypeController;
+use App\Http\Controllers\Admin\ExamTypeController;
+use App\Http\Controllers\Admin\PracticeSetsController;
 
 /*
 |--------------------------------------------------------------------------
@@ -68,7 +71,18 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
 
     Route::get('/quizzes/index', [QuizController::class, 'index'])->name('quizzes.index');
     Route::get('/quizzes/create', [QuizController::class, 'create'])->name('quizzes.create');
+
+    Route::get('/exam/index', [ExamController::class, 'index'])->name('exam.index');
+    Route::get('/exam/create', [ExamController::class, 'create'])->name('exam.create');
+
+    Route::get('/quiz-types/index', [QuizTypeController::class, 'index'])->name('quiz-types.index');
+
+    Route::get('/exam-types/index', [ExamTypeController::class, 'index'])->name('exam-types.index');
+
+    Route::get('/practice-sets/index', [PracticeSetsController::class, 'index'])->name('practice-sets.index');
+    Route::get('/practice-sets/create', [PracticeSetsController::class, 'create'])->name('practice-sets.create');
 });
+
 
 /*
 |--------------------------------------------------------------------------
