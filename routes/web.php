@@ -1,17 +1,18 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
-use Illuminate\Support\Facades\Route;
-// Naye Controllers Import kiye hain
-use App\Http\Controllers\Admin\AdminDashboardController;
-use App\Http\Controllers\Admin\RolePermissionController;
 use App\Http\Controllers\Admin\ActivityLogController;
-use App\Http\Controllers\Student\StudentDashboardController;
-use App\Http\Controllers\Admin\QuizController;
+use App\Http\Controllers\Admin\AdminDashboardController;
+// Naye Controllers Import kiye hain
 use App\Http\Controllers\Admin\ExamController;
-use App\Http\Controllers\Admin\QuizTypeController;
 use App\Http\Controllers\Admin\ExamTypeController;
 use App\Http\Controllers\Admin\PracticeSetsController;
+use App\Http\Controllers\Admin\QuizController;
+use App\Http\Controllers\Admin\QuizTypeController;
+use App\Http\Controllers\Admin\RolePermissionController;
+use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Student\StudentDashboardController;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -81,8 +82,11 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
 
     Route::get('/practice-sets/index', [PracticeSetsController::class, 'index'])->name('practice-sets.index');
     Route::get('/practice-sets/create', [PracticeSetsController::class, 'create'])->name('practice-sets.create');
-});
 
+    // User Management
+    Route::resource('users', UserController::class);
+    Route::post('users/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('users.toggle-status');
+});
 
 /*
 |--------------------------------------------------------------------------
@@ -92,8 +96,8 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
 Route::middleware(['auth', 'verified', 'role:student'])->prefix('student')->name('student.')->group(function () {
     Route::get('/dashboard', [StudentDashboardController::class, 'index'])->name('dashboard');
     Route::get('/exam-demo', function () {
-    return view('student.exam-interface');
-})->name('exam_demo');
+        return view('student.exam-interface');
+    })->name('exam_demo');
 });
 
 /*
