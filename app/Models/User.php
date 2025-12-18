@@ -204,9 +204,9 @@ class User extends Authenticatable implements MustVerifyEmail
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['first_name', 'last_name', 'email', 'mobile', 'is_active'])
+            ->logOnly(['first_name', 'last_name', 'user_name','email', 'mobile', 'is_active'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
-            ->setDescriptionForEvent(fn (string $eventName) => "User account has been {$eventName}");
+            ->setDescriptionForEvent(fn (string $eventName) => "User {$this->user_name} account has been {$eventName}");
     }
 }

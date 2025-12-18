@@ -15,23 +15,18 @@ use Spatie\Permission\Models\Role;
 
 /**
  * Class UserController
- * * Handles Admin User Management including Deep Deletion, AJAX Filtering,
- * and Role-based access control.
+ * Fully restored logic with Mobile support and Deep Deletion.
  */
 class UserController extends Controller
 {
     /**
      * Display a listing of the users.
-     * Supports AJAX for dynamic search and filtering.
-     *
-     * @return \Illuminate\View\View|string
      */
     public function index(Request $request)
     {
         // Handle AJAX request for Search/Filter/Pagination
         if ($request->ajax()) {
             $users = $this->getFilteredUsers($request);
-
             return view('admin.users.partials.users-table', compact('users'))->render();
         }
 
@@ -44,8 +39,6 @@ class UserController extends Controller
 
     /**
      * Helper: Filter users based on Request parameters.
-     *
-     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
     private function getFilteredUsers(Request $request)
     {
@@ -58,11 +51,12 @@ class UserController extends Controller
                 $q->where('first_name', 'like', "%{$search}%")
                     ->orWhere('last_name', 'like', "%{$search}%")
                     ->orWhere('email', 'like', "%{$search}%")
-                    ->orWhere('user_name', 'like', "%{$search}%");
+                    ->orWhere('user_name', 'like', "%{$search}%")
+                    ->orWhere('mobile', 'like', "%{$search}%");
             });
         }
 
-        // Role-based Filter (Spatie Permission Scope)
+        // Role-based Filter
         if ($request->filled('role')) {
             $query->role($request->role);
         }
@@ -78,59 +72,75 @@ class UserController extends Controller
 
     /**
      * Show the form for creating a new user.
-     *
-     * @return \Illuminate\View\View
      */
     public function create()
     {
         $roles = Role::pluck('name', 'name');
-        $userGroups = UserGroup::select(['id', 'name'])->where('is_active', 1)->get();
+
+        // Active groups only
+        $userGroups = UserGroup::select(['id', 'name'])
+            ->where('is_active', 1)
+            ->get();
 
         return view('admin.users.create', compact('roles', 'userGroups'));
     }
 
     /**
      * Store a newly created user in storage.
-     *
-     * @return \Illuminate\Http\RedirectResponse
      */
     public function store(Request $request)
     {
-        $request->validate([
-            'first_name' => 'required|string|max:255',
-            'last_name' => 'nullable|string|max:255',
-            'user_name' => 'required|string|unique:users,user_name',
-            'email' => 'required|email|unique:users,email',
-            'password' => 'required|min:8',
-            'role' => 'required|exists:roles,name',
+        // 1. Validation (Outside Try-Catch for proper error display)
+        $validated = $request->validate([
+            'first_name'  => 'required|string|max:255',
+            'last_name'   => 'nullable|string|max:255',
+            'user_name'   => 'required|string|max:255|unique:users,user_name',
+            'email'       => 'required|email|max:255|unique:users,email',
+            'mobile'      => 'nullable|string|max:15|unique:users,mobile',
+            'password'    => 'required|min:8',
+            'role'        => 'required|exists:roles,name',
             'user_groups' => 'nullable|array',
+            'is_active'   => 'nullable',
+            'verify_email'=> 'nullable',
         ]);
 
         DB::beginTransaction();
         try {
-            $user = User::create([
-                'first_name' => $request->first_name,
-                'last_name' => $request->last_name,
-                'user_name' => $request->user_name,
-                'email' => $request->email,
-                'password' => Hash::make($request->password),
-                'is_active' => $request->has('is_active') ? 1 : 0,
-                'email_verified_at' => $request->has('verify_email') ? Carbon::now() : null,
-            ]);
+            // Create User Instance
+            $user = new User();
+            $user->first_name = $validated['first_name'];
+            $user->last_name = $validated['last_name'];
+            $user->user_name = $validated['user_name'];
+            $user->email = $validated['email'];
+            $user->mobile = $validated['mobile'];
+            $user->password = Hash::make($validated['password']);
+            $user->is_active = $request->has('is_active') ? 1 : 0;
+            $user->email_verified_at = $request->has('verify_email') ? Carbon::now() : null;
 
-            // Assign Role & Groups
-            $user->assignRole($request->role);
-            if ($request->filled('user_groups')) {
-                $user->userGroups()->sync($request->user_groups);
+            $user->save();
+
+            // Assign Role
+            if(isset($validated['role'])) {
+                $user->assignRole($validated['role']);
+            }
+
+            // Sync Groups with Pivot Data (Important: joined_at)
+            if (!empty($request->user_groups)) {
+                $user->userGroups()->syncWithPivotValues($request->user_groups, [
+                    'joined_at' => Carbon::now(),
+                    'created_at' => Carbon::now(),
+                    'updated_at' => Carbon::now()
+                ]);
             }
 
             DB::commit();
 
-            return redirect()->route('admin.users.index')->with('success', 'User added successfully!');
+            return redirect()->route('admin.users.index')
+                ->with('success', "New user '{$user->user_name}' created successfully!");
+
         } catch (\Exception $e) {
             DB::rollBack();
-
-            return redirect()->back()->with('error', 'Error: '.$e->getMessage())->withInput();
+            return redirect()->back()->with('error', 'Error creating user: ' . $e->getMessage())->withInput();
         }
     }
 
@@ -142,58 +152,90 @@ class UserController extends Controller
         $roles = Role::pluck('name', 'name');
         $userRole = $user->roles->pluck('name')->first();
         $userGroups = UserGroup::select(['id', 'name'])->where('is_active', 1)->get();
-        $selectedGroups = $user->userGroups()->pluck('id')->toArray();
+
+        // Get currently selected groups IDs
+        $selectedGroups = $user->userGroups()->pluck('user_groups.id')->toArray();
 
         return view('admin.users.edit', compact('user', 'roles', 'userRole', 'userGroups', 'selectedGroups'));
     }
 
     /**
-     * Update the specified user and handle session management.
-     *
-     * @return \Illuminate\Http\RedirectResponse
+     * Update the specified user.
      */
     public function update(Request $request, User $user)
     {
-        $request->validate([
+        // 1. VALIDATION FIRST (Critical Fix: Must be outside try-catch to show UI errors)
+        $validated = $request->validate([
             'first_name' => 'required|string|max:255',
-            'email' => ['required', 'email', Rule::unique('users')->ignore($user->id)],
-            'role' => 'required|exists:roles,name',
+            'last_name'  => 'nullable|string|max:255',
+            'user_name'  => ['required', 'string', 'max:255', Rule::unique('users')->ignore($user->id)],
+            'email'      => ['required', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
+            'mobile'     => ['nullable', 'string', 'max:15', Rule::unique('users')->ignore($user->id)],
+            'role'       => 'required|exists:roles,name',
+            'user_groups'=> 'nullable|array',
+            'user_groups.*' => 'exists:user_groups,id',
+            'password'   => 'nullable|min:8',
         ]);
 
         DB::beginTransaction();
         try {
-            $user->first_name = $request->first_name;
-            $user->last_name = $request->last_name;
-            $user->user_name = $request->user_name;
-            $user->email = $request->email;
+            // Update Basic Details
+            $user->first_name = $validated['first_name'];
+            $user->last_name  = $validated['last_name'];
+            $user->user_name  = $validated['user_name'];
+            $user->email      = $validated['email'];
+            $user->mobile     = $validated['mobile'];
 
-            // Optional Password Update
+            // Handle Password Update
             if ($request->filled('password')) {
-                $request->validate(['password' => 'min:8']);
                 $user->password = Hash::make($request->password);
             }
 
-            // Status & Session Management
+            // Status Management
+            $oldStatus = $user->is_active;
             $newStatus = $request->has('is_active') ? 1 : 0;
-            if ($user->is_active == 1 && $newStatus == 0) {
-                // If user deactivated, kill all active database sessions
-                DB::table('sessions')->where('user_id', $user->id)->delete();
+
+            // If user is being deactivated, kill their sessions
+            if ($oldStatus == 1 && $newStatus == 0) {
+                if (config('session.driver') == 'database') {
+                    DB::table('sessions')->where('user_id', $user->id)->delete();
+                }
             }
             $user->is_active = $newStatus;
 
+            // Handle Email Verification Logic
+            if ($request->has('verify_email') && is_null($user->email_verified_at)) {
+                $user->email_verified_at = Carbon::now();
+            }
+
             $user->save();
 
-            // Sync Roles & Groups
-            $user->syncRoles([$request->role]);
-            $user->userGroups()->sync($request->user_groups ?? []);
+            // Sync Roles
+            $user->syncRoles([$validated['role']]);
+
+            // FIX: User Group Mapping
+            // Using syncWithPivotValues to ensure pivot columns are filled
+            $groups = $request->input('user_groups', []);
+
+            if (count($groups) > 0) {
+                // 'joined_at' add kar rahe hain taaki SQL error na aaye
+                $user->userGroups()->syncWithPivotValues($groups, [
+                    'joined_at' => now(),
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ]);
+            } else {
+                $user->userGroups()->detach();
+            }
 
             DB::commit();
 
-            return redirect()->route('admin.users.index')->with('success', 'User updated successfully!');
+            return redirect()->route('admin.users.index')
+                ->with('success', "User '{$user->user_name}' updated successfully!");
+
         } catch (\Exception $e) {
             DB::rollBack();
-
-            return redirect()->back()->with('error', 'Update Failed: '.$e->getMessage());
+            return redirect()->back()->with('error', 'Update Failed: ' . $e->getMessage())->withInput();
         }
     }
 
@@ -216,16 +258,13 @@ class UserController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'User status updated successfully.',
+            'message' => "User '{$user->user_name}' status updated.",
             'new_status' => $user->is_active,
         ]);
     }
 
     /**
-     * Deep Delete User and all associated application data.
-     * Ported and enhanced from nearcraft UserCrudController.
-     *
-     * @return \Illuminate\Http\JsonResponse
+     * Deep Delete User (Detailed Version).
      */
     public function destroy(User $user)
     {
@@ -235,7 +274,7 @@ class UserController extends Controller
 
         DB::beginTransaction();
         try {
-            // 1. Force Delete Session-based activities (Old Logic)
+            // 1. Delete Exam & Quiz Sessions (Detailed check)
             if (method_exists($user, 'practiceSessions')) {
                 $user->practiceSessions()->forceDelete();
             }
@@ -246,7 +285,7 @@ class UserController extends Controller
                 $user->examSessions()->forceDelete();
             }
 
-            // 2. Clear Financial & Subscription Data
+            // 2. Delete Payments & Subscriptions
             if (method_exists($user, 'payments')) {
                 $user->payments()->forceDelete();
             }
@@ -254,35 +293,37 @@ class UserController extends Controller
                 $user->subscriptions()->forceDelete();
             }
 
-            // 3. Detach Relations
+            // 3. Detach Groups & Roles
             if (method_exists($user, 'userGroups')) {
                 $user->userGroups()->detach();
             }
             $user->roles()->detach();
             $user->permissions()->detach();
 
-            // 4. Manual Table Clean-up (Transactions, Wallets, Sessions)
-            DB::table('transactions')->where('payable_type', 'App\Models\User')
-                ->where('payable_id', $user->id)->delete();
+            // 4. Manual Table Clean-up (Raw Queries for safety)
+            DB::table('transactions')->where('payable_type', '=', 'App\Models\User')
+                ->where('payable_id', '=', $user->id)->delete();
 
-            DB::table('wallets')->where('holder_type', 'App\Models\User')
-                ->where('holder_id', $user->id)->delete();
+            DB::table('wallets')->where('holder_type', '=', 'App\Models\User')
+                ->where('holder_id', '=', $user->id)->delete();
 
-            DB::table('sessions')->where('user_id', $user->id)->delete();
+            DB::table('sessions')->where('user_id', '=', $user->id)->delete();
 
-            // 5. Final Permanent Deletion
+            // 5. Activity Logs (Optional cleanup)
+            // DB::table('activity_log')->where('causer_id', $user->id)->delete();
+
+            // 6. Final Hard Delete
             $user->forceDelete();
 
             DB::commit();
 
-            return response()->json(['success' => true, 'message' => 'User and all associated data purged successfully.']);
+            return response()->json(['success' => true, 'message' => "User '{$user->user_name}' deleted permanently."]);
 
         } catch (\Exception $e) {
             DB::rollBack();
-
             return response()->json([
                 'success' => false,
-                'message' => 'Unable to Delete: '.$e->getMessage(),
+                'message' => 'Unable to Delete: '.$e->getMessage()
             ], 500);
         }
     }

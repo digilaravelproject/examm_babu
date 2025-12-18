@@ -1,34 +1,37 @@
 @php
-    // Prepare Data for AlpineJS
-    // Groups Data
+    // --- AlpineJS Data Prep ---
+
+    // 1. Prepare Groups List
     $groupsData = $userGroups->map(function($group) {
         return ['id' => $group->id, 'name' => $group->name];
-    });
+    })->values();
 
-    // Check old input or DB for selected groups
-    $currentGroups = collect(old('user_groups', isset($selectedGroups) ? $selectedGroups : []))->map(function($id){
-        return (int)$id;
-    });
+    // 2. Determine Selected Groups (Critical for Edit/Validation)
+    $selectedIds = [];
+    if(old('user_groups')) {
+        // Case A: Validation Failed -> Restore from Input
+        $selectedIds = array_map('intval', old('user_groups'));
+    } elseif(isset($selectedGroups) && is_array($selectedGroups)) {
+        // Case B: Edit Mode -> Restore from DB
+        $selectedIds = array_map('intval', $selectedGroups);
+    }
 
-    // Roles Data for JS
-    // Ensure roles are formatted as array of objects for easier JS handling
-    // Assuming $roles is an array/collection of names like ['admin', 'instructor']
+    // 3. Prepare Roles
     $rolesData = collect($roles)->map(function($role) {
         return ['value' => $role, 'label' => ucfirst($role)];
     })->values();
 
     $currentRole = old('role', $userRole ?? '');
 
-    // Email Verified Logic
+    // 4. Status Check
     $isVerified = old('verify_email') ? true : (isset($user) && $user->email_verified_at != null);
 @endphp
 
 <div class="grid grid-cols-1 gap-8 lg:grid-cols-12">
 
-    {{-- LEFT COLUMN: Basic Details (Span 8) --}}
+    {{-- LEFT COLUMN: Basic User Info --}}
     <div class="space-y-6 lg:col-span-8">
 
-        {{-- Card: Personal Info --}}
         <div class="p-6 border border-gray-100 rounded-lg bg-gray-50">
             <h3 class="flex items-center mb-4 text-lg font-medium leading-6 text-gray-900">
                 <svg class="w-5 h-5 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
@@ -41,9 +44,12 @@
                     <label for="first_name" class="block text-sm font-medium text-gray-700">First Name <span class="text-red-500">*</span></label>
                     <input type="text" name="first_name" id="first_name"
                         value="{{ old('first_name', $user->first_name ?? '') }}"
-                        class="block w-full py-2 mt-1 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                        class="block w-full py-2 mt-1 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm @error('first_name') border-red-500 @enderror"
                         required placeholder="John">
-                    @error('first_name') <p class="mt-1 text-sm text-red-500">{{ $message }}</p> @enderror
+
+                    @error('first_name')
+                        <p class="mt-1 text-xs font-semibold text-red-600">{{ $message }}</p>
+                    @enderror
                 </div>
 
                 {{-- Last Name --}}
@@ -51,41 +57,63 @@
                     <label for="last_name" class="block text-sm font-medium text-gray-700">Last Name</label>
                     <input type="text" name="last_name" id="last_name"
                         value="{{ old('last_name', $user->last_name ?? '') }}"
-                        class="block w-full py-2 mt-1 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                        class="block w-full py-2 mt-1 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm @error('last_name') border-red-500 @enderror"
                         placeholder="Doe">
-                    @error('last_name') <p class="mt-1 text-sm text-red-500">{{ $message }}</p> @enderror
+
+                    @error('last_name')
+                        <p class="mt-1 text-xs font-semibold text-red-600">{{ $message }}</p>
+                    @enderror
                 </div>
 
-                {{-- Username --}}
+                {{-- Username (Must be unique) --}}
                 <div>
                     <label for="user_name" class="block text-sm font-medium text-gray-700">Username <span class="text-red-500">*</span></label>
                     <div class="flex mt-1 rounded-md shadow-sm">
                         <span class="inline-flex items-center px-3 text-gray-500 border border-r-0 border-gray-300 rounded-l-md bg-gray-50 sm:text-sm">@</span>
                         <input type="text" name="user_name" id="user_name"
                             value="{{ old('user_name', $user->user_name ?? '') }}"
-                            class="flex-1 block w-full min-w-0 py-2 border-gray-300 rounded-none rounded-r-md focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                            class="flex-1 block w-full min-w-0 py-2 border-gray-300 rounded-none rounded-r-md focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm @error('user_name') border-red-500 @enderror"
                             required placeholder="johndoe">
                     </div>
-                    @error('user_name') <p class="mt-1 text-sm text-red-500">{{ $message }}</p> @enderror
+
+                    @error('user_name')
+                        <p class="mt-1 text-xs font-semibold text-red-600">{{ $message }}</p>
+                    @enderror
                 </div>
 
-                {{-- Email --}}
+                {{-- Mobile Number (New) --}}
                 <div>
+                    <label for="mobile" class="block text-sm font-medium text-gray-700">Mobile Number</label>
+                    <input type="text" name="mobile" id="mobile"
+                        value="{{ old('mobile', $user->mobile ?? '') }}"
+                        class="block w-full py-2 mt-1 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm @error('mobile') border-red-500 @enderror"
+                        placeholder="9876543210">
+
+                    @error('mobile')
+                        <p class="mt-1 text-xs font-semibold text-red-600">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                {{-- Email Address --}}
+                <div class="md:col-span-2">
                     <label for="email" class="block text-sm font-medium text-gray-700">Email Address <span class="text-red-500">*</span></label>
                     <input type="email" name="email" id="email"
                         value="{{ old('email', $user->email ?? '') }}"
-                        class="block w-full py-2 mt-1 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                        class="block w-full py-2 mt-1 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm @error('email') border-red-500 @enderror"
                         required placeholder="john@example.com">
-                    @error('email') <p class="mt-1 text-sm text-red-500">{{ $message }}</p> @enderror
+
+                    @error('email')
+                        <p class="mt-1 text-xs font-semibold text-red-600">{{ $message }}</p>
+                    @enderror
                 </div>
             </div>
         </div>
 
-        {{-- Card: User Groups (Custom Multi Select - ENHANCED) --}}
+        {{-- User Groups Assignment (Multi-Select) --}}
         <div class="p-6 border border-gray-100 rounded-lg bg-gray-50"
              x-data="groupSelector({
-                 allGroups: {{ $groupsData }},
-                 selectedIds: {{ $currentGroups }}
+                 allGroups: {{ json_encode($groupsData) }},
+                 selectedIds: {{ json_encode($selectedIds) }}
              })"
              @click.outside="closeDropdown()">
 
@@ -97,23 +125,23 @@
             <label class="block mb-2 text-sm font-medium text-gray-700">Select Groups</label>
 
             <div class="relative">
-                {{-- Selected Tags & Search Input Container --}}
-                <div class="bg-white border border-gray-300 rounded-md p-2 flex flex-wrap gap-2 min-h-[42px] focus-within:ring-1 focus-within:ring-indigo-500 focus-within:border-indigo-500 cursor-text shadow-sm"
+                {{-- Input Area --}}
+                <div class="bg-white border rounded-md p-2 flex flex-wrap gap-2 min-h-[45px] focus-within:ring-1 focus-within:ring-indigo-500 focus-within:border-indigo-500 cursor-text shadow-sm transition-all"
+                     :class="{'border-red-500': {{ $errors->has('user_groups') ? 'true' : 'false' }}, 'border-gray-300': !{{ $errors->has('user_groups') ? 'true' : 'false' }}}"
                      @click="openDropdown()">
 
                     <template x-for="group in selectedGroups" :key="group.id">
-                        <span class="inline-flex items-center py-0.5 pl-2.5 pr-1 text-sm font-medium text-indigo-700 bg-indigo-100 rounded-full">
+                        <span class="inline-flex items-center py-1 pl-2.5 pr-1 text-sm font-medium text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-full">
                             <span x-text="group.name"></span>
-                            <button type="button" @click.stop="removeGroup(group.id)" class="inline-flex items-center justify-center flex-shrink-0 w-4 h-4 ml-0.5 text-indigo-400 rounded-full hover:bg-indigo-200 hover:text-indigo-500 focus:outline-none">
+                            <button type="button" @click.stop="removeGroup(group.id)" class="inline-flex items-center justify-center flex-shrink-0 w-4 h-4 ml-1 text-indigo-400 transition-colors rounded-full hover:bg-indigo-200 hover:text-indigo-600 focus:outline-none">
                                 <span class="sr-only">Remove</span>
                                 <svg class="w-2 h-2" stroke="currentColor" fill="none" viewBox="0 0 8 8"><path stroke-linecap="round" stroke-width="1.5" d="M1 1l6 6m0-6L1 7" /></svg>
                             </button>
                         </span>
                     </template>
 
-                    {{-- Input Field --}}
                     <input type="text" x-ref="searchInput" x-model="search"
-                           placeholder="Click to select or type to search..."
+                           placeholder="Type to search groups..."
                            class="flex-1 min-w-[150px] bg-transparent border-none outline-none focus:ring-0 p-1 text-sm text-gray-700 placeholder-gray-400"
                            @keydown.backspace="if(search === '' && selectedIds.length > 0) removeGroup(selectedIds[selectedIds.length - 1])"
                            @focus="openDropdown()"
@@ -125,45 +153,46 @@
 
                 {{-- Dropdown List --}}
                 <div x-show="isOpen && filteredGroups.length > 0"
-                     x-transition:enter="transition ease-out duration-100"
-                     x-transition:enter-start="transform opacity-0 scale-95"
-                     x-transition:enter-end="transform opacity-100 scale-100"
-                     x-transition:leave="transition ease-in duration-75"
-                     x-transition:leave-start="transform opacity-100 scale-100"
-                     x-transition:leave-end="transform opacity-0 scale-95"
-                     class="absolute z-20 w-full py-1 mt-1 overflow-auto bg-white rounded-md shadow-lg max-h-60 ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
+                     class="absolute z-20 w-full py-1 mt-1 overflow-auto bg-white rounded-md shadow-xl max-h-60 ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm custom-scrollbar"
                      style="display: none;">
 
                     <template x-for="(group, index) in filteredGroups" :key="group.id">
                         <div @click="addGroup(group)"
                              @mouseenter="activeIndex = index"
                              :class="{ 'bg-indigo-600 text-white': activeIndex === index, 'text-gray-900': activeIndex !== index }"
-                             class="relative py-2 pl-3 text-gray-900 cursor-pointer select-none pr-9 hover:bg-indigo-600 hover:text-white">
+                             class="relative py-2.5 pl-3 pr-9 cursor-pointer select-none transition-colors">
                             <span x-text="group.name" class="block font-normal truncate"></span>
 
-                            {{-- Checkmark if selected (Logic handled by filter, but kept for structure) --}}
+                            {{-- Checkmark --}}
                             <span x-show="selectedIds.includes(group.id)" class="absolute inset-y-0 right-0 flex items-center pr-4 text-indigo-600" :class="{ 'text-white': activeIndex === index }">
                                 <svg class="w-5 h-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>
                             </span>
                         </div>
                     </template>
                 </div>
-
-                {{-- No results state --}}
-                <div x-show="isOpen && filteredGroups.length === 0" class="absolute z-20 w-full py-2 mt-1 overflow-hidden bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5">
-                   <p class="px-3 text-sm text-gray-500">No groups found.</p>
-                </div>
             </div>
 
-            {{-- Hidden Inputs for Form Submission --}}
-            <template x-for="id in selectedIds">
-                <input type="hidden" name="user_groups[]" :value="id">
-            </template>
+            {{-- Validation Error for Groups --}}
+            @error('user_groups')
+                <p class="mt-1 text-xs font-semibold text-red-600">{{ $message }}</p>
+            @enderror
+
+            {{-- Hidden Inputs for Backend --}}
+           <div style="display: none;">
+                <template x-for="id in selectedIds" :key="id">
+                    <input type="hidden" name="user_groups[]" :value="id">
+                </template>
+            </div>
+
+            @error('user_groups')
+                <p class="mt-1 text-xs font-semibold text-red-600">Please select at least one valid group.</p>
+            @enderror
+
         </div>
 
     </div>
 
-    {{-- RIGHT COLUMN: Security & Settings (Span 4) --}}
+    {{-- RIGHT COLUMN: Security & Settings --}}
     <div class="space-y-6 lg:col-span-4">
 
         {{-- Role & Password Card --}}
@@ -181,47 +210,32 @@
                 <label class="block mb-1 text-sm font-medium text-gray-700">User Role <span class="text-red-500">*</span></label>
 
                 <div class="relative">
-                    {{-- Trigger Button --}}
-                    <button type="button"
-                            @click="open = !open"
-                            class="relative w-full py-2 pl-3 pr-10 text-left bg-white border border-gray-300 rounded-md shadow-sm cursor-default focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                    <button type="button" @click="open = !open"
+                            class="relative w-full py-2 pl-3 pr-10 text-left bg-white border rounded-md shadow-sm cursor-default focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                            :class="{'border-red-500': {{ $errors->has('role') ? 'true' : 'false' }}, 'border-gray-300': !{{ $errors->has('role') ? 'true' : 'false' }}}">
                         <span class="block truncate" x-text="displayValue"></span>
                         <span class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                            <svg class="w-5 h-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                <path fill-rule="evenodd" d="M10 3a1 1 0 01.707.293l3 3a1 1 0 01-1.414 1.414L10 5.414 7.707 7.707a1 1 0 01-1.414-1.414l3-3A1 1 0 0110 3zm-3.707 9.293a1 1 0 011.414 0L10 14.586l2.293-2.293a1 1 0 011.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
-                            </svg>
+                            <svg class="w-5 h-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 01.707.293l3 3a1 1 0 01-1.414 1.414L10 5.414 7.707 7.707a1 1 0 01-1.414-1.414l3-3A1 1 0 0110 3zm-3.707 9.293a1 1 0 011.414 0L10 14.586l2.293-2.293a1 1 0 011.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
                         </span>
                     </button>
 
-                    {{-- Dropdown List --}}
                     <div x-show="open"
-                         x-transition:enter="transition ease-out duration-100"
-                         x-transition:enter-start="transform opacity-0 scale-95"
-                         x-transition:enter-end="transform opacity-100 scale-100"
-                         x-transition:leave="transition ease-in duration-75"
-                         x-transition:leave-start="transform opacity-100 scale-100"
-                         x-transition:leave-end="transform opacity-0 scale-95"
-                         class="absolute z-10 w-full py-1 mt-1 overflow-auto bg-white rounded-md shadow-lg max-h-60 ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm"
+                         class="absolute z-10 w-full py-1 mt-1 overflow-auto bg-white rounded-md shadow-lg max-h-60 ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm custom-scrollbar"
                          style="display: none;">
 
                         <template x-for="role in roles" :key="role.value">
                             <div @click="selectRole(role.value)"
-                                 class="relative py-2 pl-3 text-gray-900 cursor-pointer select-none pr-9 hover:bg-indigo-600 hover:text-white">
+                                 class="relative py-2 pl-3 text-gray-900 transition-colors cursor-pointer select-none pr-9 hover:bg-indigo-600 hover:text-white">
                                 <span :class="selected === role.value ? 'font-semibold' : 'font-normal'" class="block truncate" x-text="role.label"></span>
-
-                                <span x-show="selected === role.value" class="absolute inset-y-0 right-0 flex items-center pr-4 text-indigo-600 hover:text-white">
-                                    <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-                                    </svg>
-                                </span>
                             </div>
                         </template>
                     </div>
                 </div>
-
-                {{-- Hidden Input for form submission --}}
                 <input type="hidden" name="role" :value="selected">
-                @error('role') <p class="mt-1 text-sm text-red-500">{{ $message }}</p> @enderror
+
+                @error('role')
+                    <p class="mt-1 text-xs font-semibold text-red-600">{{ $message }}</p>
+                @enderror
             </div>
 
             {{-- Password --}}
@@ -230,33 +244,35 @@
                     Password
                 </label>
                 <input type="password" name="password" id="password"
-                       class="block w-full py-2 mt-1 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                       class="block w-full py-2 mt-1 border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm @error('password') border-red-500 @enderror"
                        @if(!isset($user)) required @endif>
 
                 @if(isset($user))
                     <p class="mt-1 text-xs text-gray-500">Leave blank to keep current password.</p>
                 @else
-                    <p class="mt-1 text-xs text-gray-500">Required for new accounts.</p>
+                    <p class="mt-1 text-xs text-gray-500">Min 8 chars. Required for new accounts.</p>
                 @endif
 
-                @error('password') <p class="mt-1 text-sm text-red-500">{{ $message }}</p> @enderror
+                @error('password')
+                    <p class="mt-1 text-xs font-semibold text-red-600">{{ $message }}</p>
+                @enderror
             </div>
         </div>
 
-        {{-- Status & Verification Card (Toggles) --}}
+        {{-- Status & Verification --}}
         <div class="p-6 bg-white border border-gray-200 rounded-lg shadow-sm">
             <h3 class="mb-4 text-sm font-semibold tracking-wider text-gray-500 uppercase">Account Status</h3>
 
-            {{-- Active Toggle --}}
+            {{-- Active Status Toggle --}}
             <div x-data="{ on: {{ old('is_active', $user->is_active ?? 1) == 1 ? 'true' : 'false' }} }" class="flex items-center justify-between mb-6">
                 <span class="flex flex-col flex-grow">
                     <span class="text-sm font-medium text-gray-900">Active Account</span>
-                    <span class="text-sm text-gray-500">Can log in to the system.</span>
+                    <span class="text-xs text-gray-500">Can log in to the system.</span>
                 </span>
 
                 <button type="button" @click="on = !on"
                         :class="{ 'bg-indigo-600': on, 'bg-gray-200': !on }"
-                        class="relative inline-flex flex-shrink-0 h-6 transition-colors duration-200 ease-in-out border-2 border-transparent rounded-full cursor-pointer w-11 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        class="relative inline-flex flex-shrink-0 h-6 transition-colors duration-200 ease-in-out border-2 border-transparent rounded-full cursor-pointer w-11 focus:outline-none">
                     <span aria-hidden="true"
                           :class="{ 'translate-x-5': on, 'translate-x-0': !on }"
                           class="inline-block w-5 h-5 transition duration-200 ease-in-out transform bg-white rounded-full shadow pointer-events-none ring-0"></span>
@@ -266,16 +282,16 @@
 
             <hr class="mb-6 border-gray-100">
 
-            {{-- Email Verified Toggle --}}
+            {{-- Email Verification Toggle --}}
             <div x-data="{ verified: {{ $isVerified ? 'true' : 'false' }} }" class="flex items-center justify-between">
                 <span class="flex flex-col flex-grow">
                     <span class="text-sm font-medium text-gray-900">Email Verified</span>
-                    <span class="text-sm text-gray-500">Bypass email verification step.</span>
+                    <span class="text-xs text-gray-500">Bypass verification step.</span>
                 </span>
 
                 <button type="button" @click="verified = !verified"
                         :class="{ 'bg-green-500': verified, 'bg-gray-200': !verified }"
-                        class="relative inline-flex flex-shrink-0 h-6 transition-colors duration-200 ease-in-out border-2 border-transparent rounded-full cursor-pointer w-11 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                        class="relative inline-flex flex-shrink-0 h-6 transition-colors duration-200 ease-in-out border-2 border-transparent rounded-full cursor-pointer w-11 focus:outline-none">
                     <span aria-hidden="true"
                           :class="{ 'translate-x-5': verified, 'translate-x-0': !verified }"
                           class="inline-block w-5 h-5 transition duration-200 ease-in-out transform bg-white rounded-full shadow pointer-events-none ring-0"></span>
@@ -287,7 +303,7 @@
     </div>
 </div>
 
-{{-- Form Actions --}}
+{{-- Bottom Actions --}}
 <div class="flex justify-end pt-6 mt-8 border-t border-gray-200 gap-x-4">
     <a href="{{ route('admin.users.index') }}" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">Cancel</a>
     <button type="submit" class="inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
@@ -295,11 +311,11 @@
     </button>
 </div>
 
-{{-- ALPINE JS LOGIC --}}
+{{-- ALPINE JS COMPONENTS --}}
 <script>
     document.addEventListener('alpine:init', () => {
 
-        // Logic for Multi-Select (User Groups)
+        // Multi-Select Component (User Groups)
         Alpine.data('groupSelector', (config) => ({
             allGroups: config.allGroups,
             selectedIds: config.selectedIds,
@@ -307,28 +323,18 @@
             isOpen: false,
             activeIndex: -1,
 
-            get selectedGroups() {
-                return this.allGroups.filter(g => this.selectedIds.includes(g.id));
-            },
+            get selectedGroups() { return this.allGroups.filter(g => this.selectedIds.includes(g.id)); },
 
-            // Updated Logic: Shows ALL groups if search is empty
             get filteredGroups() {
-                // Remove already selected items from the list
                 let available = this.allGroups.filter(g => !this.selectedIds.includes(g.id));
-
-                if (this.search === '') {
-                    return available; // Return ALL available if no search
-                }
-
-                return available.filter(g =>
-                    g.name.toLowerCase().includes(this.search.toLowerCase())
-                );
+                if (this.search === '') return available;
+                return available.filter(g => g.name.toLowerCase().includes(this.search.toLowerCase()));
             },
 
             openDropdown() {
                 this.isOpen = true;
                 this.activeIndex = -1;
-                this.$refs.searchInput.focus();
+                this.$nextTick(() => this.$refs.searchInput.focus());
             },
 
             closeDropdown() {
@@ -337,26 +343,17 @@
             },
 
             addGroup(group) {
-                if (!this.selectedIds.includes(group.id)) {
-                    this.selectedIds.push(group.id);
-                }
+                if (!this.selectedIds.includes(group.id)) { this.selectedIds.push(group.id); }
                 this.search = '';
                 this.$refs.searchInput.focus();
-                // Keep dropdown open for multiple selection easier
-                // If you want to close it, uncomment: this.closeDropdown();
             },
 
             removeGroup(id) {
                 this.selectedIds = this.selectedIds.filter(gId => gId !== id);
             },
 
-            // Keyboard Navigation
-            highlightNext() {
-                if (this.activeIndex < this.filteredGroups.length - 1) this.activeIndex++;
-            },
-            highlightPrev() {
-                if (this.activeIndex > 0) this.activeIndex--;
-            },
+            highlightNext() { if (this.activeIndex < this.filteredGroups.length - 1) this.activeIndex++; },
+            highlightPrev() { if (this.activeIndex > 0) this.activeIndex--; },
             selectHighlighted() {
                 if (this.activeIndex >= 0 && this.filteredGroups[this.activeIndex]) {
                     this.addGroup(this.filteredGroups[this.activeIndex]);
@@ -364,7 +361,7 @@
             }
         }));
 
-        // Logic for Single Select (Roles)
+        // Single Select Component (Roles)
         Alpine.data('roleSelector', (config) => ({
             selected: config.selected,
             roles: config.roles,

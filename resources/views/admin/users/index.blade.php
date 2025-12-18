@@ -76,10 +76,32 @@
 
 @push('scripts')
 <script>
+    // SweetAlert Configuration
     const Toast = Swal.mixin({
-        toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, timerProgressBar: true,
-        didOpen: (toast) => { toast.addEventListener('mouseenter', Swal.stopTimer); toast.addEventListener('mouseleave', Swal.resumeTimer); }
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 2000,
+        timerProgressBar: true,
+        didOpen: (toast) => {
+            toast.addEventListener('mouseenter', Swal.stopTimer)
+            toast.addEventListener('mouseleave', Swal.resumeTimer)
+        }
     });
+
+    // --- FLASH MESSAGES HANDLER ---
+    // Using @json ensures quotes don't break the script
+    @if(session('success'))
+        Toast.fire({ icon: 'success', title: @json(session('success')) });
+    @endif
+
+    @if(session('error'))
+        Toast.fire({ icon: 'error', title: @json(session('error')) });
+    @endif
+
+    @if($errors->any())
+        Toast.fire({ icon: 'error', title: 'Please check the form for errors.' });
+    @endif
 
     function userManagement() {
         return {
