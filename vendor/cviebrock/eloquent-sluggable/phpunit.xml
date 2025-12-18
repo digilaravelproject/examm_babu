@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit 
+    backupGlobals="false" 
+    backupStaticProperties="false"
+    bootstrap="vendor/autoload.php" 
+    cacheDirectory=".phpunit.cache" 
+    colors="true" 
+    processIsolation="false" 
+    stopOnFailure="true" 
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+    xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/10.5/phpunit.xsd"
+  >
+  <coverage>
+    <report>
+      <html outputDirectory="build/coverage"/>
+    </report>
+  </coverage>
+  <testsuites>
+    <testsuite name="Sluggable Test Suite">
+      <directory suffix=".php">./tests/</directory>
+    </testsuite>
+  </testsuites>
+  <logging>
+    <junit outputFile="build/report.junit.xml"/>
+  </logging>
+  <source>
+    <include>
+      <directory suffix=".php">src/</directory>
+    </include>
+  </source>
+</phpunit>
