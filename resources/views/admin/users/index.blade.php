@@ -1,5 +1,5 @@
 @extends('layouts.admin')
-
+@section('title', 'User Management')
 @section('header', 'User Management')
 
 @section('content')
@@ -30,7 +30,7 @@
             <button class="px-4 py-2 text-sm font-semibold text-gray-700 transition bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50">
                 Import
             </button>
-            <a href="#" class="px-4 py-2 text-sm font-semibold text-white transition bg-blue-600 rounded-lg shadow-md hover:bg-blue-700 shadow-blue-200">
+            <a href="{{ route('admin.users.create') }}" class="px-4 py-2 text-sm font-semibold text-white transition bg-blue-600 rounded-lg shadow-md hover:bg-blue-700 shadow-blue-200">
                 Add New User
             </a>
         </div>

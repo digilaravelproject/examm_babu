@@ -83,7 +83,7 @@
                         <td class="px-5 py-4 text-right">
                             <div class="flex items-center justify-end gap-3">
                                 <!-- Edit Button -->
-                                <a href="#" class="flex items-center justify-center w-8 h-8 transition-all rounded-full shadow-sm group bg-blue-50 hover:bg-blue-600" title="Edit">
+                                <a href="{{ route('admin.users.edit', $user->id) }}" class="flex items-center justify-center w-8 h-8 transition-all rounded-full shadow-sm group bg-blue-50 hover:bg-blue-600" title="Edit">
                                     <svg class="w-4 h-4 text-blue-600 group-hover:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                                     </svg>

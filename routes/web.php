@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\ActivityLogController;
 use App\Http\Controllers\Admin\AdminDashboardController;
+use App\Http\Controllers\Admin\AdminFileManagerController;
 // Naye Controllers Import kiye hain
 use App\Http\Controllers\Admin\ExamController;
 use App\Http\Controllers\Admin\ExamTypeController;
@@ -55,6 +56,8 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::get('/dashboard', [AdminDashboardController::class, 'index'])
         ->middleware('can:view dashboard')
         ->name('dashboard');
+    Route::get('/dashboard/chart-data', [AdminDashboardController::class, 'getChartData'])->name('dashboard.chart');
+    Route::get('/system/optimize', [AdminDashboardController::class, 'optimize'])->name('system.optimize');
 
     // 2. Roles & Permissions Matrix (Check: manage roles permission)
     Route::get('/roles-permissions', [RolePermissionController::class, 'index'])
@@ -86,6 +89,13 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     // User Management
     Route::resource('users', UserController::class);
     Route::post('users/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('users.toggle-status');
+
+    // File Manager Routes
+    Route::controller(AdminFileManagerController::class)->prefix('file-manager')->name('fm.')->group(function () {
+        Route::get('/', 'index')->name('index');          // admin.fm.index
+        Route::get('/ckeditor', 'ckeditor')->name('ckeditor'); // admin.fm.ckeditor
+        Route::get('/popup', 'popup')->name('popup');     // admin.fm.popup
+    });
 });
 
 /*

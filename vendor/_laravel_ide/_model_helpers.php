@@ -3415,7 +3415,7 @@ namespace App\Models {
      * @property string|null $invoice_id
      * @property string|null $transaction_id
      * @property string|null $currency
-     * @property float $total_amount
+     * @property decimal:2 $total_amount
      * @property mixed $user_id
      * @property mixed $plan_id
      * @property string $payment_id

@@ -43,7 +43,7 @@ class Payment extends Model
     {
         return [
             // 'data' => 'array',  <-- YEH LINE REMOVE KAR DI HAI (Conflict kar rahi thi)
-            'amount'     => 'decimal:2',
+            'total_amount'     => 'decimal:2',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
         ];
@@ -123,7 +123,7 @@ class Payment extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['payment_id', 'amount', 'method', 'status', 'user_id', 'plan_id'])
+            ->logOnly(['payment_id', 'total_amount', 'method', 'status', 'user_id', 'plan_id'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
             ->setDescriptionForEvent(fn(string $eventName) => "Payment has been {$eventName}");
