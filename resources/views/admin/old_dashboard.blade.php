@@ -5,26 +5,18 @@
 @section('content')
     {{--
         ========================================
-        🎨 THEME & CSS VARIABLES (Exam Babu Brand)
+        🎨 THEME & CSS VARIABLES
         ========================================
     --}}
     <style>
         :root {
-            /* Exam Babu Brand Colors */
-            --brand-blue: #0777be;
-            --brand-pink: #f062a4;
-            --brand-green: #94c940;
-            --brand-sky: #7fd2ea;
+            --primary-color: #4f46e5; /* Indigo-600 */
+            --primary-light: #e0e7ff; /* Indigo-100 */
+            --secondary-color: #10b981; /* Emerald-500 */
         }
-
-        /* Utility overrides using variables */
-        .text-primary { color: var(--brand-blue) !important; }
-        .bg-primary { background-color: var(--brand-blue) !important; }
-
-        /* Light variations for backgrounds */
-        .bg-primary-light { background-color: rgba(7, 119, 190, 0.1) !important; }
-        .text-brand-green { color: var(--brand-green) !important; }
-        .bg-brand-green-light { background-color: rgba(148, 201, 64, 0.1) !important; }
+        .text-primary { color: var(--primary-color) !important; }
+        .bg-primary { background-color: var(--primary-color) !important; }
+        .bg-primary-light { background-color: var(--primary-light) !important; }
 
         /* Fix Horizontal Scroll & Layout */
         body, html { overflow-x: hidden; }
@@ -55,12 +47,11 @@
                              src="{{ Auth::user()->profile_photo_url }}"
                              alt="{{ Auth::user()->first_name }}">
                     @else
-                        {{-- Updated Gradient to Exam Babu Blue -> Pink --}}
-                        <div class="flex items-center justify-center w-16 h-16 text-xl font-bold text-white uppercase border-4 border-white rounded-full shadow-md bg-gradient-to-br from-[#0777be] to-[#f062a4]">
+                        <div class="flex items-center justify-center w-16 h-16 text-xl font-bold text-white uppercase border-4 border-white rounded-full shadow-md bg-gradient-to-br from-indigo-500 to-purple-600">
                             {{ substr(Auth::user()->first_name ?? 'A', 0, 1) }}
                         </div>
                     @endif
-                    <span class="absolute bottom-0 right-0 w-4 h-4 border-2 border-white rounded-full bg-[#94c940]"></span>
+                    <span class="absolute bottom-0 right-0 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></span>
                 </div>
 
                 <div>
@@ -77,11 +68,12 @@
                     📅 {{ now()->format('d M Y') }}
                 </span>
 
-                {{-- OPTIMIZE BUTTON --}}
+                {{-- OPTIMIZE BUTTON (AJAX + Loading State) --}}
                 <button @click="optimizeSystem"
                         :disabled="optimizing"
                         class="flex items-center gap-1 px-4 py-2 text-xs font-semibold text-gray-700 transition bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
 
+                    {{-- Spinner --}}
                     <template x-if="optimizing">
                         <svg class="w-4 h-4 text-gray-500 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -89,16 +81,16 @@
                         </svg>
                     </template>
 
+                    {{-- Icon --}}
                     <template x-if="!optimizing">
-                        {{-- Used Green for Icon --}}
-                        <svg class="w-4 h-4 text-[#94c940]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                        <svg class="w-4 h-4 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                     </template>
 
                     <span x-text="optimizing ? 'Cleaning...' : 'Optimize System'"></span>
                 </button>
 
-                {{-- Add User Button (Primary Blue) --}}
-                <a href="{{ route('admin.users.create') }}" class="flex items-center px-4 py-2 text-xs font-semibold text-white transition-all rounded-lg shadow-md bg-[#0777be] hover:opacity-90">
+                {{-- Add User Button --}}
+                <a href="{{ route('admin.users.create') }}" class="flex items-center px-4 py-2 text-xs font-semibold text-white transition-all rounded-lg shadow-md bg-primary hover:opacity-90">
                     + Add Student
                 </a>
             </div>
@@ -107,69 +99,64 @@
         {{-- STATS GRID --}}
         <div class="grid grid-cols-1 gap-6 mb-8 sm:grid-cols-2 lg:grid-cols-4">
 
-            {{-- 1. Total Revenue (Primary Blue) --}}
             <div class="p-5 transition-shadow bg-white border border-gray-100 shadow-sm rounded-xl hover:shadow-md group">
                 <div class="flex items-start justify-between">
                     <div>
                         <p class="text-xs font-medium tracking-wide text-gray-500 uppercase">Total Revenue</p>
                         <h3 class="mt-2 text-2xl font-bold text-gray-900">₹{{ number_format($stats['total_revenue']) }}</h3>
                     </div>
-                    <div class="p-3 transition-colors rounded-lg bg-[#0777be]/10 text-[#0777be] group-hover:bg-[#0777be] group-hover:text-white">
+                    <div class="p-3 transition-colors rounded-lg bg-primary-light text-primary group-hover:bg-indigo-600 group-hover:text-white">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                     </div>
                 </div>
                 <div class="flex items-center mt-4 text-xs">
-                    {{-- Growth positive uses Green --}}
-                    <span class="flex items-center font-medium {{ $stats['revenue_growth'] >= 0 ? 'text-[#94c940]' : 'text-red-600' }}">
+                    <span class="flex items-center font-medium {{ $stats['revenue_growth'] >= 0 ? 'text-green-600' : 'text-red-600' }}">
                         {{ $stats['revenue_growth'] }}%
                         <span class="ml-1 text-gray-400">vs last month</span>
                     </span>
                 </div>
             </div>
 
-            {{-- 2. Total Students (Sky Blue) --}}
             <div class="p-5 transition-shadow bg-white border border-gray-100 shadow-sm rounded-xl hover:shadow-md group">
                 <div class="flex items-start justify-between">
                     <div>
                         <p class="text-xs font-medium tracking-wide text-gray-500 uppercase">Total Students</p>
                         <h3 class="mt-2 text-2xl font-bold text-gray-900">{{ number_format($stats['total_users']) }}</h3>
                     </div>
-                    <div class="p-3 transition-colors rounded-lg bg-[#7fd2ea]/20 text-[#0777be] group-hover:bg-[#7fd2ea] group-hover:text-white">
+                    <div class="p-3 text-blue-600 transition-colors rounded-lg bg-blue-50 group-hover:bg-blue-600 group-hover:text-white">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
                     </div>
                 </div>
                 <div class="flex items-center mt-4 text-xs">
-                    <span class="flex items-center font-medium text-[#94c940]">
+                    <span class="flex items-center font-medium text-green-600">
                         +{{ $stats['user_growth'] }}%
                         <span class="ml-1 text-gray-400">new joiners</span>
                     </span>
                 </div>
             </div>
 
-            {{-- 3. Active Plans (Pink) --}}
             <div class="p-5 transition-shadow bg-white border border-gray-100 shadow-sm rounded-xl hover:shadow-md group">
                 <div class="flex items-start justify-between">
                     <div>
                         <p class="text-xs font-medium tracking-wide text-gray-500 uppercase">Active Plans</p>
                         <h3 class="mt-2 text-2xl font-bold text-gray-900">{{ $stats['active_subs'] }}</h3>
                     </div>
-                    <div class="p-3 transition-colors rounded-lg bg-[#f062a4]/10 text-[#f062a4] group-hover:bg-[#f062a4] group-hover:text-white">
+                    <div class="p-3 text-purple-600 transition-colors rounded-lg bg-purple-50 group-hover:bg-purple-600 group-hover:text-white">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path></svg>
                     </div>
                 </div>
                 <div class="mt-4 w-full bg-gray-100 rounded-full h-1.5">
-                    <div class="bg-[#f062a4] h-1.5 rounded-full" style="width: 70%"></div>
+                    <div class="bg-purple-500 h-1.5 rounded-full" style="width: 70%"></div>
                 </div>
             </div>
 
-            {{-- 4. Content DB (Green) --}}
             <div class="p-5 transition-shadow bg-white border border-gray-100 shadow-sm rounded-xl hover:shadow-md group">
                 <div class="flex items-start justify-between">
                     <div>
                         <p class="text-xs font-medium tracking-wide text-gray-500 uppercase">Content DB</p>
                         <h3 class="mt-2 text-2xl font-bold text-gray-900">{{ number_format($stats['total_content']) }}</h3>
                     </div>
-                    <div class="p-3 transition-colors rounded-lg bg-[#94c940]/10 text-[#94c940] group-hover:bg-[#94c940] group-hover:text-white">
+                    <div class="p-3 text-orange-600 transition-colors rounded-lg bg-orange-50 group-hover:bg-orange-600 group-hover:text-white">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
                     </div>
                 </div>
@@ -185,10 +172,10 @@
 
                 {{-- Financial Overview --}}
                 <div class="p-6 bg-white border border-gray-200 shadow-sm rounded-xl relative min-h-[400px]">
-                    {{-- Loader --}}
+                    {{-- Loader Overlay --}}
                     <div x-show="loading" class="absolute inset-0 z-20 flex items-center justify-center transition-opacity duration-300 bg-white/80 rounded-xl">
                         <div class="flex flex-col items-center">
-                            <svg class="w-8 h-8 mb-2 animate-spin text-[#0777be]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <svg class="w-8 h-8 mb-2 text-indigo-600 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
@@ -199,7 +186,7 @@
                     <div class="flex flex-col justify-between gap-4 mb-6 sm:flex-row sm:items-center">
                         <h3 class="text-lg font-bold text-gray-800">Financial Overview</h3>
                         <select x-model="selectedRange" @change="fetchData()"
-                                class="block w-full py-2 pl-3 pr-10 text-sm transition border-gray-300 rounded-md shadow-sm cursor-pointer sm:w-auto bg-gray-50 focus:ring-[#0777be] focus:border-[#0777be] hover:bg-gray-100">
+                                class="block w-full py-2 pl-3 pr-10 text-sm transition border-gray-300 rounded-md shadow-sm cursor-pointer sm:w-auto bg-gray-50 focus:ring-indigo-500 focus:border-indigo-500 hover:bg-gray-100">
                             <option value="today">Today (Hourly)</option>
                             <option value="15_days">Last 15 Days</option>
                             <option value="30_days">Last 30 Days</option>
@@ -233,8 +220,7 @@
                                 <tr>
                                     <td class="px-6 py-4">
                                         <div class="flex items-center gap-3">
-                                            {{-- User Initials with Primary Color --}}
-                                            <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 text-xs font-bold uppercase rounded-full text-[#0777be] bg-[#0777be]/10">
+                                            <div class="flex items-center justify-center flex-shrink-0 w-8 h-8 text-xs font-bold text-indigo-600 uppercase bg-indigo-100 rounded-full">
                                                 {{ substr($user->first_name, 0, 1) }}
                                             </div>
                                             <div>
@@ -250,8 +236,8 @@
                                     </td>
                                     <td class="px-6 py-4">
                                         @if($user->is_active)
-                                            <span class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full text-[#94c940] bg-[#94c940]/10">
-                                                <span class="w-1.5 h-1.5 rounded-full bg-[#94c940]"></span> Active
+                                            <span class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-green-700 rounded-full bg-green-50">
+                                                <span class="w-1.5 h-1.5 bg-green-500 rounded-full"></span> Active
                                             </span>
                                         @else
                                             <span class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-700 rounded-full bg-red-50">
@@ -370,7 +356,10 @@
                         .then(data => {
                             if (data.success) {
                                 Toast.fire({ icon: 'success', title: data.message });
-                                setTimeout(() => { window.location.reload(); }, 2000);
+                                // Wait 2 seconds before reload
+                                setTimeout(() => {
+                                    window.location.reload();
+                                }, 2000);
                             } else {
                                 Toast.fire({ icon: 'error', title: data.message });
                                 this.optimizing = false;
@@ -394,20 +383,19 @@
                         .catch(err => {
                             console.error(err);
                             this.loading = false;
+                            // Optionally show error toast here via JS if fetch fails
                         });
                 },
 
                 initCharts() {
-                    // Defined Brand Colors from Code
-                    const brandBlue = '#0777be';
-                    const brandPink = '#f062a4';
-                    const brandGreen = '#94c940';
+                    const style = getComputedStyle(document.body);
+                    const primaryColor = style.getPropertyValue('--primary-color').trim() || '#4f46e5';
 
-                    // Revenue Chart (Primary Blue)
+                    // Revenue Chart
                     var revenueOptions = {
                         series: [],
                         chart: { type: 'area', height: 320, toolbar: { show: false }, fontFamily: 'inherit', animations: { enabled: true } },
-                        colors: [brandBlue],
+                        colors: [primaryColor],
                         dataLabels: { enabled: false },
                         stroke: { curve: 'smooth', width: 2 },
                         xaxis: { type: 'category', labels: { style: { fontSize: '12px', colors: '#6b7280' } }, axisBorder: { show: false }, axisTicks: { show: false } },
@@ -418,12 +406,11 @@
                     this.revenueChart = new ApexCharts(document.querySelector("#revenueChart"), revenueOptions);
                     this.revenueChart.render();
 
-                    // Activity Chart (Pink for Contrast or Green)
-                    // Let's use Pink for Exam Traffic to distinguish from money
+                    // Activity Chart
                     var activityOptions = {
                         series: [],
                         chart: { type: 'bar', height: 200, toolbar: { show: false }, sparkline: { enabled: false } },
-                        colors: [brandPink],
+                        colors: ['#10b981'],
                         plotOptions: { bar: { borderRadius: 4, columnWidth: '50%' } },
                         tooltip: { fixed: { enabled: false }, x: { show: false }, y: { title: { formatter: () => 'Attempts: ' } }, marker: { show: false } },
                         xaxis: { crosshairs: { width: 1 } },
@@ -435,12 +422,22 @@
 
                 updateCharts(data) {
                     // Update Revenue
-                    this.revenueChart.updateOptions({ xaxis: { categories: data.revenue.labels } });
-                    this.revenueChart.updateSeries([{ name: 'Revenue', data: data.revenue.data }]);
+                    this.revenueChart.updateOptions({
+                        xaxis: { categories: data.revenue.labels }
+                    });
+                    this.revenueChart.updateSeries([{
+                        name: 'Revenue',
+                        data: data.revenue.data
+                    }]);
 
                     // Update Activity
-                    this.activityChart.updateOptions({ xaxis: { categories: data.exams.labels } });
-                    this.activityChart.updateSeries([{ name: 'Attempts', data: data.exams.data }]);
+                    this.activityChart.updateOptions({
+                        xaxis: { categories: data.exams.labels }
+                    });
+                    this.activityChart.updateSeries([{
+                        name: 'Attempts',
+                        data: data.exams.data
+                    }]);
                 }
             }));
         });

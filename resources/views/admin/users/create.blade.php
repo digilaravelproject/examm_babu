@@ -13,7 +13,7 @@
     </div>
 
     {{-- Form Card --}}
-    <div class="bg-white rounded-lg shadow">
+    <div class="bg-white border border-gray-200 shadow-sm rounded-xl">
         <div class="p-6">
             <form action="{{ route('admin.users.store') }}" method="POST">
                 @csrf

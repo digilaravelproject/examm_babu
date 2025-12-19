@@ -141,8 +141,8 @@ class User extends Authenticatable implements MustVerifyEmail
     public function userGroups(): BelongsToMany
     {
         return $this->belongsToMany(UserGroup::class, 'user_group_users', 'user_id', 'user_group_id')
-            ->withPivot('joined_at')
-            ->withTimestamps();
+            ->withPivot('joined_at');
+            // ->withTimestamps();
     }
 
     public function practiceSessions(): HasMany

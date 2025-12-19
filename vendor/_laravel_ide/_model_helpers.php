@@ -3415,7 +3415,7 @@ namespace App\Models {
      * @property string|null $invoice_id
      * @property string|null $transaction_id
      * @property string|null $currency
-     * @property decimal:2 $total_amount
+     * @property float $total_amount
      * @property mixed $user_id
      * @property mixed $plan_id
      * @property string $payment_id
@@ -3759,10 +3759,10 @@ namespace App\Models {
      * @property string|null $icon
      * @property mixed $trial_days
      * @property boolean $has_trial
-     * @property decimal:2 $discount_percentage
+     * @property float $discount_percentage
      * @property boolean $has_discount
      * @property string|null $currency
-     * @property decimal:2 $price
+     * @property float $price
      * @property mixed $duration
      * @property mixed $category_id
      * @property string $category_type
@@ -5849,7 +5849,7 @@ namespace App\Models {
      * @property mixed $points_required
      * @property boolean $can_redeem
      * @property boolean $is_paid
-     * @property decimal:2|null $total_marks
+     * @property float|null $total_marks
      * @property integer|null $total_duration
      * @property integer $total_questions
      * @property mixed $quiz_type_id

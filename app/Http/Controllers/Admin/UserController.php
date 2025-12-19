@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Spatie\Permission\Models\Role;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Class UserController
@@ -90,7 +91,6 @@ class UserController extends Controller
      */
     public function store(Request $request)
     {
-        // 1. Validation (Outside Try-Catch for proper error display)
         $validated = $request->validate([
             'first_name'  => 'required|string|max:255',
             'last_name'   => 'nullable|string|max:255',
@@ -101,12 +101,11 @@ class UserController extends Controller
             'role'        => 'required|exists:roles,name',
             'user_groups' => 'nullable|array',
             'is_active'   => 'nullable',
-            'verify_email'=> 'nullable',
+            'verify_email' => 'nullable',
         ]);
 
         DB::beginTransaction();
         try {
-            // Create User Instance
             $user = new User();
             $user->first_name = $validated['first_name'];
             $user->last_name = $validated['last_name'];
@@ -116,28 +115,24 @@ class UserController extends Controller
             $user->password = Hash::make($validated['password']);
             $user->is_active = $request->has('is_active') ? 1 : 0;
             $user->email_verified_at = $request->has('verify_email') ? Carbon::now() : null;
-
             $user->save();
 
             // Assign Role
-            if(isset($validated['role'])) {
+            if (isset($validated['role'])) {
                 $user->assignRole($validated['role']);
             }
 
-            // Sync Groups with Pivot Data (Important: joined_at)
-            if (!empty($request->user_groups)) {
-                $user->userGroups()->syncWithPivotValues($request->user_groups, [
-                    'joined_at' => Carbon::now(),
-                    'created_at' => Carbon::now(),
-                    'updated_at' => Carbon::now()
-                ]);
-            }
+           // Sync Groups (FIXED: Simple Sync like Update)
+            $groups = $request->input('user_groups', []);
 
+            if (count($groups) > 0) {
+                // Direct sync without extra columns to avoid SQL errors
+                $user->userGroups()->sync($groups);
+            }
             DB::commit();
 
             return redirect()->route('admin.users.index')
                 ->with('success', "New user '{$user->user_name}' created successfully!");
-
         } catch (\Exception $e) {
             DB::rollBack();
             return redirect()->back()->with('error', 'Error creating user: ' . $e->getMessage())->withInput();
@@ -164,7 +159,6 @@ class UserController extends Controller
      */
     public function update(Request $request, User $user)
     {
-        // 1. VALIDATION FIRST (Critical Fix: Must be outside try-catch to show UI errors)
         $validated = $request->validate([
             'first_name' => 'required|string|max:255',
             'last_name'  => 'nullable|string|max:255',
@@ -172,30 +166,27 @@ class UserController extends Controller
             'email'      => ['required', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
             'mobile'     => ['nullable', 'string', 'max:15', Rule::unique('users')->ignore($user->id)],
             'role'       => 'required|exists:roles,name',
-            'user_groups'=> 'nullable|array',
+            'user_groups' => 'nullable|array',
             'user_groups.*' => 'exists:user_groups,id',
             'password'   => 'nullable|min:8',
         ]);
-
+        // dd($request->all());
         DB::beginTransaction();
         try {
-            // Update Basic Details
             $user->first_name = $validated['first_name'];
             $user->last_name  = $validated['last_name'];
             $user->user_name  = $validated['user_name'];
             $user->email      = $validated['email'];
             $user->mobile     = $validated['mobile'];
 
-            // Handle Password Update
             if ($request->filled('password')) {
                 $user->password = Hash::make($request->password);
             }
 
-            // Status Management
+            // Status Logic
             $oldStatus = $user->is_active;
             $newStatus = $request->has('is_active') ? 1 : 0;
 
-            // If user is being deactivated, kill their sessions
             if ($oldStatus == 1 && $newStatus == 0) {
                 if (config('session.driver') == 'database') {
                     DB::table('sessions')->where('user_id', $user->id)->delete();
@@ -203,7 +194,6 @@ class UserController extends Controller
             }
             $user->is_active = $newStatus;
 
-            // Handle Email Verification Logic
             if ($request->has('verify_email') && is_null($user->email_verified_at)) {
                 $user->email_verified_at = Carbon::now();
             }
@@ -213,26 +203,26 @@ class UserController extends Controller
             // Sync Roles
             $user->syncRoles([$validated['role']]);
 
-            // FIX: User Group Mapping
-            // Using syncWithPivotValues to ensure pivot columns are filled
+            // Sync Groups (Fixed Logic)
             $groups = $request->input('user_groups', []);
-
             if (count($groups) > 0) {
-                // 'joined_at' add kar rahe hain taaki SQL error na aaye
-                $user->userGroups()->syncWithPivotValues($groups, [
-                    'joined_at' => now(),
-                    'created_at' => now(),
-                    'updated_at' => now()
-                ]);
+
+                try {
+                    // Sync attempt
+                    $result = $user->userGroups()->sync($groups);
+                } catch (\Exception $e) {
+                    // LOG 3: Agar Sync fail hua to error kya hai
+                    Log::error('SYNC ERROR: ' . $e->getMessage());
+                    throw $e; // Error ko wapis phenko taaki main catch block pakad sake
+                }
             } else {
                 $user->userGroups()->detach();
             }
-
             DB::commit();
 
+            // Redirect with flash message
             return redirect()->route('admin.users.index')
                 ->with('success', "User '{$user->user_name}' updated successfully!");
-
         } catch (\Exception $e) {
             DB::rollBack();
             return redirect()->back()->with('error', 'Update Failed: ' . $e->getMessage())->withInput();
@@ -318,12 +308,11 @@ class UserController extends Controller
             DB::commit();
 
             return response()->json(['success' => true, 'message' => "User '{$user->user_name}' deleted permanently."]);
-
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
                 'success' => false,
-                'message' => 'Unable to Delete: '.$e->getMessage()
+                'message' => 'Unable to Delete: ' . $e->getMessage()
             ], 500);
         }
     }

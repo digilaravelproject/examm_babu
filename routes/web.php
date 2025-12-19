@@ -1,16 +1,6 @@
 <?php
 
-use App\Http\Controllers\Admin\ActivityLogController;
-use App\Http\Controllers\Admin\AdminDashboardController;
-use App\Http\Controllers\Admin\AdminFileManagerController;
-// Naye Controllers Import kiye hain
-use App\Http\Controllers\Admin\ExamController;
-use App\Http\Controllers\Admin\ExamTypeController;
-use App\Http\Controllers\Admin\PracticeSetsController;
-use App\Http\Controllers\Admin\QuizController;
-use App\Http\Controllers\Admin\QuizTypeController;
-use App\Http\Controllers\Admin\RolePermissionController;
-use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Student\StudentDashboardController;
 use Illuminate\Support\Facades\Route;
@@ -25,111 +15,79 @@ Route::get('/', function () {
 });
 
 /*
-|
-|
+|--------------------------------------------------------------------------
+| General Authenticated Routes (Home & Fallback Dashboard)
+|--------------------------------------------------------------------------
 */
-Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])
-    ->middleware(['auth', 'verified'])
-    ->name('home');
+Route::middleware(['auth', 'verified'])->group(function () {
 
-/*
-|--------------------------------------------------------------------------
-| Default / Fallback Dashboard
-|--------------------------------------------------------------------------
-| Agar user ke paas koi specific dashboard nahi hai, to wo yahan aayega.
-*/
-Route::get('/dashboard', function () {
-    return view('dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+    // Home Route
+    Route::get('/home', [HomeController::class, 'index'])->name('home');
 
-/*
-|--------------------------------------------------------------------------
-| ADMIN & MANAGEMENT ROUTES (Permission Based)
-|--------------------------------------------------------------------------
-| Yahan hum 'role:admin' use NAHI kar rahe. Hum 'can:permission_name' use kar rahe hain.
-| Agar tum kal ko kisi 'Manager' ko bhi 'manage roles' ki permission doge,
-| to wo bhi ye page access kar payega without being Admin.
-*/
-Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(function () {
+    // Default / Fallback Dashboard
+    // Agar user ke paas koi specific dashboard nahi hai, to wo yahan aayega.
+    Route::get('/dashboard', function () {
+        return view('dashboard');
+    })->name('dashboard');
 
-    // 1. Admin Dashboard (Check: view dashboard permission)
-    Route::get('/dashboard', [AdminDashboardController::class, 'index'])
-        ->middleware('can:view dashboard')
-        ->name('dashboard');
-    Route::get('/dashboard/chart-data', [AdminDashboardController::class, 'getChartData'])->name('dashboard.chart');
-    Route::get('/system/optimize', [AdminDashboardController::class, 'optimize'])->name('system.optimize');
-
-    // 2. Roles & Permissions Matrix (Check: manage roles permission)
-    Route::get('/roles-permissions', [RolePermissionController::class, 'index'])
-        ->middleware('can:manage roles')
-        ->name('roles_permissions.index');
-
-    Route::post('/roles-permissions/assign', [RolePermissionController::class, 'assignPermission'])
-        ->middleware('can:manage roles')
-        ->name('roles_permissions.assign');
-
-    // 3. Activity Logs (Check: view logs permission)
-    Route::get('/activity-logs', [ActivityLogController::class, 'index'])
-        ->middleware('can:view logs')
-        ->name('logs');
-
-    Route::get('/quizzes/index', [QuizController::class, 'index'])->name('quizzes.index');
-    Route::get('/quizzes/create', [QuizController::class, 'create'])->name('quizzes.create');
-
-    Route::get('/exam/index', [ExamController::class, 'index'])->name('exam.index');
-    Route::get('/exam/create', [ExamController::class, 'create'])->name('exam.create');
-
-    Route::get('/quiz-types/index', [QuizTypeController::class, 'index'])->name('quiz-types.index');
-
-    Route::get('/exam-types/index', [ExamTypeController::class, 'index'])->name('exam-types.index');
-
-    Route::get('/practice-sets/index', [PracticeSetsController::class, 'index'])->name('practice-sets.index');
-    Route::get('/practice-sets/create', [PracticeSetsController::class, 'create'])->name('practice-sets.create');
-
-    // User Management
-    Route::resource('users', UserController::class);
-    Route::post('users/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('users.toggle-status');
-
-    // File Manager Routes
-    Route::controller(AdminFileManagerController::class)->prefix('file-manager')->name('fm.')->group(function () {
-        Route::get('/', 'index')->name('index');          // admin.fm.index
-        Route::get('/ckeditor', 'ckeditor')->name('ckeditor'); // admin.fm.ckeditor
-        Route::get('/popup', 'popup')->name('popup');     // admin.fm.popup
-    });
 });
 
 /*
 |--------------------------------------------------------------------------
 | STUDENT ROUTES
 |--------------------------------------------------------------------------
+| Prefix: /student
+| Name: student.*
 */
-Route::middleware(['auth', 'verified', 'role:student'])->prefix('student')->name('student.')->group(function () {
-    Route::get('/dashboard', [StudentDashboardController::class, 'index'])->name('dashboard');
-    Route::get('/exam-demo', function () {
-        return view('student.exam-interface');
-    })->name('exam_demo');
-});
+Route::middleware(['auth', 'verified', 'role:student'])
+    ->prefix('student')
+    ->name('student.')
+    ->group(function () {
+
+        Route::get('/dashboard', [StudentDashboardController::class, 'index'])->name('dashboard');
+
+        Route::get('/exam-demo', function () {
+            return view('student.exam-interface');
+        })->name('exam_demo');
+
+    });
 
 /*
 |--------------------------------------------------------------------------
 | INSTRUCTOR ROUTES
 |--------------------------------------------------------------------------
+| Prefix: /instructor
+| Name: instructor.*
 */
-Route::middleware(['auth', 'verified', 'role:instructor'])->prefix('instructor')->name('instructor.')->group(function () {
-    Route::get('/dashboard', function () {
-        return view('dashboard', ['role' => 'Instructor']);
-    })->name('dashboard');
+Route::middleware(['auth', 'verified', 'role:instructor'])
+    ->prefix('instructor')
+    ->name('instructor.')
+    ->group(function () {
+
+        Route::get('/dashboard', function () {
+            return view('dashboard', ['role' => 'Instructor']);
+        })->name('dashboard');
+
+    });
+
+/*
+|--------------------------------------------------------------------------
+| Profile Routes
+|--------------------------------------------------------------------------
+| Uses Route::controller() for cleaner syntax
+*/
+Route::middleware('auth')->group(function () {
+    Route::controller(ProfileController::class)->group(function () {
+        Route::get('/profile', 'edit')->name('profile.edit');
+        Route::patch('/profile', 'update')->name('profile.update');
+        Route::delete('/profile', 'destroy')->name('profile.destroy');
+    });
 });
 
 /*
 |--------------------------------------------------------------------------
-| Profile Routes (Default Breeze)
+| Additional Routes
 |--------------------------------------------------------------------------
 */
-Route::middleware('auth')->group(function () {
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-});
-
 require __DIR__.'/auth.php';
+require __DIR__.'/admin.php';
