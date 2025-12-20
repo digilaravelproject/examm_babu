@@ -57,10 +57,26 @@
 
                 {{-- Question Editor --}}
                 <div class="space-y-2">
-                    <label class="block text-gray-700 font-bold text-xs uppercase tracking-wide flex items-center gap-2">
-                        <span class="w-1 h-4 bg-[#0777be] rounded-full"></span>
-                        Question Content <span class="text-red-500">*</span>
-                    </label>
+                    <div class="flex justify-between items-end">
+                        <label class="block text-gray-700 font-bold text-xs uppercase tracking-wide flex items-center gap-2">
+                            <span class="w-1 h-4 bg-[#0777be] rounded-full"></span>
+                            Question Content <span class="text-red-500">*</span>
+                        </label>
+
+                        {{-- NEW TOOLBAR FOR QUESTION --}}
+                        <div class="flex items-center gap-2 mb-1">
+                             {{-- Math Button --}}
+                             <button type="button" @click="openMathModal('question')" class="flex items-center gap-1 text-xs px-3 py-1.5 bg-white text-gray-600 border border-gray-200 rounded-md hover:border-[#0777be] hover:text-[#0777be] transition font-medium shadow-sm">
+                                <span class="font-serif italic font-bold text-sm leading-none">∑</span> Math
+                            </button>
+                            {{-- Image Button --}}
+                            <button type="button" @click="openFileManager('question')" class="flex items-center gap-1 text-xs px-3 py-1.5 bg-white text-gray-600 border border-gray-200 rounded-md hover:border-[#f062a4] hover:text-[#f062a4] transition font-medium shadow-sm">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                Image
+                            </button>
+                        </div>
+                    </div>
+
                     <div class="rounded-xl overflow-hidden border border-gray-300 shadow-sm focus-within:ring-2 focus-within:ring-[#0777be]/20 transition-all">
                         <textarea name="question" id="editor_question" class="w-full h-32 opacity-0">{{ old('question', $question->question) }}</textarea>
                     </div>
@@ -166,10 +182,9 @@
                 </div>
             </div>
 
-            {{-- TAB 2: SETTINGS --}}
+            {{-- TAB 2: SETTINGS (unchanged) --}}
             <div x-show="activeTab === 'settings'" class="grid grid-cols-1 md:grid-cols-2 gap-8" style="display: none;">
                 <div class="space-y-6">
-                    {{-- Custom Select: Skill --}}
                     <div>
                         <label class="form-label">Skill / Subject</label>
                         <div class="relative">
@@ -179,13 +194,9 @@
                                     <option value="{{ $skill->id }}" {{ old('skill_id', $question->skill_id) == $skill->id ? 'selected' : '' }}>{{ $skill->name }}</option>
                                 @endforeach
                             </select>
-                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
-                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
-                            </div>
+
                         </div>
                     </div>
-
-                    {{-- Custom Select: Topic --}}
                     <div>
                         <label class="form-label">Topic</label>
                         <div class="relative">
@@ -195,13 +206,9 @@
                                     <option value="{{ $topic->id }}" {{ old('topic_id', $question->topic_id) == $topic->id ? 'selected' : '' }}>{{ $topic->name }}</option>
                                 @endforeach
                             </select>
-                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
-                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
-                            </div>
+
                         </div>
                     </div>
-
-                    {{-- Difficulty --}}
                     <div>
                         <label class="form-label">Difficulty</label>
                         <div class="flex gap-3 mt-2">
@@ -217,7 +224,6 @@
                     </div>
                 </div>
 
-                {{-- Right Column --}}
                 <div class="space-y-6">
                     <div class="bg-[#0777be]/5 p-6 rounded-2xl border border-[#0777be]/10 space-y-5">
                         <h4 class="text-xs font-extrabold text-[#0777be] uppercase tracking-wider mb-2">Scoring & Timing</h4>
@@ -232,7 +238,6 @@
                                    class="custom-input w-full">
                         </div>
                     </div>
-
                     @if(Auth::user()->hasRole('admin'))
                     <div class="pt-2">
                         <label class="flex items-center cursor-pointer p-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition bg-white shadow-sm">
@@ -250,13 +255,12 @@
                 </div>
             </div>
 
-            {{-- TAB 3: SOLUTION --}}
+            {{-- TAB 3: SOLUTION (unchanged) --}}
             <div x-show="activeTab === 'solution'" class="space-y-8" style="display: none;">
                 <div>
                     <label class="form-label mb-2">Detailed Solution</label>
                     <textarea name="solution" id="editor_solution" class="opacity-0">{{ old('solution', $question->solution) }}</textarea>
                 </div>
-
                 <div class="bg-gradient-to-r from-blue-50 to-white p-6 rounded-2xl border border-blue-100">
                     <div class="flex items-center justify-between mb-4">
                         <label class="flex items-center gap-2 font-bold text-gray-800">
@@ -268,7 +272,6 @@
                             <button type="button" @click="solutionHasVideo = false" :class="{'bg-gray-200 text-gray-700 shadow-inner': !solutionHasVideo, 'text-gray-500 hover:text-gray-700': solutionHasVideo}" class="px-4 py-1.5 rounded-md text-sm font-bold transition-all">No</button>
                         </div>
                     </div>
-
                     <div x-show="solutionHasVideo" x-transition class="mt-4 p-5 bg-white rounded-xl border border-blue-100 shadow-sm">
                         <label class="text-xs font-bold text-gray-400 uppercase mb-2 block">Video Link (YouTube/Vimeo)</label>
                         <div class="flex gap-2">
@@ -283,14 +286,13 @@
                         </div>
                     </div>
                 </div>
-
                 <div>
                     <label class="form-label mb-2 text-gray-500">Hint (Optional)</label>
                     <textarea name="hint" id="editor_hint" class="opacity-0">{{ old('hint', $question->hint) }}</textarea>
                 </div>
             </div>
 
-            {{-- TAB 4: ATTACHMENT --}}
+            {{-- TAB 4: ATTACHMENT (unchanged) --}}
             <div x-show="activeTab === 'attachment'" class="space-y-8" style="display: none;">
                 <div class="flex items-center justify-between p-6 bg-[#f062a4]/5 rounded-2xl border border-[#f062a4]/20">
                     <div class="flex items-center gap-4">
@@ -323,7 +325,6 @@
                         </div>
                     </div>
 
-                    {{-- Comprehension --}}
                     <div x-show="attachmentType === 'comprehension'" class="p-6 bg-white rounded-xl border border-gray-200 shadow-sm">
                         <label class="form-label mb-2">Select Passage</label>
                         <div class="relative">
@@ -333,13 +334,10 @@
                                     <option value="{{ $p->id }}" {{ old('comprehension_passage_id', $question->comprehension_passage_id) == $p->id ? 'selected' : '' }}>{{ $p->title }}</option>
                                 @endforeach
                             </select>
-                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
-                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
-                            </div>
+
                         </div>
                     </div>
 
-                    {{-- Audio/Video --}}
                     <div x-show="attachmentType === 'audio' || attachmentType === 'video'" class="p-6 bg-white rounded-xl border border-gray-200 shadow-sm">
                         <label class="form-label mb-2">Media Link / ID</label>
                         <input type="text" name="attachment_options[link]"
@@ -392,6 +390,25 @@
         </div>
     </div>
 
+    {{-- NEW FILE MANAGER MODAL --}}
+    <div x-show="showFmModal" style="display: none;"
+         class="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-4"
+         x-transition.opacity>
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[80vh] flex flex-col overflow-hidden transform transition-all scale-100" @click.outside="closeFmModal()">
+             <div class="bg-[#f062a4] px-6 py-4 flex justify-between items-center shrink-0">
+                <h3 class="text-white font-bold text-lg tracking-wide">Select File</h3>
+                <button @click="closeFmModal()" class="text-white/80 hover:text-white transition text-xl">&times;</button>
+            </div>
+            <div class="flex-1 bg-gray-50 relative">
+                 {{-- Loading Indicator --}}
+                <div class="absolute inset-0 flex items-center justify-center z-0">
+                     <span class="text-gray-400 font-medium animate-pulse">Loading File Manager...</span>
+                </div>
+                <iframe src="/admin/file-manager/popup" class="w-full h-full relative z-10" frameborder="0"></iframe>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 {{-- CSS --}}
@@ -428,26 +445,38 @@ document.addEventListener('alpine:init', () => {
         attachmentType: config.attachmentType,
         solutionHasVideo: config.solutionHasVideo,
         showMathModal: false,
+        showFmModal: false, // New Modal State
         mathInput: '',
         videoUrl: '',
-        activeOptionIndex: null, // Tracks which option asked for image
+        activeContext: null, // Tracks who asked for tool: 'question' or index 0,1,2...
 
         init() {
             this.$nextTick(() => { this.renderAllMath(); });
         },
 
         // --- File Manager Integration ---
-        openFileManager(index) {
-            this.activeOptionIndex = index;
-            // Open FM Popup
-            window.open('/admin/file-manager/popup', 'fm', 'width=1000,height=600');
+        openFileManager(context) {
+            this.activeContext = context;
+            this.showFmModal = true;
+        },
+
+        closeFmModal() {
+            this.showFmModal = false;
         },
 
         handleFmSelection(url) {
-            if (this.activeOptionIndex !== null && this.options[this.activeOptionIndex]) {
-                this.options[this.activeOptionIndex].image = url;
-                this.activeOptionIndex = null; // Reset
+            this.showFmModal = false; // Close Modal
+
+            if (this.activeContext === 'question') {
+                 // Insert into TinyMCE
+                 if(tinymce.get('editor_question')) {
+                    tinymce.get('editor_question').insertContent('<img src="' + url + '" alt="Image" style="max-width:100%; height:auto;" />');
+                 }
+            } else if (this.activeContext !== null && this.options[this.activeContext]) {
+                // Update Option Image
+                this.options[this.activeContext].image = url;
             }
+            this.activeContext = null;
         },
 
         addOption() {
@@ -464,8 +493,8 @@ document.addEventListener('alpine:init', () => {
         },
 
         // Math Logic
-        openMathModal(index) {
-            this.activeOptionIndex = index;
+        openMathModal(context) {
+            this.activeContext = context;
             this.mathInput = '';
             document.getElementById('math-preview-target').innerHTML = 'Preview...';
             this.showMathModal = true;
@@ -479,10 +508,19 @@ document.addEventListener('alpine:init', () => {
             if(window.MathJax) MathJax.typesetPromise([preview]);
         },
         insertMath() {
-            if (this.activeOptionIndex !== null) {
+            if (this.activeContext !== null) {
                 const formula = ' \\(' + this.mathInput + '\\) ';
-                this.options[this.activeOptionIndex].option += formula;
-                this.$nextTick(() => { this.renderMathPreview(this.activeOptionIndex); });
+
+                if (this.activeContext === 'question') {
+                    // Insert into TinyMCE
+                     if(tinymce.get('editor_question')) {
+                        tinymce.get('editor_question').insertContent(formula);
+                     }
+                } else {
+                    // Insert into Option Textarea
+                    this.options[this.activeContext].option += formula;
+                    this.$nextTick(() => { this.renderMathPreview(this.activeContext); });
+                }
                 this.closeMathModal();
             }
         },
@@ -501,7 +539,6 @@ document.addEventListener('alpine:init', () => {
 });
 
 // Bridge function for File Manager Popup
-// This function gets called by the FM popup window
 window.fmSetLink = function(url) {
     // Dispatch event to Alpine
     window.dispatchEvent(new CustomEvent('fm-selected', { detail: url }));
@@ -512,9 +549,10 @@ window.onload = function() {
     const commonConfig = {
         height: 250,
         menubar: false,
-        plugins: 'advlist autolink lists link charmap preview searchreplace visualblocks code fullscreen table help wordcount',
+        plugins: 'advlist autolink lists link charmap preview searchreplace visualblocks code fullscreen table help wordcount image',
         toolbar: 'undo redo | formatselect | bold italic backcolor | alignleft aligncenter alignright alignjustify | bullist numlist | removeformat | help',
-        content_style: 'body { font-family:Inter,sans-serif; font-size:14px }'
+        content_style: 'body { font-family:Inter,sans-serif; font-size:14px }',
+        convert_urls: false // Prevents TinyMCE from messing up image URLs
     };
     tinymce.init({ selector: '#editor_question', ...commonConfig, height: 300 });
     tinymce.init({ selector: '#editor_solution', ...commonConfig });
