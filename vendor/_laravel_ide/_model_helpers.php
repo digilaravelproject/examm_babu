@@ -5161,6 +5161,7 @@ namespace App\Models {
      * @property string $question
      * @property mixed $question_type_id
      * @property string $code
+     * @property mixed $created_by
      * @property int $id
      * @property-read mixed $correct_answer
      * @property-read \App\Models\QuestionType $questionType
@@ -5185,6 +5186,7 @@ namespace App\Models {
      * @property-read \Illuminate\Database\Eloquent\Collection<int, \Spatie\Activitylog\Models\Activity> $activities
      * @property-read int|null $activities_count
      * @method static \Illuminate\Database\Eloquent\Builder<Question>|Question whereId($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<Question>|Question whereCreatedBy($value)
      * @method static \Illuminate\Database\Eloquent\Builder<Question>|Question whereCode($value)
      * @method static \Illuminate\Database\Eloquent\Builder<Question>|Question whereQuestionTypeId($value)
      * @method static \Illuminate\Database\Eloquent\Builder<Question>|Question whereQuestion($value)

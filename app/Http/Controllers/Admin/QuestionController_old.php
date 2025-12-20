@@ -26,7 +26,7 @@ use Illuminate\Http\RedirectResponse;
  * Manages Question Bank CRUD, settings updates, and Approval Workflow.
  * Enforces strict authorization and data integrity via transactions.
  */
-class QuestionController extends Controller
+class QuestionController_old extends Controller
 {
     protected QuestionRepository $repository;
 
@@ -189,34 +189,6 @@ class QuestionController extends Controller
         try {
             $typeCode = $request->get('type', 'MSA');
             $questionType = QuestionType::where('code', $typeCode)->firstOrFail();
-
-            // FIX: Fetch ALL required data for the dropdowns
-            $skills = Skill::where('is_active', 1)->get();
-            $topics = Topic::all(); // You might want to filter this via JS based on Skill later
-            $difficultyLevels = DifficultyLevel::all();
-            $tags = Tag::all();
-            $passages = ComprehensionPassage::all();
-
-            $defaultOptions = $this->repository->setDefaultOptions($questionType->code);
-            $defaultPreferences = $this->repository->setDefaultPreferences($questionType->code);
-
-            $viewPath = request()->routeIs('instructor.*') ? 'instructor.questions.create' : 'admin.questions.create';
-
-            // FIX: Pass all variables to the view
-            return view($viewPath, compact(
-                'questionType', 'skills', 'topics', 'difficultyLevels', 'tags', 'passages', 'defaultOptions', 'defaultPreferences'
-            ));
-
-        } catch (\Exception $e) {
-            Log::error('Create Page Error: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Unable to load creation form.');
-        }
-    }
-    public function create_old(Request $request): View|RedirectResponse
-    {
-        try {
-            $typeCode = $request->get('type', 'MSA');
-            $questionType = QuestionType::where('code', $typeCode)->firstOrFail();
             $skills = Skill::where('is_active', 1)->get();
 
             $defaultOptions = $this->repository->setDefaultOptions($questionType->code);
@@ -281,33 +253,6 @@ class QuestionController extends Controller
      * @return View|RedirectResponse
      */
     public function edit(Request $request, $id): View|RedirectResponse
-    {
-        try {
-            $question = Question::findOrFail($id);
-            $this->authorizeInstructor($question);
-
-            $activeTab = $request->get('tab', 'details');
-
-            $questionType = $question->questionType;
-            $skills = Skill::where('is_active', 1)->get();
-            $topics = Topic::where('skill_id', $question->skill_id)->get(); // Filtered by existing skill
-            $difficultyLevels = DifficultyLevel::all();
-            $tags = Tag::all();
-            $passages = ComprehensionPassage::all();
-
-            $viewPath = request()->routeIs('instructor.*') ? 'instructor.questions.edit' : 'admin.questions.edit';
-
-            return view($viewPath, compact(
-                'question', 'activeTab', 'questionType', 'skills',
-                'topics', 'difficultyLevels', 'tags', 'passages'
-            ));
-
-        } catch (\Exception $e) {
-            Log::error('Edit Page Error: ' . $e->getMessage(), ['id' => $id]);
-            return redirect()->back()->with('error', 'Unable to load edit page.');
-        }
-    }
-    public function edit_old(Request $request, $id): View|RedirectResponse
     {
         try {
             $question = Question::findOrFail($id);
