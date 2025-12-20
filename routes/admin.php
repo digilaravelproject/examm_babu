@@ -11,7 +11,8 @@ use App\Http\Controllers\Admin\QuizController;
 use App\Http\Controllers\Admin\QuizTypeController;
 use App\Http\Controllers\Admin\RolePermissionController;
 use App\Http\Controllers\Admin\UserController;
-use App\Http\Controllers\Admin\QuestionController; // NEW CONTROLLER
+use App\Http\Controllers\Admin\QuestionController;
+use App\Http\Controllers\Admin\QuestionImportController;
 
 /*
 |--------------------------------------------------------------------------
@@ -20,14 +21,14 @@ use App\Http\Controllers\Admin\QuestionController; // NEW CONTROLLER
 */
 Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
 
-    // --- EXISTING DASHBOARD & SYSTEM ROUTES ---
+    // --- DASHBOARD & SYSTEM ---
     Route::controller(AdminDashboardController::class)->group(function () {
         Route::get('/dashboard', 'index')->name('dashboard');
         Route::get('/dashboard/chart-data', 'getChartData')->name('dashboard.chart');
         Route::get('/system/optimize', 'optimize')->name('system.optimize');
     });
 
-    // --- EXISTING USER & ROLE MANAGEMENT ---
+    // --- USER & ROLE MANAGEMENT ---
     Route::controller(RolePermissionController::class)->prefix('roles-permissions')->name('roles_permissions.')->group(function () {
         Route::get('/', 'index')->name('index');
         Route::post('/assign', 'assignPermission')->name('assign');
@@ -36,10 +37,19 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('ad
     Route::post('users/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('users.toggle-status');
     Route::resource('users', UserController::class);
 
-    // --- QUESTION MANAGEMENT (ADMIN) ---
+    // --- QUESTION MANAGEMENT (Order is Very Important Here) ---
+
+    // 1. Bulk Import Routes (MUST BE BEFORE RESOURCE)
+    Route::get('questions/import', [QuestionImportController::class, 'showImportForm'])->name('questions.import');
+    Route::post('questions/import', [QuestionImportController::class, 'import'])->name('questions.import.post');
+    Route::get('questions/import/progress/{batchId}', [QuestionImportController::class, 'getProgress'])->name('questions.import.progress');
+    Route::get('questions/import/sample', [QuestionImportController::class, 'downloadSample'])
+        ->name('questions.import.sample');
+
+    // 2. Custom Question Actions
     Route::controller(QuestionController::class)->prefix('questions')->name('questions.')->group(function () {
-        Route::get('/pending', 'pending')->name('pending'); // Admin Only: Approval List
-        Route::patch('/{question}/approve', 'approve')->name('approve'); // Admin Only: Approve Action
+        Route::get('/pending', 'pending')->name('pending');
+        Route::patch('/{question}/approve', 'approve')->name('approve');
         Route::get('/{question}/preview', 'preview')->name('preview');
 
         // Step Updates (Tabs)
@@ -47,9 +57,11 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('ad
         Route::put('/{question}/solution', 'updateSolution')->name('update_solution');
         Route::put('/{question}/attachment', 'updateAttachment')->name('update_attachment');
     });
-    Route::resource('questions', QuestionController::class); // Standard CRUD
 
-    // --- EXISTING ACADEMIC ROUTES ---
+    // 3. Standard Resource (Keep this at the end of question section)
+    Route::resource('questions', QuestionController::class);
+
+    // --- ACADEMIC ROUTES ---
     Route::controller(QuizController::class)->prefix('quizzes')->name('quizzes.')->group(function () {
         Route::get('/index', 'index')->name('index');
         Route::get('/create', 'create')->name('create');
@@ -68,9 +80,8 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('ad
     Route::get('/quiz-types/index', [QuizTypeController::class, 'index'])->name('quiz-types.index');
     Route::get('/exam-types/index', [ExamTypeController::class, 'index'])->name('exam-types.index');
 
-    // --- EXISTING TOOLS ---
+    // --- TOOLS & LOGS ---
     Route::get('/activity-logs', [ActivityLogController::class, 'index'])->name('logs');
-
     Route::controller(AdminFileManagerController::class)->prefix('file-manager')->name('fm.')->group(function () {
         Route::get('/', 'index')->name('index');
         Route::get('/ckeditor', 'ckeditor')->name('ckeditor');
@@ -85,17 +96,16 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('ad
 */
 Route::middleware(['auth', 'verified', 'role:instructor'])->prefix('instructor')->name('instructor.')->group(function () {
 
-    // Instructor Dashboard (Placeholder)
-    Route::get('/dashboard', function() { return view('instructor.dashboard'); })->name('dashboard');
+    Route::get('/dashboard', function () {
+        return view('instructor.dashboard'); })->name('dashboard');
 
-    // --- QUESTION MANAGEMENT (INSTRUCTOR) ---
-    // Hum same controller use karenge, par logic andar handle hoga
+    // Custom Actions for Instructor
     Route::controller(QuestionController::class)->prefix('questions')->name('questions.')->group(function () {
-
-        // Step Updates
+        Route::get('/{question}/preview', 'preview')->name('preview');
         Route::put('/{question}/settings', 'updateSettings')->name('update_settings');
         Route::put('/{question}/solution', 'updateSolution')->name('update_solution');
         Route::put('/{question}/attachment', 'updateAttachment')->name('update_attachment');
     });
+
     Route::resource('questions', QuestionController::class);
 });

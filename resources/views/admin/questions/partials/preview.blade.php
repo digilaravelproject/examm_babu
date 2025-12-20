@@ -26,16 +26,21 @@
             <h4 class="mb-2 text-xs font-bold tracking-wider text-gray-400 uppercase">Options & Answer</h4>
             <div class="grid grid-cols-1 gap-3">
                 @php
+                    // Options JSON decode logic
                     $options = is_string($question->options) ? json_decode($question->options, true) : $question->options;
                 @endphp
 
                 @foreach($options as $opt)
                     @php
+                        // FIX: Ab hum Index ($loop->index) se match karenge kyunki DB me ab Integer save ho raha hai
                         $isCorrect = false;
+
                         if(is_array($question->correct_answer)) {
-                            $isCorrect = in_array($opt['option'], $question->correct_answer);
+                            // Multiple Choice ke liye
+                            $isCorrect = in_array($loop->index, $question->correct_answer);
                         } else {
-                            $isCorrect = trim($question->correct_answer) == trim($opt['option']);
+                            // Single Choice ke liye (Loose comparison '==' taaki string "1" bhi int 1 se match ho)
+                            $isCorrect = $question->correct_answer == $loop->index;
                         }
                     @endphp
 

@@ -140,7 +140,7 @@
                         </a>
 
                         {{-- Placeholders as requested --}}
-                        <a href="#" class="block px-3 py-2 text-sm rounded-md transition-all text-slate-400 hover:text-white hover:bg-[#0777be]">Import Questions</a>
+                        <a href="{{ route('admin.questions.import') }}" class="block px-3 py-2 text-sm rounded-md transition-all text-slate-400 hover:text-white hover:bg-[#0777be]">Import Questions</a>
                         <a href="#" class="block px-3 py-2 text-sm rounded-md transition-all text-slate-400 hover:text-white hover:bg-[#0777be]">Comprehensions</a>
                         <a href="#" class="block px-3 py-2 text-sm rounded-md transition-all text-slate-400 hover:text-white hover:bg-[#0777be]">Question Types</a>
                     </div>
