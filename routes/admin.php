@@ -39,12 +39,31 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('ad
 
     // --- QUESTION MANAGEMENT (Order is Very Important Here) ---
 
-    // 1. Bulk Import Routes (MUST BE BEFORE RESOURCE)
-    Route::get('questions/import', [QuestionImportController::class, 'showImportForm'])->name('questions.import');
-    Route::post('questions/import', [QuestionImportController::class, 'import'])->name('questions.import.post');
-    Route::get('questions/import/progress/{batchId}', [QuestionImportController::class, 'getProgress'])->name('questions.import.progress');
+   // =========================================================
+    // 1. BULK IMPORT ROUTES (NO QUEUE / JS CHUNKING)
+    // Important: Inhe 'resource' route se PEHLE rakhna zaroori hai
+    // =========================================================
+
+    // Import Page Dikhane ke liye
+    Route::get('questions/import', [QuestionImportController::class, 'showImportForm'])
+        ->name('questions.import');
+
+    // Sample Excel Download karne ke liye
     Route::get('questions/import/sample', [QuestionImportController::class, 'downloadSample'])
         ->name('questions.import.sample');
+
+    // Step 1: File Upload & JSON Preparation (Total Count return karega)
+    Route::post('questions/import/prepare', [QuestionImportController::class, 'uploadAndPrepare'])
+        ->name('questions.import.prepare');
+
+    // Step 2: Chunk Processing (Loop mein call hoga)
+    Route::post('questions/import/chunk', [QuestionImportController::class, 'processChunk'])
+        ->name('questions.import.chunk');
+
+    // =========================================================
+    // 2. QUESTION RESOURCE ROUTE
+    // =========================================================
+    Route::resource('questions', QuestionController::class);
 
     // 2. Custom Question Actions
     Route::controller(QuestionController::class)->prefix('questions')->name('questions.')->group(function () {
