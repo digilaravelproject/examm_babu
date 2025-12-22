@@ -9,13 +9,7 @@
         ========================================
     --}}
     <style>
-        :root {
-            /* Exam Babu Brand Colors */
-            --brand-blue: #0777be;
-            --brand-pink: #f062a4;
-            --brand-green: #94c940;
-            --brand-sky: #7fd2ea;
-        }
+
 
         /* Utility overrides using variables */
         .text-primary { color: var(--brand-blue) !important; }

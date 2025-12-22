@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\ActivityLogController;
 use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AdminFileManagerController;
+use App\Http\Controllers\Admin\ComprehensionController;
 use App\Http\Controllers\Admin\ExamController;
 use App\Http\Controllers\Admin\ExamTypeController;
 use App\Http\Controllers\Admin\PracticeSetsController;
@@ -78,7 +79,8 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('ad
     });
 
     // 3. Standard Resource (Keep this at the end of question section)
-    Route::resource('questions', QuestionController::class);
+    // Route::resource('questions', QuestionController::class);
+    Route::resource('comprehensions', ComprehensionController::class);
 
     // --- ACADEMIC ROUTES ---
     Route::controller(QuizController::class)->prefix('quizzes')->name('quizzes.')->group(function () {

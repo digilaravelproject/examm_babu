@@ -13,8 +13,12 @@
             ['option' => '', 'image' => null, 'is_correct' => false]
         ];
     }
+    // Convert to JSON for Alpine
     $jsonOptions = json_encode($currentOptions);
-    $correctAnswer = old('correct_answer', $question->correct_answer);
+
+    // Correct Answer: Ensure it handles both stored integer or old input
+    // Ensure we convert to integer for JS comparison
+    $correctAnswer = $question->correct_answer !== null ? (int)$question->correct_answer : null;
 @endphp
 
 {{-- Main Container with AlpineJS --}}
@@ -24,12 +28,15 @@
         hasAttachment: {{ old('has_attachment', $question->has_attachment ?? 0) ? 'true' : 'false' }},
         attachmentType: '{{ old('attachment_type', $question->attachment_type ?? 'comprehension') }}',
         solutionHasVideo: {{ !empty($question->solution_video) ? 'true' : 'false' }},
-        correctAnswer: '{{ $correctAnswer }}'
+        skills: {{ $skills }},
+        topics: {{ $topics }},
+        selectedSkill: '{{ old('skill_id', $question->skill_id) }}',
+        correctAnswer: {{ $correctAnswer ?? 'null' }}
     })"
-    @fm-selected.window="handleFmSelection($event.detail)"
     class="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden font-sans">
 
-    <form action="{{ $action }}" method="POST">
+    {{-- FIX 1: Added enctype="multipart/form-data" --}}
+    <form action="{{ $action }}" method="POST" enctype="multipart/form-data">
         @csrf
         @if($isEdit) @method('PUT') @endif
         <input type="hidden" name="question_type_id" value="{{ $questionType->id ?? $question->question_type_id }}">
@@ -53,7 +60,7 @@
         <div class="p-6 md:p-8">
 
             {{-- TAB 1: DETAILS & OPTIONS --}}
-            <div x-show="activeTab === 'details'" class="space-y-8" style="display: none;">
+            <div x-show="activeTab === 'details'" class="space-y-8">
 
                 {{-- Question Editor --}}
                 <div class="space-y-2">
@@ -63,18 +70,29 @@
                             Question Content <span class="text-red-500">*</span>
                         </label>
 
-                        {{-- NEW TOOLBAR FOR QUESTION --}}
                         <div class="flex items-center gap-2 mb-1">
                              {{-- Math Button --}}
                              <button type="button" @click="openMathModal('question')" class="flex items-center gap-1 text-xs px-3 py-1.5 bg-white text-gray-600 border border-gray-200 rounded-md hover:border-[#0777be] hover:text-[#0777be] transition font-medium shadow-sm">
                                 <span class="font-serif italic font-bold text-sm leading-none">∑</span> Math
                             </button>
-                            {{-- Image Button --}}
-                            <button type="button" @click="openFileManager('question')" class="flex items-center gap-1 text-xs px-3 py-1.5 bg-white text-gray-600 border border-gray-200 rounded-md hover:border-[#f062a4] hover:text-[#f062a4] transition font-medium shadow-sm">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                                Image
-                            </button>
+
+                            {{-- Image Button for Question (Native File Input) --}}
+                            <div class="relative">
+                                <input type="file" name="question_image" id="q_image_input" class="hidden" accept="image/*" @change="handleQuestionImageUpload">
+                                <button type="button" @click="document.getElementById('q_image_input').click()" class="flex items-center gap-1 text-xs px-3 py-1.5 bg-white text-gray-600 border border-gray-200 rounded-md hover:border-[#f062a4] hover:text-[#f062a4] transition font-medium shadow-sm">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                    Add Image
+                                </button>
+                            </div>
                         </div>
+                    </div>
+
+                    {{-- Question Image Preview --}}
+                    <div x-show="questionImagePreview" class="relative w-32 h-32 mb-2 rounded-lg border border-gray-200 bg-gray-50 p-1 shadow-sm overflow-hidden group">
+                        <img :src="questionImagePreview" class="w-full h-full object-contain">
+                        <button type="button" @click="removeQuestionImage" class="absolute top-1 right-1 bg-white text-red-500 rounded-full p-1 shadow hover:bg-red-50">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
                     </div>
 
                     <div class="rounded-xl overflow-hidden border border-gray-300 shadow-sm focus-within:ring-2 focus-within:ring-[#0777be]/20 transition-all">
@@ -100,12 +118,13 @@
                         <template x-for="(opt, index) in options" :key="index">
                             <div class="group relative flex gap-4 p-5 border border-gray-200 rounded-xl hover:border-[#0777be]/30 hover:shadow-lg hover:shadow-blue-50/50 transition-all bg-white">
 
-                                {{-- Correct Answer Selector --}}
+                                {{-- Correct Answer Selector (FIXED: Uses Index as Value) --}}
                                 <div class="pt-8 w-14 shrink-0 flex flex-col items-center border-r border-gray-100 pr-4 mr-2">
                                     <label class="cursor-pointer group/radio relative" title="Mark as Correct">
-                                        <input type="radio" name="correct_answer" :value="opt.option"
-                                            :checked="opt.is_correct || opt.option == correctAnswer"
-                                            @change="correctAnswer = opt.option"
+                                        {{-- Value is set to Index so controller gets 0, 1, 2 etc --}}
+                                        <input type="radio" name="correct_answer" :value="index"
+                                            :checked="correctAnswer === index"
+                                            @change="correctAnswer = index"
                                             class="peer sr-only">
 
                                         {{-- Custom Radio UI --}}
@@ -117,23 +136,27 @@
 
                                 {{-- Input Area --}}
                                 <div class="flex-1 space-y-3">
+                                    {{-- FIX 2: Hidden Input for Existing Image --}}
+                                    <input type="hidden" :name="'options['+index+'][existing_image]'" :value="opt.image">
+
                                     {{-- Toolbar --}}
                                     <div class="flex items-center justify-between">
                                         <span class="text-[10px] font-bold text-gray-400 uppercase bg-gray-100 px-2 py-1 rounded tracking-wider" x-text="'Option ' + (index + 1)"></span>
 
                                         <div class="flex items-center gap-2">
-                                            {{-- Math Button --}}
                                             <button type="button" @click="openMathModal(index)" class="flex items-center gap-1 text-xs px-3 py-1.5 bg-white text-gray-600 border border-gray-200 rounded-md hover:border-[#0777be] hover:text-[#0777be] transition font-medium shadow-sm">
                                                 <span class="font-serif italic font-bold text-sm leading-none">∑</span> Math
                                             </button>
 
-                                            {{-- File Manager Button --}}
-                                            <button type="button" @click="openFileManager(index)" class="flex items-center gap-1 text-xs px-3 py-1.5 bg-white text-gray-600 border border-gray-200 rounded-md hover:border-[#f062a4] hover:text-[#f062a4] transition font-medium shadow-sm">
+                                            {{-- Native Image Input Trigger --}}
+                                            {{-- Hidden File Input --}}
+                                            <input type="file" :name="'options['+index+'][image]'" :id="'opt_img_'+index" class="hidden" accept="image/*" @change="handleOptionImageUpload($event, index)">
+
+                                            <button type="button" @click="document.getElementById('opt_img_'+index).click()" class="flex items-center gap-1 text-xs px-3 py-1.5 bg-white text-gray-600 border border-gray-200 rounded-md hover:border-[#f062a4] hover:text-[#f062a4] transition font-medium shadow-sm">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                                                 Image
                                             </button>
 
-                                            {{-- Delete --}}
                                             <button type="button" @click="removeOption(index)" class="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-md transition ml-1" title="Remove Option">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                                             </button>
@@ -148,9 +171,6 @@
                                                 class="w-full border-gray-300 bg-white rounded-lg focus:border-[#0777be] focus:ring-[#0777be] text-sm shadow-sm p-3 resize-y transition-all"
                                                 placeholder="Type option text here..."></textarea>
 
-                                            {{-- Hidden input for Image --}}
-                                            <input type="hidden" :name="'options['+index+'][image]'" x-model="opt.image">
-
                                             {{-- Live Math Preview --}}
                                             <div :id="'math-preview-' + index"
                                                  class="min-h-[24px] text-sm text-gray-800 bg-gray-50/50 border border-gray-100 rounded px-3 py-2"
@@ -158,10 +178,11 @@
                                             </div>
                                         </div>
 
-                                        {{-- Image Preview from File Manager --}}
-                                        <div x-show="opt.image" class="relative group/img shrink-0">
+                                        {{-- Image Preview Area (Handling both DB URL and New Upload) --}}
+                                        <div x-show="opt.image || opt.previewUrl" class="relative group/img shrink-0">
                                             <div class="h-24 w-24 rounded-lg border border-gray-200 bg-gray-50 p-1 shadow-sm overflow-hidden flex items-center justify-center">
-                                                <img :src="opt.image" class="max-h-full max-w-full object-contain">
+                                                {{-- Show new preview if exists, else show DB image --}}
+                                                <img :src="opt.previewUrl || opt.image" class="max-h-full max-w-full object-contain">
                                             </div>
                                             <button type="button" @click="removeImage(index)" class="absolute -top-2 -right-2 bg-white text-red-500 border border-red-100 rounded-full p-1 shadow-md hover:bg-red-50 transition opacity-0 group-hover/img:opacity-100">
                                                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
@@ -188,25 +209,23 @@
                     <div>
                         <label class="form-label">Skill / Subject</label>
                         <div class="relative">
-                            <select name="skill_id" class="custom-select w-full">
-                                <option value="">Select Skill</option>
-                                @foreach($skills as $skill)
-                                    <option value="{{ $skill->id }}" {{ old('skill_id', $question->skill_id) == $skill->id ? 'selected' : '' }}>{{ $skill->name }}</option>
-                                @endforeach
-                            </select>
-
+                            <select name="skill_id" x-model="selectedSkill" @change="filterTopics()" class="custom-select w-full">
+    <option value="">-- Select Skill --</option>
+    <template x-for="skill in skills" :key="skill.id">
+        <option :value="skill.id" x-text="skill.name" :selected="skill.id == selectedSkill"></option>
+    </template>
+</select>
                         </div>
                     </div>
                     <div>
                         <label class="form-label">Topic</label>
                         <div class="relative">
-                            <select name="topic_id" class="custom-select w-full">
-                                <option value="">Select Topic</option>
-                                @foreach($topics ?? [] as $topic)
-                                    <option value="{{ $topic->id }}" {{ old('topic_id', $question->topic_id) == $topic->id ? 'selected' : '' }}>{{ $topic->name }}</option>
-                                @endforeach
-                            </select>
-
+                           <select name="topic_id" class="custom-select w-full">
+    <option value="">-- Select Topic --</option>
+    <template x-for="topic in availableTopics" :key="topic.id">
+        <option :value="topic.id" x-text="topic.name" :selected="topic.id == '{{ $question->topic_id }}'"></option>
+    </template>
+</select>
                         </div>
                     </div>
                     <div>
@@ -280,10 +299,6 @@
                                    placeholder="https://youtube.com/watch?v=..."
                                    x-model="videoUrl">
                         </div>
-                        <div x-show="videoUrl" class="mt-3 text-xs text-[#94c940] flex items-center gap-1 font-semibold">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                            Video link ready
-                        </div>
                     </div>
                 </div>
                 <div>
@@ -334,14 +349,13 @@
                                     <option value="{{ $p->id }}" {{ old('comprehension_passage_id', $question->comprehension_passage_id) == $p->id ? 'selected' : '' }}>{{ $p->title }}</option>
                                 @endforeach
                             </select>
-
                         </div>
                     </div>
 
                     <div x-show="attachmentType === 'audio' || attachmentType === 'video'" class="p-6 bg-white rounded-xl border border-gray-200 shadow-sm">
                         <label class="form-label mb-2">Media Link / ID</label>
                         <input type="text" name="attachment_options[link]"
-                               value="{{ old('attachment_options.link', $question->attachment_options['link'] ?? '') }}"
+                               value="{{ old('attachment_options.link', data_get($question->attachment_options, 'link')) }}"
                                class="custom-input w-full" placeholder="Enter URL here">
                     </div>
                 </div>
@@ -360,7 +374,7 @@
         </div>
     </form>
 
-    {{-- MATH MODAL --}}
+    {{-- MATH MODAL (unchanged) --}}
     <div x-show="showMathModal" style="display: none;"
          class="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-4"
          x-transition.opacity>
@@ -390,37 +404,15 @@
         </div>
     </div>
 
-    {{-- NEW FILE MANAGER MODAL --}}
-    <div x-show="showFmModal" style="display: none;"
-         class="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-4"
-         x-transition.opacity>
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[80vh] flex flex-col overflow-hidden transform transition-all scale-100" @click.outside="closeFmModal()">
-             <div class="bg-[#f062a4] px-6 py-4 flex justify-between items-center shrink-0">
-                <h3 class="text-white font-bold text-lg tracking-wide">Select File</h3>
-                <button @click="closeFmModal()" class="text-white/80 hover:text-white transition text-xl">&times;</button>
-            </div>
-            <div class="flex-1 bg-gray-50 relative">
-                 {{-- Loading Indicator --}}
-                <div class="absolute inset-0 flex items-center justify-center z-0">
-                     <span class="text-gray-400 font-medium animate-pulse">Loading File Manager...</span>
-                </div>
-                <iframe src="/admin/file-manager/popup" class="w-full h-full relative z-10" frameborder="0"></iframe>
-            </div>
-        </div>
-    </div>
-
 </div>
 
 {{-- CSS --}}
 <style>
     .form-label { display: block; font-weight: 700; color: #374151; font-size: 0.875rem; }
-    /* Premium Select Box */
     .custom-select { appearance: none; background-color: #fff; border: 1px solid #d1d5db; color: #374151; padding: 0.75rem 1rem; border-radius: 0.75rem; width: 100%; font-size: 0.875rem; line-height: 1.25; transition: all 0.2s; }
     .custom-select:focus { outline: none; border-color: #0777be; ring: 2px solid rgba(7, 119, 190, 0.2); }
-    /* Premium Input */
     .custom-input { width: 100%; border: 1px solid #d1d5db; border-radius: 0.75rem; padding: 0.75rem 1rem; font-size: 0.875rem; transition: all 0.2s; }
     .custom-input:focus { outline: none; border-color: #0777be; box-shadow: 0 0 0 3px rgba(7, 119, 190, 0.1); }
-    /* TinyMCE Polish */
     .tox-tinymce { border-radius: 0.75rem !important; border-color: #e5e7eb !important; overflow: hidden; }
 </style>
 
@@ -440,48 +432,68 @@ document.addEventListener('alpine:init', () => {
         ],
         activeTab: config.activeTab,
         options: config.options,
-        correctAnswer: config.correctAnswer,
+        correctAnswer: config.correctAnswer, // Now stores Index (0,1,2,3)
         hasAttachment: config.hasAttachment,
         attachmentType: config.attachmentType,
         solutionHasVideo: config.solutionHasVideo,
         showMathModal: false,
-        showFmModal: false, // New Modal State
         mathInput: '',
         videoUrl: '',
-        activeContext: null, // Tracks who asked for tool: 'question' or index 0,1,2...
+        activeContext: null,
+        questionImagePreview: null, // For Question Image
+        skills: config.skills, // Skills data
+    allTopics: config.topics, // Saare Topics data
+    availableTopics: [], // Filtered topics store karne ke liye
+    selectedSkill: config.selectedSkill, // Abhi jo skill selected hai
 
         init() {
             this.$nextTick(() => { this.renderAllMath(); });
+            // Initial load par topics filter karo
+        this.filterTopics();
         },
 
-        // --- File Manager Integration ---
-        openFileManager(context) {
-            this.activeContext = context;
-            this.showFmModal = true;
-        },
+        // --- NEW: Handle Native File Uploads ---
+        // Skill change hone par ye function call hoga
+    filterTopics() {
+        if (!this.selectedSkill) {
+            this.availableTopics = [];
+            return;
+        }
+        // Filter logic: Sirf wahi topic dikhao jinki skill_id match kare
+        this.availableTopics = this.allTopics.filter(t => t.skill_id == this.selectedSkill);
+    },
 
-        closeFmModal() {
-            this.showFmModal = false;
-        },
-
-        handleFmSelection(url) {
-            this.showFmModal = false; // Close Modal
-
-            if (this.activeContext === 'question') {
-                 // Insert into TinyMCE
-                 if(tinymce.get('editor_question')) {
-                    tinymce.get('editor_question').insertContent('<img src="' + url + '" alt="Image" style="max-width:100%; height:auto;" />');
-                 }
-            } else if (this.activeContext !== null && this.options[this.activeContext]) {
-                // Update Option Image
-                this.options[this.activeContext].image = url;
+        // 1. For Options Images
+        handleOptionImageUpload(event, index) {
+            const file = event.target.files[0];
+            if (file) {
+                // Generate a local preview URL
+                const preview = URL.createObjectURL(file);
+                // We use a temporary property 'previewUrl' so we don't overwrite the string URL
+                // in 'image' immediately (though controller will handle the file input by name)
+                this.options[index].previewUrl = preview;
             }
-            this.activeContext = null;
         },
+
+        // 2. For Question Image
+        handleQuestionImageUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                this.questionImagePreview = URL.createObjectURL(file);
+            }
+        },
+
+        removeQuestionImage() {
+            this.questionImagePreview = null;
+            // Clear input
+            document.getElementById('q_image_input').value = '';
+        },
+
+        // --- Standard Alpine Logic ---
 
         addOption() {
             if(this.options.length < 6) {
-                this.options.push({ option: '', image: null, is_correct: false });
+                this.options.push({ option: '', image: null, is_correct: false, previewUrl: null });
             }
         },
         removeOption(index) {
@@ -490,6 +502,10 @@ document.addEventListener('alpine:init', () => {
         },
         removeImage(index) {
             this.options[index].image = null;
+            this.options[index].previewUrl = null;
+            // Clear file input
+            const input = document.getElementById('opt_img_'+index);
+            if(input) input.value = '';
         },
 
         // Math Logic
@@ -512,12 +528,10 @@ document.addEventListener('alpine:init', () => {
                 const formula = ' \\(' + this.mathInput + '\\) ';
 
                 if (this.activeContext === 'question') {
-                    // Insert into TinyMCE
-                     if(tinymce.get('editor_question')) {
+                      if(tinymce.get('editor_question')) {
                         tinymce.get('editor_question').insertContent(formula);
-                     }
+                      }
                 } else {
-                    // Insert into Option Textarea
                     this.options[this.activeContext].option += formula;
                     this.$nextTick(() => { this.renderMathPreview(this.activeContext); });
                 }
@@ -538,12 +552,6 @@ document.addEventListener('alpine:init', () => {
     }));
 });
 
-// Bridge function for File Manager Popup
-window.fmSetLink = function(url) {
-    // Dispatch event to Alpine
-    window.dispatchEvent(new CustomEvent('fm-selected', { detail: url }));
-};
-
 // TinyMCE Init
 window.onload = function() {
     const commonConfig = {
@@ -552,7 +560,7 @@ window.onload = function() {
         plugins: 'advlist autolink lists link charmap preview searchreplace visualblocks code fullscreen table help wordcount image',
         toolbar: 'undo redo | formatselect | bold italic backcolor | alignleft aligncenter alignright alignjustify | bullist numlist | removeformat | help',
         content_style: 'body { font-family:Inter,sans-serif; font-size:14px }',
-        convert_urls: false // Prevents TinyMCE from messing up image URLs
+        convert_urls: false
     };
     tinymce.init({ selector: '#editor_question', ...commonConfig, height: 300 });
     tinymce.init({ selector: '#editor_solution', ...commonConfig });
