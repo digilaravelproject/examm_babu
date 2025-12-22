@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\ActivityLogController;
 use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AdminFileManagerController;
+use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\ComprehensionController;
 use App\Http\Controllers\Admin\ExamController;
 use App\Http\Controllers\Admin\ExamTypeController;
@@ -14,6 +15,7 @@ use App\Http\Controllers\Admin\RolePermissionController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\QuestionController;
 use App\Http\Controllers\Admin\QuestionImportController;
+use App\Http\Controllers\Admin\QuestionTypeController;
 
 /*
 |--------------------------------------------------------------------------
@@ -81,7 +83,8 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('ad
     // 3. Standard Resource (Keep this at the end of question section)
     // Route::resource('questions', QuestionController::class);
     Route::resource('comprehensions', ComprehensionController::class);
-
+    Route::get('question-types',[QuestionTypeController::class,'index'])->name('question-types.index');
+Route::resource('categories', CategoryController::class);
     // --- ACADEMIC ROUTES ---
     Route::controller(QuizController::class)->prefix('quizzes')->name('quizzes.')->group(function () {
         Route::get('/index', 'index')->name('index');

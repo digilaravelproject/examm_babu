@@ -113,6 +113,37 @@
                     </div>
                 </div>
 
+                <div class="pt-4 pb-1 pl-4 uppercase text-[10px] font-bold tracking-widest text-slate-600">Master Data</div>
+
+                <div x-data="{ open: {{ request()->routeIs('admin.categories.*', 'admin.sub_categories.*', 'admin.tags.*') ? 'true' : 'false' }} }">
+                    <button @click="open = !open" class="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all">
+                        <div class="flex items-center">
+                            <svg class="w-5 h-5 mr-3 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+                            Manage Categories
+                        </div>
+                        <svg :class="open ? 'rotate-180 text-brand-green' : ''" class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    <div x-show="open" x-cloak x-collapse class="mt-1 space-y-1 bg-slate-800/30 rounded-lg mx-2">
+                        <a href="{{ Route::has('admin.categories.index') ? route('admin.categories.index') : '#' }}" class="block px-8 py-2 text-sm {{ request()->routeIs('admin.categories.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Categories</a>
+                        <a href="{{ Route::has('admin.sub_categories.index') ? route('admin.sub_categories.index') : '#' }}" class="block px-8 py-2 text-sm {{ request()->routeIs('admin.sub_categories.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Sub Categories</a>
+                        <a href="{{ Route::has('admin.tags.index') ? route('admin.tags.index') : '#' }}" class="block px-8 py-2 text-sm {{ request()->routeIs('admin.tags.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Tags</a>
+                    </div>
+                </div>
+
+                <div x-data="{ open: {{ request()->routeIs('admin.sections.*', 'admin.skills.*', 'admin.topics.*') ? 'true' : 'false' }} }">
+                    <button @click="open = !open" class="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all">
+                        <div class="flex items-center">
+                            <svg class="w-5 h-5 mr-3 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                            Manage Subjects
+                        </div>
+                        <svg :class="open ? 'rotate-180 text-brand-green' : ''" class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    <div x-show="open" x-cloak x-collapse class="mt-1 space-y-1 bg-slate-800/30 rounded-lg mx-2">
+                        <a href="{{ Route::has('admin.sections.index') ? route('admin.sections.index') : '#' }}" class="block px-8 py-2 text-sm {{ request()->routeIs('admin.sections.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Sections</a>
+                        <a href="{{ Route::has('admin.skills.index') ? route('admin.skills.index') : '#' }}" class="block px-8 py-2 text-sm {{ request()->routeIs('admin.skills.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Skills</a>
+                        <a href="{{ Route::has('admin.topics.index') ? route('admin.topics.index') : '#' }}" class="block px-8 py-2 text-sm {{ request()->routeIs('admin.topics.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Topics</a>
+                    </div>
+                </div>
                 <div class="pt-4 pb-1 pl-4 uppercase text-[10px] font-bold tracking-widest text-slate-600">System</div>
 
                 <a href="{{ Route::has('admin.roles_permissions.index') ? route('admin.roles_permissions.index') : '#' }}"
