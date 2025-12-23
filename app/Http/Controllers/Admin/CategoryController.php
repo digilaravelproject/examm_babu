@@ -10,22 +10,19 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class CategoryController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
     public function index(Request $request)
     {
         $query = Category::query();
 
-        // Direct Filtering Logic inside Controller
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('code', 'like', "%{$search}%"); // Fixed here
+                  ->orWhere('code', 'like', "%{$search}%");
             });
         }
 
@@ -35,78 +32,66 @@ class CategoryController extends Controller
 
         $categories = $query->orderBy('created_at', 'desc')->paginate(10)->withQueryString();
 
+        if ($request->ajax()) {
+            return view('admin.categories.partials.table', compact('categories'))->render();
+        }
+
         return view('admin.categories.index', compact('categories'));
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
     public function create()
     {
         return view('admin.categories.create');
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(StoreCategoryRequest $request)
     {
         DB::beginTransaction();
         try {
             $data = $request->validated();
 
-            // Handle Image Upload
+            // --- AUTO GENERATE CODE ---
+            // Name ke first 3 letters + Random Unique String (e.g., HIS-A12B)
+            $prefix = strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $data['name']), 0, 3));
+            $data['code'] = $prefix . '-' . strtoupper(Str::random(5));
+
             if ($request->hasFile('image')) {
-                $path = $request->file('image')->store('categories', 'public');
-                $data['image_path'] = $path;
+                $data['image_path'] = $request->file('image')->store('categories', 'public');
             }
 
             Category::create($data);
 
             DB::commit();
-            return redirect()->route('admin.categories.index')
-                ->with('success', 'Category created successfully.');
-
+            return redirect()->route('admin.categories.index')->with('success', 'Category created successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Category Store Error: ' . $e->getMessage());
-            return back()->with('error', 'Something went wrong! Please try again.')->withInput();
+            return back()->with('error', 'Unable to create category.')->withInput();
         }
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
     public function edit(Category $category)
     {
-        // return view('admin.categories.edit', compact('category'));
+        return view('admin.categories.edit', compact('category'));
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(UpdateCategoryRequest $request, Category $category)
     {
         DB::beginTransaction();
         try {
             $data = $request->validated();
 
-            // Handle Image Upload
             if ($request->hasFile('image')) {
-                // Delete old image if exists
                 if ($category->image_path && Storage::disk('public')->exists($category->image_path)) {
                     Storage::disk('public')->delete($category->image_path);
                 }
-                $path = $request->file('image')->store('categories', 'public');
-                $data['image_path'] = $path;
+                $data['image_path'] = $request->file('image')->store('categories', 'public');
             }
 
             $category->update($data);
 
             DB::commit();
-            return redirect()->route('admin.categories.index')
-                ->with('success', 'Category updated successfully.');
-
+            return redirect()->route('admin.categories.index')->with('success', 'Category updated successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Category Update Error: ' . $e->getMessage());
@@ -114,34 +99,22 @@ class CategoryController extends Controller
         }
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
     public function destroy(Category $category)
     {
-        DB::beginTransaction();
         try {
-            // Enhanced Association Check using Eloquent Counts
-            $category->loadCount(['subCategories', 'plans']); // Assuming relationships exist in Model
-
-            if ($category->sub_categories_count > 0 || $category->plans_count > 0) {
-                return back()->with('error', 'Cannot delete! This category has active Sub-Categories or Plans linked to it.');
+            // Relationships check
+            if ($category->subCategories()->count() > 0) {
+                return back()->with('error', 'Cannot delete! Category has linked Sub-Categories.');
             }
 
-            // Delete Image
-            if ($category->image_path && Storage::disk('public')->exists($category->image_path)) {
+            if ($category->image_path) {
                 Storage::disk('public')->delete($category->image_path);
             }
 
             $category->delete();
-
-            DB::commit();
             return back()->with('success', 'Category deleted successfully.');
-
         } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('Category Delete Error: ' . $e->getMessage());
-            return back()->with('error', 'System error while deleting category.');
+            return back()->with('error', 'Error deleting category.');
         }
     }
 }

@@ -45,8 +45,8 @@
         <aside class="fixed inset-y-0 left-0 z-30 flex flex-col w-64 h-full transition-all duration-300 transform border-r bg-slate-900 border-slate-800 md:static md:translate-x-0"
                :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'">
 
-            <div class="flex items-center justify-center h-16 border-b bg-slate-950 border-slate-800 px-4">
-                <img src="{{ asset('assets/images/logo.png') }}" alt="Logo" class="max-h-10 w-auto">
+            <div class="flex items-center justify-center h-16 px-4 border-b bg-slate-950 border-slate-800">
+                <img src="{{ asset('assets/images/logo.png') }}" alt="Logo" class="w-auto max-h-10">
             </div>
 
             <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto custom-scroll">
@@ -72,7 +72,7 @@
                         </div>
                         <svg :class="open ? 'rotate-180 text-brand-green' : ''" class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                     </button>
-                    <div x-show="open" x-cloak x-collapse class="mt-1 space-y-1 bg-slate-800/30 rounded-lg mx-2">
+                    <div x-show="open" x-cloak x-collapse class="mx-2 mt-1 space-y-1 rounded-lg bg-slate-800/30">
                         <a href="{{ Route::has('admin.quizzes.index') ? route('admin.quizzes.index') : '#' }}" class="block px-8 py-2 text-sm {{ request()->routeIs('admin.quizzes.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Quizzes</a>
                         <a href="{{ Route::has('admin.exam.index') ? route('admin.exam.index') : '#' }}" class="block px-8 py-2 text-sm {{ request()->routeIs('admin.exam.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Exams</a>
                         <a href="{{ Route::has('admin.quiz-types.index') ? route('admin.quiz-types.index') : '#' }}" class="block px-8 py-2 text-sm {{ request()->routeIs('admin.quiz-types.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Quiz Types</a>
@@ -88,7 +88,7 @@
                         </div>
                         <svg :class="open ? 'rotate-180' : ''" class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                     </button>
-                    <div x-show="open" x-cloak x-collapse class="mt-1 space-y-1 bg-slate-800/30 rounded-lg mx-2">
+                    <div x-show="open" x-cloak x-collapse class="mx-2 mt-1 space-y-1 rounded-lg bg-slate-800/30">
                         <a href="{{ Route::has('admin.practice-sets.index') ? route('admin.practice-sets.index') : '#' }}" class="block px-8 py-2 text-sm {{ request()->routeIs('admin.practice-sets.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Practice Sets</a>
                         <a href="{{ Route::has('admin.lessons.index') ? route('admin.lessons.index') : '#' }}" class="block px-8 py-2 text-sm {{ request()->routeIs('admin.lessons.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Lessons</a>
                         <a href="{{ Route::has('admin.videos.index') ? route('admin.videos.index') : '#' }}" class="block px-8 py-2 text-sm {{ request()->routeIs('admin.videos.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Videos</a>
@@ -105,7 +105,7 @@
                         </div>
                         <svg :class="open ? 'rotate-180 text-brand-green' : ''" class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                     </button>
-                    <div x-show="open" x-cloak x-collapse class="mt-1 space-y-1 bg-slate-800/30 rounded-lg mx-2">
+                    <div x-show="open" x-cloak x-collapse class="mx-2 mt-1 space-y-1 rounded-lg bg-slate-800/30">
                         <a href="{{ Route::has('admin.questions.index') ? route('admin.questions.index') : '#' }}" class="block px-8 py-2 text-sm {{ request()->routeIs('admin.questions.index') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Questions</a>
                         <a href="{{ Route::has('admin.questions.import') ? route('admin.questions.import') : '#' }}" class="block px-8 py-2 text-sm {{ request()->routeIs('admin.questions.import') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Import Questions</a>
                         <a href="{{ Route::has('admin.comprehensions.index') ? route('admin.comprehensions.index') : '#' }}" class="block px-8 py-2 text-sm {{ request()->routeIs('admin.comprehensions.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Comprehensions</a>
@@ -123,9 +123,9 @@
                         </div>
                         <svg :class="open ? 'rotate-180 text-brand-green' : ''" class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                     </button>
-                    <div x-show="open" x-cloak x-collapse class="mt-1 space-y-1 bg-slate-800/30 rounded-lg mx-2">
+                    <div x-show="open" x-cloak x-collapse class="mx-2 mt-1 space-y-1 rounded-lg bg-slate-800/30">
                         <a href="{{ Route::has('admin.categories.index') ? route('admin.categories.index') : '#' }}" class="block px-8 py-2 text-sm {{ request()->routeIs('admin.categories.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Categories</a>
-                        <a href="{{ Route::has('admin.sub_categories.index') ? route('admin.sub_categories.index') : '#' }}" class="block px-8 py-2 text-sm {{ request()->routeIs('admin.sub_categories.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Sub Categories</a>
+                        <a href="{{ Route::has('admin.sub-categories.index') ? route('admin.sub-categories.index') : '#' }}" class="block px-8 py-2 text-sm {{ request()->routeIs('admin.sub-categories.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Sub Categories</a>
                         <a href="{{ Route::has('admin.tags.index') ? route('admin.tags.index') : '#' }}" class="block px-8 py-2 text-sm {{ request()->routeIs('admin.tags.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Tags</a>
                     </div>
                 </div>
@@ -138,7 +138,7 @@
                         </div>
                         <svg :class="open ? 'rotate-180 text-brand-green' : ''" class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                     </button>
-                    <div x-show="open" x-cloak x-collapse class="mt-1 space-y-1 bg-slate-800/30 rounded-lg mx-2">
+                    <div x-show="open" x-cloak x-collapse class="mx-2 mt-1 space-y-1 rounded-lg bg-slate-800/30">
                         <a href="{{ Route::has('admin.sections.index') ? route('admin.sections.index') : '#' }}" class="block px-8 py-2 text-sm {{ request()->routeIs('admin.sections.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Sections</a>
                         <a href="{{ Route::has('admin.skills.index') ? route('admin.skills.index') : '#' }}" class="block px-8 py-2 text-sm {{ request()->routeIs('admin.skills.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Skills</a>
                         <a href="{{ Route::has('admin.topics.index') ? route('admin.topics.index') : '#' }}" class="block px-8 py-2 text-sm {{ request()->routeIs('admin.topics.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Topics</a>
@@ -166,14 +166,14 @@
 
             </nav>
 
-            <div class="p-4 bg-slate-950/50 border-t border-slate-800">
-                <div class="flex items-center p-2 rounded-xl bg-slate-900/50 border border-slate-800">
+            <div class="p-4 border-t bg-slate-950/50 border-slate-800">
+                <div class="flex items-center p-2 border rounded-xl bg-slate-900/50 border-slate-800">
                     <div class="flex-shrink-0">
-                        <div class="w-9 h-9 rounded-lg bg-gradient-to-tr from-blue-600 to-pink-500 flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-blue-900/20">
+                        <div class="flex items-center justify-center text-sm font-bold text-white rounded-lg shadow-lg w-9 h-9 bg-gradient-to-tr from-blue-600 to-pink-500 shadow-blue-900/20">
                             {{ substr(Auth::user()->name, 0, 1) }}
                         </div>
                     </div>
-                    <div class="ml-3 flex-1 overflow-hidden">
+                    <div class="flex-1 ml-3 overflow-hidden">
                         <p class="text-[11px] font-bold text-white truncate">{{ Auth::user()->name }}</p>
                         <p class="text-[9px] text-slate-500 truncate">{{ Auth::user()->email }}</p>
                     </div>
@@ -190,7 +190,7 @@
         <div class="flex flex-col flex-1 h-full overflow-hidden">
             <header class="flex items-center justify-between h-16 px-8 bg-white border-b border-gray-200 shadow-sm">
                 <div class="flex items-center gap-4">
-                    <button @click="sidebarOpen = !sidebarOpen" class="md:hidden text-gray-500"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+                    <button @click="sidebarOpen = !sidebarOpen" class="text-gray-500 md:hidden"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg></button>
                     <h2 class="text-lg font-bold text-gray-800">@yield('header', 'Admin Panel')</h2>
                 </div>
             </header>
@@ -204,7 +204,7 @@
             <div class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm" @click="fileManagerOpen = false"></div>
             <div class="flex items-center justify-center min-h-screen p-4">
                 <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-6xl h-[85vh] flex flex-col border border-gray-200">
-                    <div class="px-6 py-4 border-b flex items-center justify-between">
+                    <div class="flex items-center justify-between px-6 py-4 border-b">
                         <h3 class="font-bold text-gray-900">File Manager</h3>
                         <button @click="fileManagerOpen = false" class="text-gray-400 hover:text-red-500"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
                     </div>
