@@ -15,7 +15,7 @@
         <input type="text" x-model="search" @input.debounce.500ms="fetchExams()" placeholder="Search Title or Code..." class="flex-1 text-sm border-gray-300 rounded-lg">
         <select x-model="type" @change="fetchExams()" class="w-48 text-sm border-gray-300 rounded-lg">
             <option value="">All Exam Types</option>
-            @foreach($examTypes as $type)
+            @foreach($exams as $type)
                 <option value="{{ $type->id }}">{{ $type->name }}</option>
             @endforeach
         </select>

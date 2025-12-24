@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\AdminFileManagerController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\ComprehensionController;
 use App\Http\Controllers\Admin\ExamController;
+use App\Http\Controllers\Admin\ExamQuestionController;
 use App\Http\Controllers\Admin\ExamScheduleController;
 use App\Http\Controllers\Admin\ExamSectionController;
 use App\Http\Controllers\Admin\ExamTypeController;
@@ -110,16 +111,38 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('ad
     Route::get('search-topics', [TopicController::class, 'search'])->name('topics.search');
 
 
-// Exam CRUD
+// // Exam CRUD
+//     Route::resource('exams', ExamController::class);
+//     Route::get('exams/{exam}/settings', [ExamController::class, 'settings'])->name('exams.settings');
+//     Route::post('exams/{exam}/settings', [ExamController::class, 'updateSettings'])->name('exams.settings.update');
+
+//     // Exam Sections
+//     Route::resource('exams.sections', ExamSectionController::class)->shallow();
+
+//     // Exam Schedules
+//     Route::resource('exams.schedules', ExamScheduleController::class)->shallow();
+
+// 1. Exam Details (Create/Edit/List)
     Route::resource('exams', ExamController::class);
-    Route::get('exams/{exam}/settings', [ExamController::class, 'settings'])->name('exams.settings');
-    Route::post('exams/{exam}/settings', [ExamController::class, 'updateSettings'])->name('exams.settings.update');
 
-    // Exam Sections
-    Route::resource('exams.sections', ExamSectionController::class)->shallow();
+    // Group for steps that require an existing Exam ID
+    Route::prefix('exams/{exam}')->name('exams.')->group(function () {
 
-    // Exam Schedules
-    Route::resource('exams.schedules', ExamScheduleController::class)->shallow();
+        // 2. Settings
+        Route::get('settings', [ExamController::class, 'settings'])->name('settings');
+        Route::post('settings', [ExamController::class, 'updateSettings'])->name('settings.update');
+
+        // 3. Sections
+        Route::resource('sections', ExamSectionController::class)->except(['show']);
+
+        // 4. Questions (Logic to link questions to sections)
+        Route::get('questions', [ExamQuestionController::class, 'index'])->name('questions.index');
+        Route::post('questions/store', [ExamQuestionController::class, 'store'])->name('questions.store');
+        Route::delete('questions/{question}', [ExamQuestionController::class, 'destroy'])->name('questions.destroy');
+
+        // 5. Schedules
+        Route::resource('schedules', ExamScheduleController::class)->except(['show']);
+    });
 
     // --- ACADEMIC ROUTES ---
     Route::controller(QuizController::class)->prefix('quizzes')->name('quizzes.')->group(function () {

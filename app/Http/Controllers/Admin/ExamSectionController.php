@@ -3,137 +3,110 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Admin\StoreExamSectionRequest;
-use App\Http\Requests\Admin\UpdateExamSectionRequest;
 use App\Models\Exam;
 use App\Models\ExamSection;
-use App\Models\Section;
+use App\Models\Section; // The Master Section Table
 use App\Repositories\ExamRepository;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Exception;
 
 class ExamSectionController extends Controller
 {
-    private ExamRepository $repository;
+    private $repository;
 
-    public function __construct(ExamRepository $repository) {
+    public function __construct(ExamRepository $repository)
+    {
         $this->repository = $repository;
     }
 
-    public function index(Exam $exam) {
-        $exam->load(['examSections' => function($query) {
-            $query->with('section:id,name')->orderBy('section_order');
-        }]);
-
-        $availableSections = Section::active()->get(['id', 'name']);
+    public function index(Exam $exam)
+    {
+        $exam->load('examSections.section'); // Eager load
+        $availableSections = Section::where('is_active', 1)->get();
         $steps = $this->repository->getSteps($exam->id, 'sections');
 
         return view('admin.exams.sections.index', compact('exam', 'availableSections', 'steps'));
     }
 
-    public function store(StoreExamSectionRequest $request, Exam $exam) {
+    public function store(Request $request, Exam $exam)
+    {
+        $request->validate([
+            'display_name' => 'required|string',
+            'section_id' => 'required|exists:sections,id',
+            'total_duration' => 'nullable|integer',
+            'correct_marks' => 'required|numeric',
+            'negative_marks' => 'nullable|numeric',
+            'section_order' => 'required|integer'
+        ]);
+
         DB::beginTransaction();
         try {
-            $section = new ExamSection($request->validated());
+            $section = new ExamSection();
             $section->exam_id = $exam->id;
+            $section->section_id = $request->section_id;
+            $section->display_name = $request->display_name;
+            $section->section_order = $request->section_order;
 
-            // Logic for Duration & Marks (Same for Store & Update)
-            $this->calculateSectionMetrics($section, $exam, $request);
+            // Handle Settings Logic from Step 2
+            $autoDuration = $exam->settings['auto_duration'] ?? true;
+            $autoGrading = $exam->settings['auto_grading'] ?? true;
 
-            $section->save();
-            $exam->updateMeta();
-
-            DB::commit();
-            return back()->with('success', 'Exam Section added successfully!');
-        } catch (Exception $e) {
-            DB::rollBack();
-            Log::error("ExamSection Store Error: " . $e->getMessage());
-            return back()->with('error', 'Store Failed!')->withInput();
-        }
-    }
-
-    public function edit(Exam $exam, ExamSection $section) {
-        // Blade context mein aksar hum modal use karte hain,
-        // toh ye JSON return karega AJAX request ke liye
-        return response()->json($section->load('section:id,name'));
-    }
-
-    public function update(UpdateExamSectionRequest $request, Exam $exam, ExamSection $section) {
-        DB::beginTransaction();
-        try {
-            $section->fill($request->validated());
-
-            $this->calculateSectionMetrics($section, $exam, $request);
-
-            $section->save();
-            $section->updateMeta(); // If model has this method
-            $exam->updateMeta();
-
-            DB::commit();
-            return back()->with('success', 'Exam Section updated successfully!');
-        } catch (Exception $e) {
-            DB::rollBack();
-            Log::error("ExamSection Update Error: " . $e->getMessage());
-            return back()->with('error', 'Update Failed!');
-        }
-    }
-
-    public function destroy(Exam $exam, ExamSection $section) {
-        DB::beginTransaction();
-        try {
-            // Association Check (Using your old logic)
-            if (method_exists($section, 'canSecureDelete') && !$section->canSecureDelete('examSessions')) {
-                return back()->with('error', 'Cannot delete: Section has active student sessions.');
+            // Duration
+            if ($autoDuration) {
+                $section->total_duration = 0; // Will update when questions are added
+            } else {
+                $section->total_duration = ($request->total_duration ?? 0) * 60; // Store in seconds
             }
 
-            $section->questions()->detach();
-            $section->delete();
+            // Marks
+            if ($autoGrading) {
+                $section->total_marks = 0; // Will update later
+            } else {
+                // If manual, we need questions count, currently 0
+                $section->total_marks = 0;
+            }
 
-            $exam->updateMeta();
+            // Store meta for manual calculation later
+            $section->metadata = [
+                'correct_marks' => $request->correct_marks,
+                'negative_marks' => $request->negative_marks ?? 0
+            ];
+
+            $section->save();
+            $exam->updateMeta(); // Update Exam totals
 
             DB::commit();
-            return back()->with('success', 'Section removed from exam.');
+            return back()->with('success', 'Section Added.');
         } catch (Exception $e) {
             DB::rollBack();
-            return back()->with('error', 'Delete Failed: ' . $e->getMessage());
+            return back()->with('error', $e->getMessage());
         }
     }
 
-    /**
-     * Helper to calculate duration and marks based on exam settings
-     */
-    private function calculateSectionMetrics_old($section, $exam, $request) {
-        // Duration Calculation
-        if ($exam->settings->get('auto_duration', true)) {
-            $section->total_duration = $section->questions()->sum('default_time') ?? 0;
-        } else {
-            $section->total_duration = ($request->total_duration ?? 0) * 60;
-        }
-
-        // Grading Calculation
-        if ($exam->settings->get('auto_grading', true)) {
-            $section->total_marks = $section->questions()->sum('default_marks') ?? 0;
-        } else {
-            $section->total_marks = ($section->questions()->count() ?? 0) * ($request->correct_marks ?? 0);
-        }
-    }
-    private function calculateSectionMetrics(ExamSection $section, Exam $exam, $request): void
+    public function update(Request $request, Exam $exam, ExamSection $section)
     {
-        // Auto Duration Logic
-        if ($request->boolean('auto_duration')) {
-            $section->total_duration = $section->questions()->sum('default_time') ?? 0;
-        } else {
-            $section->total_duration = ($request->integer('total_duration') ?? 0) * 60;
-        }
+        // ... Validation similar to store ...
+        $section->update([
+            'display_name' => $request->display_name,
+            'section_order' => $request->section_order,
+            'total_duration' => ($request->total_duration ?? 0) * 60,
+             // Update metadata for marks
+            'metadata->correct_marks' => $request->correct_marks,
+            'metadata->negative_marks' => $request->negative_marks
+        ]);
 
-        // Auto Grading Logic
-        if ($request->boolean('auto_grading')) {
-            $section->total_marks = $section->questions()->sum('default_marks') ?? 0;
-        } else {
-            $count = $section->questions()->count();
-            $section->total_marks = $count * ($request->float('correct_marks') ?? 0);
-        }
+        $section->updateMeta(); // Recalculate based on existing questions
+        $exam->updateMeta();
+
+        return back()->with('success', 'Section Updated');
+    }
+
+    public function destroy(Exam $exam, ExamSection $section)
+    {
+        $section->questions()->detach();
+        $section->delete();
+        $exam->updateMeta();
+        return back()->with('success', 'Section Deleted');
     }
 }
