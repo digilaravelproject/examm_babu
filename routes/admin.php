@@ -129,6 +129,7 @@ Route::prefix('exams/{exam}')->name('exams.')->group(function () {
 
     // 4. Questions (Main Page)
     Route::get('questions', [ExamQuestionController::class, 'index'])->name('questions.index');
+    Route::get('/all-question-ids', [ExamQuestionController::class, 'fetchAllExamQuestionIds']);
 
     // --- AJAX Routes for Question Logic (Add these) ---
     // Fetch questions added to a specific section
