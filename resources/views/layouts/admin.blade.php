@@ -254,6 +254,39 @@
                             class="block px-8 py-2 text-sm {{ request()->routeIs('admin.topics.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Topics</a>
                     </div>
                 </div>
+
+                <div class="pt-4 pb-1 pl-4 uppercase text-[10px] font-bold tracking-widest text-slate-600">Configuration</div>
+
+                <div x-data="{ open: {{ request()->routeIs('admin.categories.*', 'admin.sub_categories.*', 'admin.tags.*') ? 'true' : 'false' }} }">
+                    <button @click="open = !open"
+                        class="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all">
+                        <div class="flex items-center">
+                            <svg class="w-5 h-5 mr-3 text-slate-500" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z">
+                                </path>
+                            </svg>
+                            Monitization
+                        </div>
+                        <svg :class="open ? 'rotate-180 text-brand-green' : ''" class="w-4 h-4 transition-transform"
+                            fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7">
+                            </path>
+                        </svg>
+                    </button>
+                    <div x-show="open" x-cloak x-collapse class="mx-2 mt-1 space-y-1 rounded-lg bg-slate-800/30">
+                        <a href="{{ Route::has('admin.plans.index') ? route('admin.plans.index') : '#' }}"
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.plans.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">
+                            Plans
+                        </a>
+                        <a href="{{ Route::has('admin.sub-categories.index') ? route('admin.sub-categories.index') : '#' }}"
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.sub-categories.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Subscription</a>
+                        <a href="{{ Route::has('admin.tags.index') ? route('admin.tags.index') : '#' }}"
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.tags.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Payment</a>
+                    </div>
+                </div>
+                
                 <div class="pt-4 pb-1 pl-4 uppercase text-[10px] font-bold tracking-widest text-slate-600">System</div>
 
                 <a href="{{ Route::has('admin.roles_permissions.index') ? route('admin.roles_permissions.index') : '#' }}"

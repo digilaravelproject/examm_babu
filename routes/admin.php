@@ -23,6 +23,7 @@ use App\Http\Controllers\Admin\SubCategoryController;
 use App\Http\Controllers\Admin\TagController;
 use App\Http\Controllers\Admin\TopicController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\PlanCrudController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -169,6 +170,14 @@ Route::prefix('exams/{exam}')->name('exams.')->group(function () {
 
     Route::get('/quiz-types/index', [QuizTypeController::class, 'index'])->name('quiz-types.index');
     Route::get('/exam-types/index', [ExamTypeController::class, 'index'])->name('exam-types.index');
+
+    /*
+    |--------------------------------------------------------------------------
+    | Monetization Routes
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/search_plans', [PlanCrudController::class, 'search'])->name('search_plans');
+    Route::resource('plans', PlanCrudController::class);
 
     // --- TOOLS & LOGS ---
     Route::get('/activity-logs', [ActivityLogController::class, 'index'])->name('logs');
