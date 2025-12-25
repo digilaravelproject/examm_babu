@@ -100,7 +100,7 @@
                 <div class="pt-4 pb-1 pl-4 uppercase text-[10px] font-bold tracking-widest text-slate-600">Engagement
                 </div>
 
-                <div x-data="{ open: {{ request()->routeIs('admin.quizzes.*', 'admin.exam.*', 'admin.quiz-types.*', 'admin.exam-types.*') ? 'true' : 'false' }} }">
+                <div x-data="{ open: {{ request()->routeIs('admin.quizzes*', 'admin.exam*', 'admin.quiz-types*', 'admin.exam-types*') ? 'true' : 'false' }} }">
                     <button @click="open = !open"
                         class="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all">
                         <div class="flex items-center">
@@ -119,15 +119,18 @@
                         </svg>
                     </button>
                     <div x-show="open" x-cloak x-collapse class="mx-2 mt-1 space-y-1 rounded-lg bg-slate-800/30">
-                        <a href="{{ Route::has('admin.quizzes.index') ? route('admin.quizzes.index') : '#' }}"
-                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.quizzes.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Quizzes</a>
+                        {{-- <a href="{{ Route::has('admin.quizzes.index') ? route('admin.quizzes.index') : '#' }}"
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.quizzes*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Quizzes</a> --}}
+
                         <a href="{{ Route::has('admin.exam.index') ? route('admin.exam.index') : '#' }}"
-                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.exam.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Exams</a>
-                        <a href="{{ Route::has('admin.quiz-types.index') ? route('admin.quiz-types.index') : '#' }}"
-                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.quiz-types.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Quiz
-                            Types</a>
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.exam*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Exams</a>
+
+                        {{-- <a href="{{ Route::has('admin.quiz-types.index') ? route('admin.quiz-types.index') : '#' }}"
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.quiz-types*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Quiz
+                            Types</a> --}}
+
                         <a href="{{ Route::has('admin.exam-types.index') ? route('admin.exam-types.index') : '#' }}"
-                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.exam-types.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Exam
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.exam-types*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Exam
                             Types</a>
                     </div>
                 </div>
@@ -255,7 +258,8 @@
                     </div>
                 </div>
 
-                <div class="pt-4 pb-1 pl-4 uppercase text-[10px] font-bold tracking-widest text-slate-600">Configuration</div>
+                <div class="pt-4 pb-1 pl-4 uppercase text-[10px] font-bold tracking-widest text-slate-600">
+                    Configuration</div>
 
                 <div x-data="{ open: {{ request()->routeIs('admin.categories.*', 'admin.sub_categories.*', 'admin.tags.*') ? 'true' : 'false' }} }">
                     <button @click="open = !open"
@@ -286,7 +290,7 @@
                             class="block px-8 py-2 text-sm {{ request()->routeIs('admin.tags.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Payment</a>
                     </div>
                 </div>
-                
+
                 <div class="pt-4 pb-1 pl-4 uppercase text-[10px] font-bold tracking-widest text-slate-600">System</div>
 
                 <a href="{{ Route::has('admin.roles_permissions.index') ? route('admin.roles_permissions.index') : '#' }}"
