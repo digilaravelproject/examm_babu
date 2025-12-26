@@ -25,6 +25,7 @@ Route::middleware(['auth', 'verified', 'role:student', 'check.syllabus'])
 
         // --- Protected Routes (Agar syllabus nahi hai, to yahan nahi aa payenge) ---
         Route::get('/dashboard', [StudentDashboardController::class, 'index'])->name('dashboard');
+        Route::get('/add-exams', [StudentDashboardController::class, 'addExams'])->name('add_exams');
 
         Route::get('/exam-demo', function () {
             return view('student.exam-interface');

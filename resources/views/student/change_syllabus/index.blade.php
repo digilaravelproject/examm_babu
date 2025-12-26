@@ -3,7 +3,7 @@
 @section('title', 'Select Syllabus')
 
 @section('content')
-<div class="min-h-screen py-8 bg-slate-50/50"
+<div class="min-h-screen py-8"
      x-data="{
         search: '',
         loading: false,
@@ -25,12 +25,12 @@
 
     <div class="container px-4 mx-auto max-w-7xl">
 
-        <div class="flex flex-col gap-6 mb-10 md:flex-row md:items-end md:justify-between">
+        <div class="flex flex-col gap-6 mb-8 md:flex-row md:items-end md:justify-between">
             <div class="md:w-1/2">
-                <h1 class="text-3xl font-extrabold tracking-tight" style="color: var(--sidebar-bg)">
+                <h1 class="text-2xl font-bold tracking-tight md:text-3xl" style="color: var(--sidebar-bg)">
                     Select Your Goal
                 </h1>
-                <p class="mt-2 text-lg text-slate-500">
+                <p class="mt-2 text-sm text-slate-500">
                     Choose the syllabus you want to focus on today.
                 </p>
             </div>
@@ -58,16 +58,3 @@
     </div>
 </div>
 @endsection
-
-@push('styles')
-{{-- <style>
-    /* Confirming Root Variables are present */
-    :root {
-        --brand-blue: #0777be;
-        --brand-pink: #f062a4;
-        --brand-green: #94c940;
-        --brand-sky: #7fd2ea;
-        --sidebar-bg: #0f172a;
-    }
-</style> --}}
-@endpush
