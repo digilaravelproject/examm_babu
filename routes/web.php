@@ -32,25 +32,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 });
 
-/*
-|--------------------------------------------------------------------------
-| STUDENT ROUTES
-|--------------------------------------------------------------------------
-| Prefix: /student
-| Name: student.*
-*/
-Route::middleware(['auth', 'verified', 'role:student'])
-    ->prefix('student')
-    ->name('student.')
-    ->group(function () {
 
-        Route::get('/dashboard', [StudentDashboardController::class, 'index'])->name('dashboard');
-
-        Route::get('/exam-demo', function () {
-            return view('student.exam-interface');
-        })->name('exam_demo');
-
-    });
 
 /*
 |--------------------------------------------------------------------------
@@ -91,3 +73,4 @@ Route::middleware('auth')->group(function () {
 */
 require __DIR__.'/auth.php';
 require __DIR__.'/admin.php';
+require __DIR__.'/student.php';
