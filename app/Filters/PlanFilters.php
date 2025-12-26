@@ -6,41 +6,19 @@ use Illuminate\Database\Eloquent\Builder;
 
 class PlanFilters extends QueryFilter
 {
-    /**
-     * Filter by name using like operator
-     */
     public function name(string $query = ""): Builder
     {
         return $this->builder->where('name', 'like', "%{$query}%");
     }
 
-    /**
-     * Filter by code using like operator
-     */
-    public function code(string $query = ""): Builder
+    public function category_id($id = null): Builder
     {
-        return $this->builder->where('code', 'like', "%{$query}%");
+        return $this->builder->where('category_id', $id);
     }
 
-    /**
-     * Filter by exact duration
-     */
-    public function duration(mixed $query = null): Builder
+    public function status($status = null): Builder
     {
-        return $this->builder->where('duration', $query);
-    }
-
-    /**
-     * Filter by status (is_active)
-     */
-    public function status(mixed $status = 0): Builder
-    {
-        // Using match for cleaner handling of boolean/integer statuses
-        $isActive = match ($status) {
-            'active', '1', 1, true => 1,
-            default => 0,
-        };
-
-        return $this->builder->where('is_active', $isActive);
+        if ($status === null || $status === '') return $this->builder;
+        return $this->builder->where('is_active', (bool)$status);
     }
 }
