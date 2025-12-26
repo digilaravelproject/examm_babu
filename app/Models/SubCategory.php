@@ -96,8 +96,8 @@ class SubCategory extends Model
 
     public function sections(): BelongsToMany
     {
-        return $this->belongsToMany(Section::class, 'sub_category_sections', 'sub_category_id', 'section_id')
-            ->withTimestamps();
+        return $this->belongsToMany(Section::class, 'sub_category_sections', 'sub_category_id', 'section_id');
+            // ->withTimestamps();
     }
 
     public function practiceSets(): HasMany

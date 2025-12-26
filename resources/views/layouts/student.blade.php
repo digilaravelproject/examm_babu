@@ -16,6 +16,13 @@
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
     <style>
+          :root {
+            --brand-blue: #0777be;
+            --brand-pink: #f062a4;
+            --brand-green: #94c940;
+            --brand-sky: #7fd2ea;
+            --sidebar-bg: #0f172a;
+        }
         body {
             font-family: 'Inter', sans-serif;
         }

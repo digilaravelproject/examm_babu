@@ -1,20 +1,26 @@
 <?php
 
 use App\Http\Controllers\Student\StudentDashboardController;
+use App\Http\Controllers\Student\SyllabusController;
 use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
 | STUDENT ROUTES
 |--------------------------------------------------------------------------
-| Prefix: /student
-| Name: student.*
 */
-Route::middleware(['auth', 'verified', 'role:student'])
+
+// YAHAN dekhiye, maine 'check.syllabus' add kar diya hai array me
+Route::middleware(['auth', 'verified', 'role:student', 'check.syllabus'])
     ->prefix('student')
     ->name('student.')
     ->group(function () {
 
+        // --- Exception Routes (Middleware inhe ignore karega logic ke hisaab se) ---
+        Route::get('/change-syllabus', [SyllabusController::class, 'changeSyllabus'])->name('change_syllabus');
+        Route::post('/update-syllabus', [SyllabusController::class, 'updateSyllabus'])->name('update_syllabus');
+
+        // --- Protected Routes (Agar syllabus nahi hai, to yahan nahi aa payenge) ---
         Route::get('/dashboard', [StudentDashboardController::class, 'index'])->name('dashboard');
 
         Route::get('/exam-demo', function () {
