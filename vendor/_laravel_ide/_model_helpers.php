@@ -3751,16 +3751,16 @@ namespace App\Models {
      * @property \Illuminate\Support\Carbon|null $updated_at
      * @property \Illuminate\Support\Carbon|null $created_at
      * @property boolean $is_active
-     * @property boolean $is_popular
+     * @property bool $is_popular
      * @property mixed $sort_order
      * @property string|null $settings
-     * @property boolean $feature_restrictions
+     * @property bool $feature_restrictions
      * @property string|null $description
      * @property string|null $icon
      * @property mixed $trial_days
-     * @property boolean $has_trial
-     * @property float $discount_percentage
-     * @property boolean $has_discount
+     * @property bool $has_trial
+     * @property mixed $discount_percentage
+     * @property bool $has_discount
      * @property string|null $currency
      * @property float $price
      * @property mixed $duration
@@ -3769,23 +3769,9 @@ namespace App\Models {
      * @property string $name
      * @property string $code
      * @property int $id
-     * @property-read mixed $full_name
-     * @property-read mixed $formatted_price
-     * @property-read mixed $discounted_price
-     * @property-read mixed $formatted_discounted_price
-     * @property-read mixed $total_price
-     * @property-read mixed $formatted_total_price
-     * @property-read mixed $total_discounted_price
-     * @property-read mixed $formatted_total_discounted_price
-     * @property-read \App\Models\Plan $category
+     * @property-read \App\Models\SubCategory $category
      * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Feature> $features
      * @property-read int|null $features_count
-     * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Subscription> $subscriptions
-     * @property-read int|null $subscriptions_count
-     * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Payment> $payments
-     * @property-read int|null $payments_count
-     * @property-read \Illuminate\Database\Eloquent\Collection<int, \Spatie\Activitylog\Models\Activity> $activities
-     * @property-read int|null $activities_count
      * @method static \Illuminate\Database\Eloquent\Builder<Plan>|Plan whereId($value)
      * @method static \Illuminate\Database\Eloquent\Builder<Plan>|Plan whereCode($value)
      * @method static \Illuminate\Database\Eloquent\Builder<Plan>|Plan whereName($value)
@@ -3809,7 +3795,6 @@ namespace App\Models {
      * @method static \Illuminate\Database\Eloquent\Builder<Plan>|Plan whereUpdatedAt($value)
      * @method static \Illuminate\Database\Eloquent\Builder<Plan>|Plan whereDeletedAt($value)
      * @method static \Illuminate\Database\Eloquent\Builder<Plan>|Plan filter()
-     * @method static \Illuminate\Database\Eloquent\Builder<Plan>|Plan active()
      * @method static \Illuminate\Database\Eloquent\Builder<Plan>|Plan newModelQuery()
      * @method static \Illuminate\Database\Eloquent\Builder<Plan>|Plan newQuery()
      * @method static \Illuminate\Database\Eloquent\Builder<Plan>|Plan query()
