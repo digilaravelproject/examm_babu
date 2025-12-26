@@ -72,15 +72,31 @@ class PlanCrudController extends Controller
      */
     public function store(StorePlanRequest $request)
     {
+        // 1. Validated data lein
         $data = $request->validated();
 
-        // Checkbox handling
+        // 2. Features ko alag variable me nikalein (Kyunki ye 'plans' table me nahi jayega)
+        $features = $data['features'] ?? [];
+
+        // 3. Main $data array se 'features' ko hatayein (Taaki SQL error na aaye)
+        unset($data['features']);
+
+        // 4. Boolean/Checkbox handling (Agar Request file me handle nahi kiya to yahan karein)
+        $data['has_discount'] = $request->has('has_discount') ? 1 : 0;
+        $data['feature_restrictions'] = $request->has('feature_restrictions') ? 1 : 0;
+        $data['is_popular'] = $request->has('is_popular') ? 1 : 0;
         $data['is_active'] = $request->has('is_active') ? 1 : 0;
 
-        // Set Category Type (Polymorphic)
-        $data['category_type'] = SubCategory::class;
+        // Default Category Type
+        $data['category_type'] = \App\Models\SubCategory::class;
 
-        Plan::create($data);
+        // 5. Plan Create Karein (Ab isme 'features' field nahi hai, to error nahi aayega)
+        $plan = Plan::create($data);
+
+        // 6. Ab Features ko Pivot Table me save karein (Agar features select kiye gaye hain)
+        if (!empty($features) && $data['feature_restrictions'] == 1) {
+            $plan->features()->sync($features);
+        }
 
         return redirect()->route('admin.plans.index')->with('success', 'Plan created successfully!');
     }
@@ -98,8 +114,16 @@ class PlanCrudController extends Controller
      */
     public function edit(Plan $plan)
     {
-        $subCategories = SubCategory::select(['id', 'name'])->get();
-        return view('admin.plans.edit', compact('plan', 'subCategories'));
+        // SubCategories for dropdown
+        $subCategories = \App\Models\SubCategory::select(['id', 'name'])->get();
+
+        // All Features for checkbox list
+        $features = \App\Models\Feature::select(['id', 'name'])->active()->get();
+
+        // Currently selected features (Pivot table se)
+        $selectedFeatures = $plan->features()->pluck('features.id')->toArray();
+
+        return view('admin.plans.edit', compact('plan', 'subCategories', 'features', 'selectedFeatures'));
     }
 
     /**

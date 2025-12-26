@@ -284,8 +284,8 @@
                             class="block px-8 py-2 text-sm {{ request()->routeIs('admin.plans.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">
                             Plans
                         </a>
-                        <a href="{{ Route::has('admin.sub-categories.index') ? route('admin.sub-categories.index') : '#' }}"
-                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.sub-categories.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Subscription</a>
+                        <a href="{{ Route::has('admin.subscriptions.index') ? route('admin.subscriptions.index') : '#' }}"
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.subscriptions.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Subscription</a>
                         <a href="{{ Route::has('admin.tags.index') ? route('admin.tags.index') : '#' }}"
                             class="block px-8 py-2 text-sm {{ request()->routeIs('admin.tags.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Payment</a>
                     </div>
