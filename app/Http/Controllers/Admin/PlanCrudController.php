@@ -20,19 +20,31 @@ use Illuminate\View\View;
 class PlanCrudController extends Controller
 {
     /**
-     * List all plans (Using Blade View)
+     * List all plans with AJAX support.
      */
-    public function index(PlanFilters $filters): View
+    public function index(Request $request, PlanFilters $filters)
     {
-        // We still use fractal to transform the data for the view
+        // 1. Base Query with Filters
         $plansCollection = Plan::with('category:id,name')
             ->filter($filters)
+            ->latest()
             ->paginate(request('perPage', 10));
 
-        $plans = fractal($plansCollection, new PlanTransformer())->toArray();
+        // 2. Transform Data (Fractal)
+        $plansData = fractal($plansCollection, new PlanTransformer())->toArray();
 
+        // 3. Handle AJAX Request (Search/Filter/Pagination)
+        if ($request->ajax()) {
+            return view('admin.plans.partials.table', [
+                'plans' => $plansData, // Data array for loop
+                'paginator' => $plansCollection // Raw Paginator object for links()
+            ])->render();
+        }
+
+        // 4. Standard Page Load
         return view('admin.plans.index', [
-            'plans'         => $plans, // This will contain 'data' and 'meta' (pagination)
+            'plans'         => $plansData,
+            'paginator'     => $plansCollection,
             'features'      => Feature::select(['id', 'name'])->active()->get(),
             'subCategories' => SubCategory::select(['id', 'name'])->active()->get()
         ]);
@@ -44,7 +56,7 @@ class PlanCrudController extends Controller
     public function search(Request $request, PlanFilters $filters): JsonResponse
     {
         $query = $request->get('query');
-        
+
         $plans = Plan::filter($filters)
             ->where('name', 'like', "%{$query}%")
             ->limit(20)
@@ -58,17 +70,19 @@ class PlanCrudController extends Controller
     /**
      * Store a plan
      */
-    public function store(StorePlanRequest $request): RedirectResponse
+    public function store(StorePlanRequest $request)
     {
-        $plan = Plan::create($request->validated());
+        $data = $request->validated();
 
-        $featureIds = $plan->feature_restrictions 
-            ? $request->features 
-            : Feature::active()->pluck('id');
+        // Checkbox handling
+        $data['is_active'] = $request->has('is_active') ? 1 : 0;
 
-        $plan->features()->sync($featureIds);
+        // Set Category Type (Polymorphic)
+        $data['category_type'] = SubCategory::class;
 
-        return back()->with('successMessage', 'Plan was successfully added!');
+        Plan::create($data);
+
+        return redirect()->route('admin.plans.index')->with('success', 'Plan created successfully!');
     }
 
     /**
@@ -80,14 +94,12 @@ class PlanCrudController extends Controller
     }
 
     /**
-     * Edit a plan (Return JSON for Modal population)
+     * Edit a plan (Return View)
      */
-    public function edit(Plan $plan): JsonResponse
+    public function edit(Plan $plan)
     {
-        return response()->json([
-            'plan' => $plan,
-            'features' => $plan->features()->pluck('id'),
-        ]);
+        $subCategories = SubCategory::select(['id', 'name'])->get();
+        return view('admin.plans.edit', compact('plan', 'subCategories'));
     }
 
     /**
@@ -96,39 +108,62 @@ class PlanCrudController extends Controller
     public function update(UpdatePlanRequest $request, Plan $plan): RedirectResponse
     {
         if (config('qwiktest.demo_mode')) {
-            return back()->with('errorMessage', "Demo Mode! Plans can't be changed.");
+            return back()->with('error', "Demo Mode! Plans can't be changed.");
         }
 
-        $plan->update($request->validated());
+        $data = $request->validated();
 
-        $featureIds = $plan->feature_restrictions 
-            ? $request->features 
+        // Handle Checkbox for Update
+        $data['is_active'] = $request->has('is_active') ? 1 : 0;
+
+        $plan->update($data);
+
+        // Feature Sync Logic
+        $featureIds = $plan->feature_restrictions
+            ? $request->features
             : Feature::active()->pluck('id');
 
         $plan->features()->sync($featureIds);
 
-        return back()->with('successMessage', 'Plan was successfully updated!');
+        // ✅ REDIRECT TO INDEX (Not Back)
+        return redirect()->route('admin.plans.index')->with('success', 'Plan was successfully updated!');
     }
 
     /**
      * Delete a plan
      */
-    public function destroy(Plan $plan): RedirectResponse
+    public function destroy(Plan $plan)
     {
         if (config('qwiktest.demo_mode')) {
-            return back()->with('errorMessage', "Demo Mode! Plans can't be deleted.");
+            return response()->json([
+                'success' => false,
+                'message' => "Demo Mode! Plans can't be deleted."
+            ], 403);
         }
 
         try {
             DB::transaction(function () use ($plan) {
-                $plan->subscriptions()->forceDelete();
-                $plan->payments()->forceDelete();
-                $plan->secureDelete('subscriptions', 'payments');
-            });
-        } catch (\Exception $e) {
-            return back()->with('errorMessage', 'Unable to Delete Plan. Remove all associations and try again!');
-        }
+                // Detach Features
+                $plan->features()->detach();
 
-        return back()->with('successMessage', 'Plan was successfully deleted!');
+                // Delete Relations (Optional)
+                if (method_exists($plan, 'subscriptions')) {
+                    // $plan->subscriptions()->delete();
+                }
+
+                // Delete Plan
+                $plan->delete();
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => "Plan '{$plan->name}' deleted successfully."
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to Delete: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }
