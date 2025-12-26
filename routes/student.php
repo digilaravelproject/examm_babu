@@ -19,6 +19,9 @@ Route::middleware(['auth', 'verified', 'role:student', 'check.syllabus'])
         // --- Exception Routes (Middleware inhe ignore karega logic ke hisaab se) ---
         Route::get('/change-syllabus', [SyllabusController::class, 'changeSyllabus'])->name('change_syllabus');
         Route::post('/update-syllabus', [SyllabusController::class, 'updateSyllabus'])->name('update_syllabus');
+        // AJAX Route for fetching syllabus name
+        Route::get('/get-current-syllabus', [SyllabusController::class, 'getCurrentSyllabus'])
+            ->name('get_current_syllabus');
 
         // --- Protected Routes (Agar syllabus nahi hai, to yahan nahi aa payenge) ---
         Route::get('/dashboard', [StudentDashboardController::class, 'index'])->name('dashboard');

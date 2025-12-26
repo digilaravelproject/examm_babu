@@ -7,11 +7,9 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ config('app.name', 'Exam Babu') }} - Student Portal</title>
     <link rel="icon" type="image/jpeg" href="{{ asset('assets/images/favicon.jpg') }}">
-    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-    <!-- Scripts -->
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
@@ -51,12 +49,24 @@
     </style>
 </head>
 
-<body class="h-full font-sans antialiased text-gray-900 bg-gray-50" x-data="{ sidebarOpen: false }">
+<body class="h-full font-sans antialiased text-gray-900 bg-gray-50"
+      x-data="{
+          sidebarOpen: false,
+          currentSyllabus: null,
+          init() {
+              // AJAX Call to fetch selected syllabus
+              fetch('{{ route('student.get_current_syllabus') }}')
+                  .then(response => response.json())
+                  .then(data => {
+                      if(data.status) {
+                          this.currentSyllabus = data.name;
+                      }
+                  });
+          }
+      }">
 
-    <!-- Main Container -->
     <div class="flex h-screen overflow-hidden bg-gray-50">
 
-        <!-- Mobile Sidebar Overlay -->
         <div x-show="sidebarOpen" x-cloak class="fixed inset-0 z-40 flex md:hidden" role="dialog" aria-modal="true">
             <div x-show="sidebarOpen" x-transition:enter="transition-opacity ease-linear duration-300"
                 x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
@@ -79,8 +89,22 @@
                     </button>
                 </div>
                 <div class="flex-1 overflow-y-auto sidebar-scroll">
-                    <!-- Mobile Navigation Links -->
                     <nav class="px-2 py-4 space-y-1">
+
+                        <template x-if="currentSyllabus">
+                            <div class="px-2 mb-4">
+                                <p class="px-1 mb-1 text-xs font-bold tracking-wider text-gray-400 uppercase">Selected Goal</p>
+                                <a href="{{ route('student.change_syllabus') }}"
+                                   class="flex items-center justify-between w-full px-3 py-2 text-sm font-bold text-white shadow-md rounded-xl"
+                                   style="background: linear-gradient(135deg, var(--brand-blue), var(--brand-sky));">
+                                    <span class="truncate" x-text="currentSyllabus"></span>
+                                    <svg class="w-4 h-4 text-white opacity-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                    </svg>
+                                </a>
+                            </div>
+                        </template>
+
                         <a href="{{ route('student.dashboard') }}"
                             class="group flex items-center px-3 py-2 text-base font-medium rounded-lg transition-colors duration-200 {{ request()->routeIs('student.dashboard') ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-blue-50 hover:text-blue-600' }}">
                             <svg class="mr-4 flex-shrink-0 h-6 w-6 {{ request()->routeIs('student.dashboard') ? 'text-blue-600' : 'text-gray-400 group-hover:text-blue-500' }}"
@@ -124,7 +148,6 @@
                         </a>
                     </nav>
 
-                    <!-- Mobile User & Logout -->
                     <div class="pt-4 pb-3 border-t border-gray-100">
                         <div class="flex items-center px-4">
                             <div class="flex-shrink-0">
@@ -151,7 +174,6 @@
             </div>
         </div>
 
-        <!-- Desktop Sidebar (Static on Left) -->
         <div class="hidden md:flex md:flex-shrink-0">
             <div class="flex flex-col w-64">
                 <div class="flex flex-col flex-1 min-h-0 bg-white border-r border-gray-200 shadow-sm">
@@ -161,7 +183,33 @@
                     </div>
                     <div class="flex flex-col flex-1 overflow-y-auto sidebar-scroll">
                         <nav class="flex-1 px-3 py-6 space-y-1.5">
-                            <!-- Sidebar Links -->
+
+                            <template x-if="currentSyllabus">
+                                <div class="mb-6">
+                                    <div class="px-3 mb-2">
+                                        <p class="text-xs font-bold tracking-wider text-gray-400 uppercase">Selected Goal</p>
+                                    </div>
+                                    <a href="{{ route('student.change_syllabus') }}"
+                                       class="relative flex items-center justify-between w-full px-4 py-3 mx-auto text-sm font-bold text-white transition-all transform shadow-lg group rounded-xl hover:scale-105 hover:shadow-xl"
+                                       style="background: linear-gradient(135deg, var(--brand-blue), var(--brand-sky));">
+
+                                        <div class="flex items-center truncate">
+                                            <svg class="w-5 h-5 mr-2 text-white/90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                                            </svg>
+                                            <span x-text="currentSyllabus" class="truncate"></span>
+                                        </div>
+
+                                        <div class="p-1 transition-colors rounded bg-white/20 group-hover:bg-white/30">
+                                            <svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                            </svg>
+                                        </div>
+                                    </a>
+                                </div>
+                            </template>
+
                             <a href="{{ route('student.dashboard') }}"
                                 class="group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 {{ request()->routeIs('student.dashboard') ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-blue-50 hover:text-blue-600' }}">
                                 <svg class="mr-3 flex-shrink-0 h-5 w-5 {{ request()->routeIs('student.dashboard') ? 'text-blue-600' : 'text-gray-400 group-hover:text-blue-500' }}"
@@ -210,10 +258,8 @@
                             </a>
                         </nav>
 
-                        <!-- Free Space Filler -->
                         <div class="flex-1"></div>
 
-                        <!-- Upgrade/Promo Box (Optional for attractive look) -->
                         <div
                             class="p-4 m-3 text-white shadow-lg bg-gradient-to-br from-blue-600 to-indigo-700 rounded-xl">
                             <p class="text-xs font-bold tracking-wider uppercase opacity-80">Pro Plan</p>
@@ -228,14 +274,11 @@
             </div>
         </div>
 
-        <!-- Main Content Column -->
         <div class="flex flex-col flex-1 min-w-0 overflow-hidden">
 
-            <!-- Top Header with Search & Profile Dropdown -->
             <header
                 class="sticky top-0 z-20 flex items-center justify-between h-16 px-4 border-b border-gray-200 shadow-sm bg-white/80 backdrop-blur-md sm:px-6 lg:px-8">
 
-                <!-- Mobile Toggle -->
                 <button @click="sidebarOpen = true"
                     class="text-gray-500 md:hidden focus:outline-none hover:text-gray-700">
                     <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -244,7 +287,6 @@
                     </svg>
                 </button>
 
-                <!-- Search Bar -->
                 <div class="flex justify-center flex-1 px-4 lg:justify-start lg:ml-4">
                     <div class="relative w-full max-w-lg lg:max-w-xs">
                         <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
@@ -260,10 +302,8 @@
                     </div>
                 </div>
 
-                <!-- Right Side Actions -->
                 <div class="flex items-center space-x-4">
 
-                    <!-- Notification Bell -->
                     <button class="p-1.5 text-gray-400 hover:text-blue-600 transition-colors relative">
                         <span
                             class="absolute top-1.5 right-1.5 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span>
@@ -274,7 +314,6 @@
                         </svg>
                     </button>
 
-                    <!-- Profile Dropdown (Alpine.js) -->
                     <div class="relative" x-data="{ dropdownOpen: false }">
                         <button @click="dropdownOpen = !dropdownOpen"
                             class="flex items-center space-x-2 focus:outline-none">
@@ -293,7 +332,6 @@
                             </svg>
                         </button>
 
-                        <!-- Dropdown Menu -->
                         <div x-show="dropdownOpen" @click.away="dropdownOpen = false"
                             x-transition:enter="transition ease-out duration-100"
                             x-transition:enter-start="transform opacity-0 scale-95"
@@ -333,7 +371,6 @@
                 </div>
             </header>
 
-            <!-- Scrollable Content Area -->
             <main class="relative flex-1 overflow-y-auto focus:outline-none">
                 <div class="py-6">
                     <div class="px-4 mx-auto max-w-7xl sm:px-6 md:px-8">

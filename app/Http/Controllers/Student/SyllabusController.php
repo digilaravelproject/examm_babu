@@ -79,4 +79,25 @@ class SyllabusController extends Controller
             }
         });
     }
+    /**
+     * AJAX Method to get current selected syllabus from Cookie
+     */
+    public function getCurrentSyllabus(Request $request)
+    {
+        // Cookie se syllabus ka naam retrieve karein
+        $syllabusName = $request->cookie('category_name');
+
+        if ($syllabusName) {
+            return response()->json([
+                'status' => true,
+                'name' => $syllabusName
+            ]);
+        }
+
+        return response()->json([
+            'status' => false,
+            'name' => null
+        ]);
+    }
+
 }
