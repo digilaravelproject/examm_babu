@@ -1,4 +1,4 @@
-@extends('layouts.candidate')
+@extends('layouts.student')
 
 @section('content')
     <!-- Welcome Header -->
