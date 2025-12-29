@@ -286,8 +286,10 @@
                         </a>
                         <a href="{{ Route::has('admin.subscriptions.index') ? route('admin.subscriptions.index') : '#' }}"
                             class="block px-8 py-2 text-sm {{ request()->routeIs('admin.subscriptions.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Subscription</a>
-                        <a href="{{ Route::has('admin.tags.index') ? route('admin.tags.index') : '#' }}"
-                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.tags.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Payment</a>
+                        <a href="{{ Route::has('admin.payments.index') ? route('admin.payments.index') : '#' }}"
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.payments.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">
+                            Payments
+                        </a>
                     </div>
                 </div>
 

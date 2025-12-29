@@ -25,6 +25,7 @@ use App\Http\Controllers\Admin\TopicController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\PlanCrudController;
 use App\Http\Controllers\Admin\SubscriptionCrudController;
+use App\Http\Controllers\Admin\PaymentController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -81,6 +82,12 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('ad
     Route::resource('subscriptions', SubscriptionCrudController::class);
     Route::get('subscriptions/invoice/{paymentId}', [SubscriptionCrudController::class, 'downloadInvoice'])
         ->name('subscriptions.invoice');
+
+    Route::get('payments', [PaymentController::class, 'index'])->name('payments.index');
+    Route::get('payments/{id}', [PaymentController::class, 'show'])->name('payments.show'); // New
+    Route::put('payments/{id}', [PaymentController::class, 'update'])->name('payments.update'); // New
+    Route::post('payments/{id}/authorize', [PaymentController::class, 'authorizePayment'])->name('payments.authorize');
+    Route::get('payments/{id}/invoice', [PaymentController::class, 'downloadInvoice'])->name('payments.invoice');
 
     // 2. Custom Question Actions
     Route::controller(QuestionController::class)->prefix('questions')->name('questions.')->group(function () {
