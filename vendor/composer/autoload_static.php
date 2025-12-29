@@ -258,9 +258,9 @@ class ComposerStaticInitc514d8f7b9fc5970bdd94287905ef584
         ),
         'phpDocumentor\\Reflection\\' => 
         array (
-            0 => __DIR__ . '/..' . '/phpdocumentor/reflection-common/src',
-            1 => __DIR__ . '/..' . '/phpdocumentor/reflection-docblock/src',
-            2 => __DIR__ . '/..' . '/phpdocumentor/type-resolver/src',
+            0 => __DIR__ . '/..' . '/phpdocumentor/reflection-docblock/src',
+            1 => __DIR__ . '/..' . '/phpdocumentor/type-resolver/src',
+            2 => __DIR__ . '/..' . '/phpdocumentor/reflection-common/src',
         ),
         'Znck\\Eloquent\\' => 
         array (
@@ -911,6 +911,8 @@ class ComposerStaticInitc514d8f7b9fc5970bdd94287905ef584
         'App\\Http\\Controllers\\HomeController' => __DIR__ . '/../..' . '/app/Http/Controllers/HomeController.php',
         'App\\Http\\Controllers\\ProfileController' => __DIR__ . '/../..' . '/app/Http/Controllers/ProfileController.php',
         'App\\Http\\Controllers\\Student\\StudentDashboardController' => __DIR__ . '/../..' . '/app/Http/Controllers/Student/StudentDashboardController.php',
+        'App\\Http\\Controllers\\Student\\SyllabusController' => __DIR__ . '/../..' . '/app/Http/Controllers/Student/SyllabusController.php',
+        'App\\Http\\Middleware\\EnsureSyllabusSelected' => __DIR__ . '/../..' . '/app/Http/Middleware/EnsureSyllabusSelected.php',
         'App\\Http\\Requests\\Admin\\StoreCategoryRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/StoreCategoryRequest.php',
         'App\\Http\\Requests\\Admin\\StoreExamRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/StoreExamRequest.php',
         'App\\Http\\Requests\\Admin\\StoreExamSectionRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/StoreExamSectionRequest.php',
@@ -972,6 +974,7 @@ class ComposerStaticInitc514d8f7b9fc5970bdd94287905ef584
         'App\\Repositories\\ExamRepository' => __DIR__ . '/../..' . '/app/Repositories/ExamRepository.php',
         'App\\Repositories\\QuestionRepository' => __DIR__ . '/../..' . '/app/Repositories/QuestionRepository.php',
         'App\\Services\\QuestionService' => __DIR__ . '/../..' . '/app/Services/QuestionService.php',
+        'App\\Settings\\CategorySettings' => __DIR__ . '/../..' . '/app/Settings/CategorySettings.php',
         'App\\Settings\\LocalizationSettings' => __DIR__ . '/../..' . '/app/Settings/LocalizationSettings.php',
         'App\\Settings\\PaymentSettings' => __DIR__ . '/../..' . '/app/Settings/PaymentSettings.php',
         'App\\Traits\\SecureDeletes' => __DIR__ . '/../..' . '/app/Traits/SecureDeletes.php',
@@ -3482,6 +3485,7 @@ class ComposerStaticInitc514d8f7b9fc5970bdd94287905ef584
         'Illuminate\\Database\\Events\\DatabaseRefreshed' => __DIR__ . '/..' . '/laravel/framework/src/Illuminate/Database/Events/DatabaseRefreshed.php',
         'Illuminate\\Database\\Events\\MigrationEnded' => __DIR__ . '/..' . '/laravel/framework/src/Illuminate/Database/Events/MigrationEnded.php',
         'Illuminate\\Database\\Events\\MigrationEvent' => __DIR__ . '/..' . '/laravel/framework/src/Illuminate/Database/Events/MigrationEvent.php',
+        'Illuminate\\Database\\Events\\MigrationSkipped' => __DIR__ . '/..' . '/laravel/framework/src/Illuminate/Database/Events/MigrationSkipped.php',
         'Illuminate\\Database\\Events\\MigrationStarted' => __DIR__ . '/..' . '/laravel/framework/src/Illuminate/Database/Events/MigrationStarted.php',
         'Illuminate\\Database\\Events\\MigrationsEnded' => __DIR__ . '/..' . '/laravel/framework/src/Illuminate/Database/Events/MigrationsEnded.php',
         'Illuminate\\Database\\Events\\MigrationsEvent' => __DIR__ . '/..' . '/laravel/framework/src/Illuminate/Database/Events/MigrationsEvent.php',

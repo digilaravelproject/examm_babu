@@ -17,6 +17,7 @@ use function is_array;
 use function is_dir;
 use function is_file;
 use function is_writable;
+use function phpversion;
 use function sprintf;
 use function strlen;
 use function substr;
@@ -76,7 +77,7 @@ final class Facade
             $coverage->getReport()->name(),
         );
 
-        $this->setBuildInformation();
+        $this->setBuildInformation($coverage);
 
         $this->project->startProject();
         $this->processTests($coverage->getTests());
@@ -84,13 +85,28 @@ final class Facade
         $this->project->finalize();
     }
 
-    private function setBuildInformation(): void
+    private function setBuildInformation(CodeCoverage $coverage): void
     {
+        if ($coverage->driverIsPcov()) {
+            $driverExtensionName    = 'pcov';
+            $driverExtensionVersion = phpversion('pcov');
+        } elseif ($coverage->driverIsXdebug()) {
+            $driverExtensionName    = 'xdebug';
+            $driverExtensionVersion = phpversion('xdebug');
+        } else {
+            // @codeCoverageIgnoreStart
+            $driverExtensionName    = 'unknown';
+            $driverExtensionVersion = 'unknown';
+            // @codeCoverageIgnoreEnd
+        }
+
         $this->project->buildInformation(
             new Runtime,
             new DateTimeImmutable,
             $this->phpUnitVersion,
             Version::id(),
+            $driverExtensionName,
+            $driverExtensionVersion,
         );
     }
 
