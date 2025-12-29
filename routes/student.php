@@ -10,23 +10,27 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 
-// YAHAN dekhiye, maine 'check.syllabus' add kar diya hai array me
 Route::middleware(['auth', 'verified', 'role:student', 'check.syllabus'])
     ->prefix('student')
     ->name('student.')
     ->group(function () {
 
-        // --- Exception Routes (Middleware inhe ignore karega logic ke hisaab se) ---
-        Route::get('/change-syllabus', [SyllabusController::class, 'changeSyllabus'])->name('change_syllabus');
-        Route::post('/update-syllabus', [SyllabusController::class, 'updateSyllabus'])->name('update_syllabus');
-        // AJAX Route for fetching syllabus name
-        Route::get('/get-current-syllabus', [SyllabusController::class, 'getCurrentSyllabus'])
-            ->name('get_current_syllabus');
+        // --- Syllabus Management (Exempted from check to allow changing syllabus) ---
+        Route::controller(SyllabusController::class)
+            ->withoutMiddleware(['check.syllabus'])
+            ->group(function () {
+                Route::get('/change-syllabus', 'changeSyllabus')->name('change_syllabus');
+                Route::post('/update-syllabus', 'updateSyllabus')->name('update_syllabus');
+                Route::get('/get-current-syllabus', 'getCurrentSyllabus')->name('get_current_syllabus');
+            });
 
-        // --- Protected Routes (Agar syllabus nahi hai, to yahan nahi aa payenge) ---
-        Route::get('/dashboard', [StudentDashboardController::class, 'index'])->name('dashboard');
-        Route::get('/add-exams', [StudentDashboardController::class, 'addExams'])->name('add_exams');
+        // --- Dashboard & Exams ---
+        Route::controller(StudentDashboardController::class)->group(function () {
+            Route::get('/dashboard', 'index')->name('dashboard');
+            Route::get('/add-exams', 'addExams')->name('add_exams');
+        });
 
+        // --- Demo Interface ---
         Route::get('/exam-demo', function () {
             return view('student.exam-interface');
         })->name('exam_demo');

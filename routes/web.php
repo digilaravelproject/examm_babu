@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\SiteController;
 use App\Http\Controllers\Student\StudentDashboardController;
 use Illuminate\Support\Facades\Route;
 
@@ -10,10 +11,24 @@ use Illuminate\Support\Facades\Route;
 | Public Routes
 |--------------------------------------------------------------------------
 */
-Route::get('/', function () {
-    return view('welcome');
-});
+// Route::get('/', function () {
+//     return view('welcome');
+// });
 
+// Laravel 12 style group for cleaner code (Optional but recommended)
+Route::controller(SiteController::class)->group(function () {
+
+    Route::get('/', 'index')->name('welcome');
+
+    // Yahan humne parameter '{slug}' kar diya taaki controller se match ho
+    Route::get('/explore/{slug}', 'explore')->name('explore');
+
+    // Parent Category view
+    Route::get('/categories/{slug}', 'category')->name('store.categories.show');
+
+    Route::get('/pricing', 'pricing')->name('pricing');
+
+});
 /*
 |--------------------------------------------------------------------------
 | General Authenticated Routes (Home & Fallback Dashboard)
