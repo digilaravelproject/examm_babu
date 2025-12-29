@@ -2,128 +2,76 @@
 
 namespace App\Imports;
 
-use App\Models\Question;
-use App\Models\QuestionType;
-use App\Models\DifficultyLevel;
-use App\Models\Skill;
-use App\Models\Topic;
-use Maatwebsite\Excel\Concerns\ToModel;
+use Maatwebsite\Excel\Concerns\ToArray;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
-use Maatwebsite\Excel\Concerns\WithValidation;
-use Illuminate\Support\Str;
+use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
+use PhpOffice\PhpSpreadsheet\Cell\Cell;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use Maatwebsite\Excel\DefaultValueBinder;
+use PhpOffice\PhpSpreadsheet\Shared\Date;
 
-class QuestionsImport implements ToModel, WithHeadingRow, WithValidation
+class QuestionsImport extends DefaultValueBinder implements ToArray, WithHeadingRow, WithCustomValueBinder
 {
-    private $userId;
-
-    public function __construct($userId)
+    public function array(array $array)
     {
-        $this->userId = $userId;
+        return $array;
     }
 
-    public function model(array $row)
+    /**
+     * UNIVERSAL VALUE BINDER
+     * Yeh logic ensure karta hai ki data waisa hi aaye jaisa Excel me dikh raha hai.
+     */
+    public function bindValue(Cell $cell, $value)
     {
-        if (!isset($row['question']) || empty($row['question'])) {
-            return null;
+        // 1. Agar cell khali hai, to null return karo
+        if ($value === null || $value === '') {
+            return parent::bindValue($cell, $value);
         }
 
-        // 1. Question Type
-        $type = QuestionType::where('code', trim($row['question_type']))->first();
-        $typeId = $type ? $type->id : 1;
+        // 2. PERCENTAGE HANDLER (Future Proof)
+        // Hum check karenge ki cell par '%' ka format laga hai ya nahi.
+        $formatCode = $cell->getStyle()->getNumberFormat()->getFormatCode();
 
-        // 2. Difficulty
-        $diffName = trim($row['difficulty_level'] ?? 'EASY');
-        $diffLevel = DifficultyLevel::where('name', $diffName)->orWhere('code', $diffName)->first();
-        $diffId = $diffLevel ? $diffLevel->id : 1;
+        // Agar format code me % hai, to hum value ko mathematically fix karenge
+        if ($formatCode && strpos($formatCode, '%') !== false && is_numeric($value)) {
+            $percentageVal = $value * 100;
 
-        // 3. SKILL & TOPIC (Manual IDs from Excel)
-        $skillId = $row['skill_id'];
-        $topicId = $row['topic_id'];
-
-        // Validation for IDs (Optional but recommended)
-        if (!Skill::find($skillId)) {
-             // You can throw exception or fallback. Throwing exception is safer for data integrity.
-             throw new \Exception("Invalid Skill ID: {$skillId} for Question: '{$row['question']}'.");
-        }
-        if (!Topic::find($topicId)) {
-             throw new \Exception("Invalid Topic ID: {$topicId} for Question: '{$row['question']}'.");
-        }
-
-        // 4. Options Construction (FIXED FORMAT)
-        // Expected: [{"option":"Text", "image":null}, ...]
-        $options = [];
-        for ($i = 1; $i <= 5; $i++) {
-            if (isset($row['option' . $i]) && trim($row['option' . $i]) !== '') {
-                $options[] = [
-                    'option' => trim($row['option' . $i]),
-                    'image'  => null // Default null as requested
-                ];
-            }
-        }
-
-        // 5. Correct Answer Logic (FIXED: Store Index, not Text)
-        // Excel contains 1-based index (e.g., 2 for 2nd option).
-        // DB expects 0-based index integer (e.g., 1).
-
-        $correctAnswerRaw = trim($row['correct_answer']);
-        $correctAnswerFinal = null;
-
-        if (str_contains($correctAnswerRaw, ',')) {
-            // Multiple Answers (MMA) -> Store Array of Integers
-            $indicesRaw = explode(',', $correctAnswerRaw);
-            $indices = [];
-            foreach ($indicesRaw as $val) {
-                $idx = (int)trim($val) - 1; // Convert 1-based to 0-based
-                if (isset($options[$idx])) {
-                    $indices[] = $idx;
-                }
-            }
-            $correctAnswerFinal = $indices;
-        } else {
-            // Single Answer (MSA) -> Store Single Integer
-            if (is_numeric($correctAnswerRaw)) {
-                $idx = (int)$correctAnswerRaw - 1; // Convert 1-based to 0-based
-                if (isset($options[$idx])) {
-                    $correctAnswerFinal = $idx;
-                }
+            // Decimal handling (10.0 -> 10, 10.5 -> 10.5)
+            if (floor($percentageVal) == $percentageVal) {
+                $percentageVal = (int)$percentageVal;
             } else {
-                // Fallback: If for some reason text is provided (unlikely if strictly following template)
-                // Try to find index by text match
-                foreach ($options as $key => $optObj) {
-                    if (strcasecmp($optObj['option'], $correctAnswerRaw) === 0) {
-                        $correctAnswerFinal = $key;
-                        break;
-                    }
-                }
+                $percentageVal = round($percentageVal, 2);
             }
+
+            // Value set karo aur return karo (e.g., "10%")
+            $cell->setValueExplicit($percentageVal . '%', DataType::TYPE_STRING);
+            return true;
         }
 
-        return new Question([
-            'question_type_id'    => $typeId,
-            'skill_id'            => $skillId,
-            'topic_id'            => $topicId,
-            'difficulty_level_id' => $diffId,
-            'question'            => $row['question'],
-            'options'             => $options, // Array of objects automatically cast to JSON
-            'correct_answer'      => $correctAnswerFinal, // Integer or Array, automatically serialized by Model
-            'default_marks'       => $row['default_marks'] ?? 1,
-            'default_time'        => $row['default_time_to_solve'] ?? 60,
-            'hint'                => $row['hint'] ?? null,
-            'solution'            => $row['solution'] ?? null,
-            'created_by'          => $this->userId,
-            'is_active'           => true,
-            'code'                => 'que_' . Str::random(10),
-        ]);
-    }
+        // 3. DATE HANDLER
+        // Agar future me Date column aata hai to ye number nahi banega
+        if (Date::isDateTime($cell)) {
+             try {
+                 $dateValue = Date::excelToDateTimeObject($value)->format('Y-m-d');
+                 $cell->setValueExplicit($dateValue, DataType::TYPE_STRING);
+                 return true;
+             } catch (\Exception $e) {
+                 // Agar date parse fail ho jaye to raw value hi rakho
+             }
+        }
 
-    public function rules(): array
-    {
-        return [
-            'question' => 'required',
-            'skill_id' => 'required|integer',
-            'topic_id' => 'required|integer',
-            'question_type' => 'required',
-            'correct_answer' => 'required',
-        ];
+        // 4. STANDARD FORMATTER
+        // Baaki sabke liye (Currency, Text, Scientific Notation)
+        $formattedValue = $cell->getFormattedValue();
+
+        // Safety: Agar formatted khali hai par raw value hai
+        if (($formattedValue === '' || $formattedValue === null) && $value !== null) {
+            $formattedValue = $value;
+        }
+
+        // Force String (Taaki "01" number bankar "1" na ho jaye)
+        $cell->setValueExplicit((string)$formattedValue, DataType::TYPE_STRING);
+
+        return true;
     }
 }
