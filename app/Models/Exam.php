@@ -137,6 +137,11 @@ class Exam extends Model
         return $this->belongsTo(ExamType::class);
     }
 
+    public function microCategory(): BelongsTo
+    {
+        return $this->belongsTo(MicroCategory::class);
+    }
+
     /*
     |--------------------------------------------------------------------------
     | SCOPES

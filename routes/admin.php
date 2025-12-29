@@ -26,6 +26,7 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\PlanCrudController;
 use App\Http\Controllers\Admin\SubscriptionCrudController;
 use App\Http\Controllers\Admin\PaymentController;
+use App\Http\Controllers\Admin\MicroCategoryController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -108,6 +109,7 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('ad
     Route::resource('categories', CategoryController::class);
     // Sub-Catogries
     Route::resource('sub-categories', SubCategoryController::class);
+    Route::resource('micro-categories', MicroCategoryController::class);
     // Sections mapping ke liye
     Route::get('fetch-sub-category-sections/{id}', [SubCategoryController::class, 'fetchSections'])->name('sub-categories.sections.fetch');
     Route::post('update-sub-category-sections/{id}', [SubCategoryController::class, 'updateSections'])->name('sub-categories.sections.update');

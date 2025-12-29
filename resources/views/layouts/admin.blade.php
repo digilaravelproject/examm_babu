@@ -225,6 +225,10 @@
                         <a href="{{ Route::has('admin.sub-categories.index') ? route('admin.sub-categories.index') : '#' }}"
                             class="block px-8 py-2 text-sm {{ request()->routeIs('admin.sub-categories.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Sub
                             Categories</a>
+                        <a href="{{ Route::has('admin.micro-categories.index') ? route('admin.micro-categories.index') : '#' }}"
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.micro-categories.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">
+                            Micro Categories
+                        </a>
                         <a href="{{ Route::has('admin.tags.index') ? route('admin.tags.index') : '#' }}"
                             class="block px-8 py-2 text-sm {{ request()->routeIs('admin.tags.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Tags</a>
                     </div>

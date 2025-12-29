@@ -20,7 +20,8 @@
     </div>
 @endif
 
-<div class="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2">
+{{-- MAIN WRAPPER with x-data for Dependent Dropdowns --}}
+<div x-data="examForm()" class="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2">
 
     {{-- 1. Exam Title --}}
     <div class="space-y-2 md:col-span-2">
@@ -30,29 +31,70 @@
                placeholder="Enter Exam Title">
     </div>
 
-    {{-- 2. Sub Category - Custom Dropdown --}}
-    <div class="space-y-2" x-data="{ open: false, selected: '{{ $exam->sub_category_id ? $subCategories->firstWhere('id', $exam->sub_category_id)->name : 'Select Sub Category' }}', value: '{{ old('sub_category_id', $exam->sub_category_id) }}' }">
-        <label class="text-[11px] font-black text-gray-500 uppercase tracking-[0.1em]">Sub Category</label>
+    {{-- 2. Sub Category - Custom Dropdown (UPDATED) --}}
+    <div class="space-y-2" x-data="{ open: false }">
+        <label class="text-[11px] font-black text-gray-500 uppercase tracking-[0.1em]">Sub Category <span class="text-[var(--brand-pink)]">*</span></label>
         <div class="relative">
-            <input type="hidden" name="sub_category_id" :value="value">
+            <input type="hidden" name="sub_category_id" :value="subCategoryId">
             <button type="button" @click="open = !open" @click.away="open = false"
                 class="relative w-full px-4 py-3 text-left text-sm border border-gray-200 rounded-xl bg-gray-50/50 focus:outline-none focus:ring-4 focus:ring-[var(--brand-blue)]/10 focus:border-[var(--brand-blue)] transition-all flex justify-between items-center">
-                <span x-text="selected" :class="value ? 'text-gray-900' : 'text-gray-400'"></span>
+                <span x-text="subCategoryName || 'Select Sub Category'" :class="subCategoryId ? 'text-gray-900' : 'text-gray-400'"></span>
                 <svg class="w-4 h-4 text-gray-400 transition-transform" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"></path></svg>
             </button>
-            <div x-show="open" x-transition class="absolute z-50 w-full mt-2 bg-white border border-gray-100 rounded-xl shadow-xl max-h-60 overflow-y-auto no-scrollbar">
+            <div x-show="open" x-transition class="absolute z-50 w-full mt-2 bg-white border border-gray-100 rounded-xl shadow-xl max-h-60 overflow-y-auto no-scrollbar" style="display: none;">
                 @foreach($subCategories as $sub)
-                    <div @click="selected = '{{ $sub->name }}'; value = '{{ $sub->id }}'; open = false" class="px-4 py-2.5 text-sm cursor-pointer hover:bg-[var(--brand-blue)] hover:text-white flex justify-between items-center group">
+                    <div @click="setSubCategory('{{ $sub->id }}', '{{ $sub->name }}'); open = false" class="px-4 py-2.5 text-sm cursor-pointer hover:bg-[var(--brand-blue)] hover:text-white flex justify-between items-center group">
                         <span>{{ $sub->name }}</span>
-                        <svg x-show="value == '{{ $sub->id }}'" class="w-4 h-4 text-[var(--brand-blue)] group-hover:text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+                        <svg x-show="subCategoryId == '{{ $sub->id }}'" class="w-4 h-4 text-[var(--brand-blue)] group-hover:text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
                     </div>
                 @endforeach
             </div>
         </div>
     </div>
 
+    {{-- NEW: Micro Category - Custom Dropdown (DEPENDENT) --}}
+    <div class="space-y-2" x-data="{ open: false }">
+        <label class="text-[11px] font-black text-gray-500 uppercase tracking-[0.1em]">Micro Category <span class="text-xs text-gray-400 normal-case">(Optional)</span></label>
+        <div class="relative">
+            <input type="hidden" name="micro_category_id" :value="microCategoryId">
+
+            {{-- Button --}}
+            <button type="button"
+                @click="if(subCategoryId) open = !open"
+                @click.away="open = false"
+                :disabled="!subCategoryId"
+                :class="!subCategoryId ? 'cursor-not-allowed opacity-60' : ''"
+                class="relative w-full px-4 py-3 text-left text-sm border border-gray-200 rounded-xl bg-gray-50/50 focus:outline-none focus:ring-4 focus:ring-[var(--brand-blue)]/10 focus:border-[var(--brand-blue)] transition-all flex justify-between items-center">
+                <span x-text="microCategoryName || (subCategoryId ? 'Select Micro Category (Optional)' : 'Select Sub Category First')"
+                      :class="microCategoryId ? 'text-gray-900' : 'text-gray-400'"></span>
+                <svg class="w-4 h-4 text-gray-400 transition-transform" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"></path></svg>
+            </button>
+
+            {{-- Dropdown List --}}
+            <div x-show="open" x-transition class="absolute z-50 w-full mt-2 bg-white border border-gray-100 rounded-xl shadow-xl max-h-60 overflow-y-auto no-scrollbar" style="display: none;">
+
+                {{-- Option to clear selection --}}
+                <div @click="setMicroCategory('', ''); open = false" class="px-4 py-2.5 text-sm cursor-pointer text-gray-500 hover:bg-gray-100 flex justify-between items-center border-b border-gray-50">
+                    <span>-- None --</span>
+                </div>
+
+                {{-- Dynamic List based on Sub Category --}}
+                <template x-for="micro in filteredMicros" :key="micro.id">
+                    <div @click="setMicroCategory(micro.id, micro.name); open = false" class="px-4 py-2.5 text-sm cursor-pointer hover:bg-[var(--brand-blue)] hover:text-white flex justify-between items-center group">
+                        <span x-text="micro.name"></span>
+                        <svg x-show="microCategoryId == micro.id" class="w-4 h-4 text-[var(--brand-blue)] group-hover:text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+                    </div>
+                </template>
+
+                <div x-show="filteredMicros.length === 0" class="px-4 py-3 text-sm text-gray-400 text-center">
+                    No Micro Categories found.
+                </div>
+            </div>
+        </div>
+    </div>
+
     {{-- 3. Exam Type - Custom Dropdown --}}
-    <div class="space-y-2" x-data="{ open: false, selected: '{{ $exam->exam_type_id ? $examTypes->firstWhere('id', $exam->exam_type_id)->name : 'Select Exam Type' }}', value: '{{ old('exam_type_id', $exam->exam_type_id) }}' }">
+    <div class="space-y-2 md:col-span-2" x-data="{ open: false, selected: '{{ $exam->exam_type_id ? $examTypes->firstWhere('id', $exam->exam_type_id)->name : 'Select Exam Type' }}', value: '{{ old('exam_type_id', $exam->exam_type_id) }}' }">
         <label class="text-[11px] font-black text-gray-500 uppercase tracking-[0.1em]">Exam Type</label>
         <div class="relative">
             <input type="hidden" name="exam_type_id" :value="value">
@@ -61,7 +103,7 @@
                 <span x-text="selected" :class="value ? 'text-gray-900' : 'text-gray-400'"></span>
                 <svg class="w-4 h-4 text-gray-400 transition-transform" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"></path></svg>
             </button>
-            <div x-show="open" x-transition class="absolute z-50 w-full mt-2 bg-white border border-gray-100 rounded-xl shadow-xl max-h-60 overflow-y-auto no-scrollbar">
+            <div x-show="open" x-transition class="absolute z-50 w-full mt-2 bg-white border border-gray-100 rounded-xl shadow-xl max-h-60 overflow-y-auto no-scrollbar" style="display: none;">
                 @foreach($examTypes as $type)
                     <div @click="selected = '{{ $type->name }}'; value = '{{ $type->id }}'; open = false" class="px-4 py-2.5 text-sm cursor-pointer hover:bg-[var(--brand-blue)] hover:text-white flex justify-between items-center group">
                         <span>{{ $type->name }}</span>
@@ -75,7 +117,7 @@
     {{-- Divider --}}
     <div class="md:col-span-2 py-2"><div class="w-full border-t border-dashed border-gray-200"></div></div>
 
-    {{-- Toggle Buttons Section (Responsive 2x2 Grid) --}}
+    {{-- Toggle Buttons Section --}}
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2 md:col-span-2">
 
         {{-- Toggle 1: Pricing Model --}}
@@ -146,3 +188,38 @@
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 </style>
+
+{{-- JS Logic for Dependent Dropdown --}}
+<script>
+    function examForm() {
+        return {
+            subCategoryId: '{{ old('sub_category_id', $exam->sub_category_id) }}',
+            subCategoryName: '{{ $exam->sub_category_id ? ($subCategories->firstWhere('id', $exam->sub_category_id)->name ?? 'Selected') : '' }}',
+
+            microCategoryId: '{{ old('micro_category_id', $exam->micro_category_id) }}',
+            microCategoryName: '{{ $exam->micro_category_id ? ($microCategories->firstWhere('id', $exam->micro_category_id)->name ?? 'Selected') : '' }}',
+
+            // Pass PHP Array to JS
+            allMicros: @json($microCategories),
+
+            // Computed property simulation for Alpine
+            get filteredMicros() {
+                if(!this.subCategoryId) return [];
+                return this.allMicros.filter(m => m.sub_category_id == this.subCategoryId);
+            },
+
+            setSubCategory(id, name) {
+                this.subCategoryId = id;
+                this.subCategoryName = name;
+                // Reset Micro Category when Sub Category changes
+                this.microCategoryId = '';
+                this.microCategoryName = '';
+            },
+
+            setMicroCategory(id, name) {
+                this.microCategoryId = id;
+                this.microCategoryName = name;
+            }
+        }
+    }
+</script>
