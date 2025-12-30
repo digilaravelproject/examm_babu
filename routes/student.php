@@ -1,7 +1,9 @@
 <?php
 
 use App\Http\Controllers\Student\CheckoutController;
+use App\Http\Controllers\Student\PaymentController;
 use App\Http\Controllers\Student\StudentDashboardController;
+use App\Http\Controllers\Student\SubscriptionController;
 use App\Http\Controllers\Student\SyllabusController;
 use Illuminate\Support\Facades\Route;
 
@@ -31,6 +33,14 @@ Route::middleware(['auth', 'verified', 'role:student'])
         Route::get('/exam-demo', function () {
             return view('student.exam-interface');
         })->name('exam_demo');
+         Route::controller(SubscriptionController::class)->group(function () {
+            Route::get('/subscriptions', 'index')->name('subscriptions.index');
+            Route::post('/subscriptions/{id}/cancel', 'cancelSubscription')->name('subscriptions.cancel');
+        });
+        Route::controller(PaymentController::class)->group(function () {
+            Route::get('/payments', 'index')->name('payments.index');
+            Route::get('/payments/{id}/invoice', 'downloadInvoice')->name('payments.invoice');
+        });
     });
 
 /*
@@ -51,4 +61,5 @@ Route::middleware(['auth', 'verified', 'role:guest|student|employee'])->group(fu
         Route::get('/payment-success', 'paymentSuccess')->name('payment_success');
         Route::get('/payment-failed', 'paymentFailed')->name('payment_failed');
     });
+
 });

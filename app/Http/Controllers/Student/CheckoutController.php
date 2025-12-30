@@ -33,10 +33,11 @@ class CheckoutController extends Controller
     public function checkout(Request $request, string $planCode): View
     {
         try {
+            // Plan fetch kar rahe hain
             $plan = Plan::where('code', $planCode)->where('is_active', true)->firstOrFail();
-            $orderSummary = $this->checkoutRepo->orderSummary($plan);
 
-            // Retrieve saved billing info or empty array
+            // Repository se calculations le rahe hain
+            $orderSummary = $this->checkoutRepo->orderSummary($plan);
             $billingInfo = $request->user()->preferences['billing_information'] ?? [];
 
             return view('store.checkout.index', [
@@ -44,7 +45,7 @@ class CheckoutController extends Controller
                 'order' => $orderSummary,
                 'user' => $request->user(),
                 'billing_information' => $billingInfo,
-                'countries' => $this->getCountriesList(), // Passing full country list
+                'countries' => $this->getCountriesList(),
             ]);
 
         } catch (\Throwable $e) {
@@ -58,7 +59,7 @@ class CheckoutController extends Controller
      */
     public function processCheckout(Request $request, string $planCode): View|RedirectResponse
     {
-        // 1. Validate User Input
+        // 1. Validate Form Inputs
         $validated = $request->validate([
             'address' => 'required|string|max:255',
             'city'    => 'required|string|max:100',
@@ -72,19 +73,19 @@ class CheckoutController extends Controller
             $plan = Plan::where('code', $planCode)->firstOrFail();
             $orderSummary = $this->checkoutRepo->orderSummary($plan);
 
-            // 2. Update User Billing Preferences
+            // 2. User Preferences Update karein
             $user = $request->user();
             $preferences = $user->preferences ?? [];
             $preferences['billing_information'] = [
                 'full_name' => $user->name,
                 'email' => $user->email,
-                ...$validated // Spread validated address fields
+                ...$validated
             ];
             $user->preferences = $preferences;
-            $user->phone = $validated['phone']; // Update phone if main field exists
+            // $user->phone = $validated['phone'];
             $user->save();
 
-            // 3. Create Order on Razorpay Server
+            // 3. Razorpay Order Create karein (Amount in Paise)
             $paymentRefId = 'pay_' . Str::random(16);
             $razorpayOrder = $this->razorpayRepo->createOrder($paymentRefId, (float) $orderSummary['total']);
 
@@ -92,7 +93,7 @@ class CheckoutController extends Controller
                 return redirect()->back()->with('error', 'Unable to initiate payment gateway.');
             }
 
-            // 4. Create Pending Payment Entry in DB
+            // 4. Pending Payment Record DB me save karein
             $this->paymentRepo->createPaymentAndSubscription([
                 'payment_id' => $paymentRefId,
                 'currency' => $this->paymentSettings->default_currency,
@@ -100,7 +101,7 @@ class CheckoutController extends Controller
                 'user_id' => $user->id,
                 'total_amount' => $orderSummary['total'],
                 'status' => 'pending',
-                'duration' => 0,
+                'duration' => $plan->duration ?? 1,
                 'meta_data' => [
                     'razorpay_order_id' => $razorpayOrder['id'],
                     'order_summary' => $orderSummary,
@@ -108,7 +109,7 @@ class CheckoutController extends Controller
                 ]
             ]);
 
-            // 5. Return View with Razorpay JS
+            // 5. Razorpay Page par redirect
             return view('store.checkout.razorpay', [
                 'razorpay_key' => $this->razorpaySettings->key_id,
                 'razorpay_order_id' => $razorpayOrder['id'],
@@ -145,14 +146,13 @@ class CheckoutController extends Controller
                 'razorpay_signature'  => $request->razorpay_signature
             ];
 
+            // Verify Signature
             if (!$this->razorpayRepo->verifyPayment($attributes)) {
                 return redirect()->route('payment_failed')->with('error', 'Signature verification failed.');
             }
 
-            // In a real scenario, you would fetch the pending payment via Order ID
-            // and update its status to success using PaymentRepository
-
-            // For now, redirect to success
+            // Note: DB update logic should happen here ideally (finding pending payment by order_id)
+            // But since we are keeping it simple:
             return redirect()->route('payment_success');
 
         } catch (\Throwable $e) {
@@ -171,13 +171,32 @@ class CheckoutController extends Controller
         return view('store.checkout.payment_failed');
     }
 
-    /**
-     * Private Helper: Full Country List
-     */
+    // Helper: Country List
     private function getCountriesList(): array
     {
         return [
-            'Afghanistan', 'Albania', 'Algeria', 'American Samoa', 'Andorra', 'Angola', 'Anguilla', 'Antarctica', 'Antigua and Barbuda', 'Argentina', 'Armenia', 'Aruba', 'Australia', 'Austria', 'Azerbaijan', 'Bahamas', 'Bahrain', 'Bangladesh', 'Barbados', 'Belarus', 'Belgium', 'Belize', 'Benin', 'Bermuda', 'Bhutan', 'Bolivia', 'Bosnia and Herzegovina', 'Botswana', 'Bouvet Island', 'Brazil', 'British Antarctic Territory', 'British Indian Ocean Territory', 'British Virgin Islands', 'Brunei', 'Bulgaria', 'Burkina Faso', 'Burundi', 'Cambodia', 'Cameroon', 'Canada', 'Canton and Enderbury Islands', 'Cape Verde', 'Cayman Islands', 'Central African Republic', 'Chad', 'Chile', 'China', 'Christmas Island', 'Cocos [Keeling] Islands', 'Colombia', 'Comoros', 'Congo - Brazzaville', 'Congo - Kinshasa', 'Cook Islands', 'Costa Rica', 'Croatia', 'Cuba', 'Cyprus', 'Czech Republic', 'Côte d’Ivoire', 'Denmark', 'Djibouti', 'Dominica', 'Dominican Republic', 'Dronning Maud Land', 'East Germany', 'Ecuador', 'Egypt', 'El Salvador', 'Equatorial Guinea', 'Eritrea', 'Estonia', 'Ethiopia', 'Falkland Islands', 'Faroe Islands', 'Fiji', 'Finland', 'France', 'French Guiana', 'French Polynesia', 'French Southern Territories', 'French Southern and Antarctic Territories', 'Gabon', 'Gambia', 'Georgia', 'Germany', 'Ghana', 'Gibraltar', 'Greece', 'Greenland', 'Grenada', 'Guadeloupe', 'Guam', 'Guatemala', 'Guernsey', 'Guinea', 'Guinea-Bissau', 'Guyana', 'Haiti', 'Heard Island and McDonald Islands', 'Honduras', 'Hong Kong SAR China', 'Hungary', 'Iceland', 'India', 'Indonesia', 'Iran', 'Iraq', 'Ireland', 'Isle of Man', 'Israel', 'Italy', 'Jamaica', 'Japan', 'Jersey', 'Johnston Island', 'Jordan', 'Kazakhstan', 'Kenya', 'Kiribati', 'Kuwait', 'Kyrgyzstan', 'Laos', 'Latvia', 'Lebanon', 'Lesotho', 'Liberia', 'Libya', 'Liechtenstein', 'Lithuania', 'Luxembourg', 'Macau SAR China', 'Macedonia', 'Madagascar', 'Malawi', 'Malaysia', 'Maldives', 'Mali', 'Malta', 'Marshall Islands', 'Martinique', 'Mauritania', 'Mauritius', 'Mayotte', 'Metropolitan France', 'Mexico', 'Micronesia', 'Midway Islands', 'Moldova', 'Monaco', 'Mongolia', 'Montenegro', 'Montserrat', 'Morocco', 'Mozambique', 'Myanmar [Burma]', 'Namibia', 'Nauru', 'Nepal', 'Netherlands', 'Netherlands Antilles', 'Neutral Zone', 'New Caledonia', 'New Zealand', 'Nicaragua', 'Niger', 'Nigeria', 'Niue', 'Norfolk Island', 'North Korea', 'North Vietnam', 'Northern Mariana Islands', 'Norway', 'Oman', 'Pacific Islands Trust Territory', 'Pakistan', 'Palau', 'Palestinian Territories', 'Panama', 'Panama Canal Zone', 'Papua New Guinea', 'Paraguay', 'People\'s Democratic Republic of Yemen', 'Peru', 'Philippines', 'Pitcairn Islands', 'Poland', 'Portugal', 'Puerto Rico', 'Qatar', 'Romania', 'Russia', 'Rwanda', 'Réunion', 'Saint Barthélemy', 'Saint Helena', 'Saint Kitts and Nevis', 'Saint Lucia', 'Saint Martin', 'Saint Pierre and Miquelon', 'Saint Vincent and the Grenadines', 'Samoa', 'San Marino', 'Saudi Arabia', 'Senegal', 'Serbia', 'Serbia and Montenegro', 'Seychelles', 'Sierra Leone', 'Singapore', 'Slovakia', 'Slovenia', 'Solomon Islands', 'Somalia', 'South Africa', 'South Georgia and the South Sandwich Islands', 'South Korea', 'Spain', 'Sri Lanka', 'Sudan', 'Suriname', 'Svalbard and Jan Mayen', 'Swaziland', 'Sweden', 'Switzerland', 'Syria', 'São Tomé and Príncipe', 'Taiwan', 'Tajikistan', 'Tanzania', 'Thailand', 'Timor-Leste', 'Togo', 'Tokelau', 'Tonga', 'Trinidad and Tobago', 'Tunisia', 'Turkey', 'Turkmenistan', 'Turks and Caicos Islands', 'Tuvalu', 'U.S. Minor Outlying Islands', 'U.S. Miscellaneous Pacific Islands', 'U.S. Virgin Islands', 'Uganda', 'Ukraine', 'Union of Soviet Socialist Republics', 'United Arab Emirates', 'United Kingdom', 'United States', 'Unknown or Invalid Region', 'Uruguay', 'Uzbekistan', 'Vanuatu', 'Vatican City', 'Venezuela', 'Vietnam', 'Wake Island', 'Wallis and Futuna', 'Western Sahara', 'Yemen', 'Zambia', 'Zimbabwe'
+            'India', 'Afghanistan', 'Albania', 'Algeria', 'Andorra', 'Angola', 'Argentina', 'Armenia', 'Australia', 'Austria',
+            'Azerbaijan', 'Bahamas', 'Bahrain', 'Bangladesh', 'Barbados', 'Belarus', 'Belgium', 'Belize', 'Benin',
+            'Bhutan', 'Bolivia', 'Bosnia and Herzegovina', 'Botswana', 'Brazil', 'Brunei', 'Bulgaria', 'Burkina Faso',
+            'Burundi', 'Cambodia', 'Cameroon', 'Canada', 'Cape Verde', 'Central African Republic', 'Chad', 'Chile',
+            'China', 'Colombia', 'Comoros', 'Congo', 'Costa Rica', 'Croatia', 'Cuba', 'Cyprus', 'Czech Republic',
+            'Denmark', 'Djibouti', 'Dominica', 'Dominican Republic', 'East Timor', 'Ecuador', 'Egypt', 'El Salvador',
+            'Equatorial Guinea', 'Eritrea', 'Estonia', 'Ethiopia', 'Fiji', 'Finland', 'France', 'Gabon', 'Gambia',
+            'Georgia', 'Germany', 'Ghana', 'Greece', 'Grenada', 'Guatemala', 'Guinea', 'Guinea-Bissau', 'Guyana',
+            'Haiti', 'Honduras', 'Hungary', 'Iceland', 'Indonesia', 'Iran', 'Iraq', 'Ireland', 'Israel',
+            'Italy', 'Jamaica', 'Japan', 'Jordan', 'Kazakhstan', 'Kenya', 'Kiribati', 'Kuwait', 'Kyrgyzstan', 'Laos',
+            'Latvia', 'Lebanon', 'Lesotho', 'Liberia', 'Libya', 'Liechtenstein', 'Lithuania', 'Luxembourg', 'Macedonia',
+            'Madagascar', 'Malawi', 'Malaysia', 'Maldives', 'Mali', 'Malta', 'Mauritania', 'Mauritius', 'Mexico',
+            'Moldova', 'Monaco', 'Mongolia', 'Montenegro', 'Morocco', 'Mozambique', 'Myanmar', 'Namibia', 'Nauru',
+            'Nepal', 'Netherlands', 'New Zealand', 'Nicaragua', 'Niger', 'Nigeria', 'Norway', 'Oman', 'Pakistan',
+            'Palau', 'Panama', 'Papua New Guinea', 'Paraguay', 'Peru', 'Philippines', 'Poland', 'Portugal', 'Qatar',
+            'Romania', 'Russia', 'Rwanda', 'Saint Kitts and Nevis', 'Saint Lucia', 'Saint Vincent', 'Samoa', 'San Marino',
+            'Saudi Arabia', 'Senegal', 'Serbia', 'Seychelles', 'Sierra Leone', 'Singapore', 'Slovakia', 'Slovenia',
+            'Solomon Islands', 'Somalia', 'South Africa', 'Spain', 'Sri Lanka', 'Sudan', 'Suriname', 'Swaziland',
+            'Sweden', 'Switzerland', 'Syria', 'Taiwan', 'Tajikistan', 'Tanzania', 'Thailand', 'Togo', 'Tonga',
+            'Trinidad and Tobago', 'Tunisia', 'Turkey', 'Turkmenistan', 'Tuvalu', 'Uganda', 'Ukraine',
+            'United Arab Emirates', 'United Kingdom', 'United States', 'Uruguay', 'Uzbekistan', 'Vanuatu',
+            'Vatican City', 'Venezuela', 'Vietnam', 'Yemen', 'Zambia', 'Zimbabwe'
         ];
     }
 }

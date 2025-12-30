@@ -3406,7 +3406,23 @@ namespace App\Models {
     /**
      * App\Models\MicroCategory
      *
+     * @property \Illuminate\Support\Carbon|null $updated_at
+     * @property \Illuminate\Support\Carbon|null $created_at
+     * @property bool $is_active
+     * @property string|null $image_path
+     * @property string $code
+     * @property string $name
+     * @property mixed $sub_category_id
+     * @property int $id
      * @property-read \App\Models\SubCategory $subCategory
+     * @method static \Illuminate\Database\Eloquent\Builder<MicroCategory>|MicroCategory whereId($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<MicroCategory>|MicroCategory whereSubCategoryId($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<MicroCategory>|MicroCategory whereName($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<MicroCategory>|MicroCategory whereCode($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<MicroCategory>|MicroCategory whereImagePath($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<MicroCategory>|MicroCategory whereIsActive($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<MicroCategory>|MicroCategory whereCreatedAt($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<MicroCategory>|MicroCategory whereUpdatedAt($value)
      * @method static \Illuminate\Database\Eloquent\Builder<MicroCategory>|MicroCategory newModelQuery()
      * @method static \Illuminate\Database\Eloquent\Builder<MicroCategory>|MicroCategory newQuery()
      * @method static \Illuminate\Database\Eloquent\Builder<MicroCategory>|MicroCategory query()

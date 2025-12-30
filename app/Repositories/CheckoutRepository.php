@@ -14,46 +14,94 @@ class CheckoutRepository
         protected TaxSettings $taxSettings
     ) {}
 
+    /**
+     * Calculate order price, discounts, and taxes.
+     */
     public function orderSummary($plan): array
     {
-        // 1. Base Calculations
-        $originalPrice = $plan->total_price; // Assuming this exists in your model
-        $subTotal = $plan->has_discount ? $plan->total_discounted_price : $originalPrice;
-        $discountAmount = $originalPrice - $subTotal;
-
-        $total = $subTotal;
+        $subTotal = 0;
+        $total = 0;
         $taxes = [];
 
-        // 2. Tax Logic
-        if ($this->taxSettings->enable_tax) {
-            $taxAmount = ($this->taxSettings->tax_amount_type === 'percentage')
-                ? ($subTotal * $this->taxSettings->tax_amount) / 100
-                : $this->taxSettings->tax_amount;
+        // ---------------------------------------------------------
+        // 1. Price Logic
+        // ---------------------------------------------------------
+        $basePrice = (float) ($plan->price ?? 0);
+
+        // Discount Logic
+        $hasDiscount = (bool) ($plan->has_discount ?? false);
+        $discountPercentage = (float) ($plan->discount_percentage ?? 0);
+
+        // Calculate Discount Amount
+        $discountAmount = 0;
+        if ($hasDiscount && $discountPercentage > 0) {
+            $discountAmount = ($basePrice * $discountPercentage) / 100;
+        }
+
+        // Subtotal after discount
+        $subTotal = $basePrice - $discountAmount;
+        $total = $subTotal;
+
+        // ---------------------------------------------------------
+        // 2. Tax Calculation Logic
+        // ---------------------------------------------------------
+
+        // Main Tax
+        if ($this->taxSettings->enable_tax ?? false) {
+            $taxRate = $this->taxSettings->tax_amount ?? 0;
+            $taxType = $this->taxSettings->tax_amount_type ?? 'percentage';
+
+            $taxAmount = ($taxType === 'percentage')
+                ? ($subTotal * $taxRate) / 100
+                : $taxRate;
 
             $taxes[] = [
-                'name' => $this->taxSettings->tax_name, // e.g. "GST (18%)"
+                'name' => ($this->taxSettings->tax_name ?? 'Tax') . ' (' . $taxRate . '%)',
                 'amount' => $taxAmount,
             ];
 
-            // Add to total only if tax is exclusive (not included in price)
-            if ($this->taxSettings->tax_type === 'exclusive') {
+            if (($this->taxSettings->tax_type ?? 'exclusive') === 'exclusive') {
                 $total += $taxAmount;
             }
         }
 
-        // 3. Return Rich Array
-        return [
-            'plan_name' => $plan->name,
-            'duration'  => $plan->duration ?? 12, // Default to 12 if null
-            'currency_symbol' => $this->paymentSettings->currency_symbol,
+        // Additional Tax
+        if ($this->taxSettings->enable_additional_tax ?? false) {
+            $addTaxRate = $this->taxSettings->additional_tax_amount ?? 0;
+            $addTaxType = $this->taxSettings->additional_tax_amount_type ?? 'percentage';
 
-            // Numbers
-            'original_price' => $originalPrice,
-            'has_discount' => $plan->has_discount,
-            'discount_amount' => $discountAmount,
-            'sub_total' => $subTotal,
-            'taxes' => $taxes,
-            'total' => $total,
+            $addTaxAmount = ($addTaxType === 'percentage')
+                ? ($subTotal * $addTaxRate) / 100
+                : $addTaxRate;
+
+            $taxes[] = [
+                'name' => ($this->taxSettings->additional_tax_name ?? 'Extra Tax') . ' (' . $addTaxRate . '%)',
+                'amount' => $addTaxAmount,
+            ];
+
+            if (($this->taxSettings->additional_tax_type ?? 'exclusive') === 'exclusive') {
+                $total += $addTaxAmount;
+            }
+        }
+
+        // ---------------------------------------------------------
+        // 3. Return Final Data Structure
+        // ---------------------------------------------------------
+        return [
+            'plan_name'       => $plan->name,
+            'duration'        => $plan->duration ?? 1,
+            'currency_symbol' => $this->paymentSettings->currency_symbol ?? '₹',
+
+            // Pricing Details
+            'original_price'      => $basePrice,
+            'has_discount'        => $hasDiscount,
+            'discount_percentage' => $discountPercentage, // <--- Yeh add kiya hai
+            'discount_amount'     => $discountAmount,
+
+            // Totals
+            'sub_total'       => $subTotal,
+            'taxes'           => $taxes,
+            'total'           => $total,
         ];
     }
 }
