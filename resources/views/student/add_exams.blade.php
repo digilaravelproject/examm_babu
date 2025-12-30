@@ -44,7 +44,7 @@
                         <div class="mt-auto"></div>
 
                         <div class="mt-3">
-                            <a href="#"
+                            <a href="{{ route('store.categories.show', $cat['slug']) }}"
                                class="flex items-center justify-center w-full py-2 text-xs font-bold transition-all duration-200 rounded-lg group-hover:text-white"
                                style="background-color: #f8fafc; color: var(--sidebar-bg); border: 1px solid #e2e8f0;"
                                onmouseover="this.style.backgroundColor='var(--brand-blue)'; this.style.color='white'; this.style.borderColor='var(--brand-blue)';"

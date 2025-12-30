@@ -4,15 +4,14 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Models\Feature;
 use App\Models\Category;
+use App\Models\Feature;
 use App\Models\SubCategory;
 use App\Settings\HomePageSettings;
 use App\Settings\PaymentSettings;
 use App\Settings\SiteSettings;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class SiteController extends Controller
@@ -25,11 +24,11 @@ class SiteController extends Controller
         try {
             return view('store.index', [
                 'siteSettings' => $siteSettings,
-                'homePageSettings' => $homePageSettings
+                'homePageSettings' => $homePageSettings,
             ]);
             // return view('welcome');
         } catch (\Throwable $e) {
-            Log::error("Exam Babu - Home Page Error: " . $e->getMessage());
+            Log::error('Exam Babu - Home Page Error: ' . $e->getMessage());
             abort(500, 'Something went wrong while loading the home page.');
         }
     }
@@ -47,8 +46,8 @@ class SiteController extends Controller
             // Data fetch with Eager Loading (Plans aur unke Features sath me ayenge)
             $category = SubCategory::with(['plans' => function ($query) {
                 $query->where('is_active', true)
-                      ->orderBy('sort_order')
-                      ->with('features'); // Plan ke features bhi load kar liye
+                    ->orderBy('sort_order')
+                    ->with('features'); // Plan ke features bhi load kar liye
             }])->where('slug', $slug)->firstOrFail();
 
             // Saare available features list (Display ke liye agar chahiye ho)
@@ -70,14 +69,13 @@ class SiteController extends Controller
                 'plans' => $category->plans, // Direct Collection pass kiya (No Transformer)
                 'features' => $features, // Features bhi pass kar diye agar compare karna ho
                 'siteSettings' => $siteSettings,
-                'homePageSettings' => $homePageSettings
+                'homePageSettings' => $homePageSettings,
             ]);
-
         } catch (ModelNotFoundException $e) {
             Log::warning("Exam Babu - Explore Page: Category not found for slug '{$slug}'");
             abort(404);
         } catch (\Throwable $e) {
-            Log::error("Exam Babu - Explore Page Error: " . $e->getMessage());
+            Log::error('Exam Babu - Explore Page Error: ' . $e->getMessage());
             abort(500, 'Unable to load exploration plans.');
         }
     }
@@ -95,8 +93,8 @@ class SiteController extends Controller
             $categories = SubCategory::whereHas('plans')
                 ->with(['category', 'plans' => function ($query) {
                     $query->where('is_active', true)
-                          ->orderBy('sort_order')
-                          ->with('features');
+                        ->orderBy('sort_order')
+                        ->with('features');
                 }])
                 ->orderBy('name')
                 ->get();
@@ -106,11 +104,10 @@ class SiteController extends Controller
                 'features' => $features,     // Comparison table ke liye
                 'selectedCategory' => $categories->count() > 0 ? $categories->first()->code : '',
                 'siteSettings' => $siteSettings,
-                'homePageSettings' => $homePageSettings
+                'homePageSettings' => $homePageSettings,
             ]);
-
         } catch (\Throwable $e) {
-            Log::error("Exam Babu - Pricing Page Error: " . $e->getMessage());
+            Log::error('Exam Babu - Pricing Page Error: ' . $e->getMessage());
             abort(500, 'Unable to load pricing information.');
         }
     }
@@ -124,22 +121,21 @@ class SiteController extends Controller
             $parentCategory = Category::with(['subCategories' => function ($query) {
                 $query->where('is_active', true)->orderBy('name');
             }])
-            ->where('slug', $slug)
-            ->where('is_active', true)
-            ->firstOrFail();
+                ->where('slug', $slug)
+                ->where('is_active', true)
+                ->firstOrFail();
 
             return view('store.category-subcategories', [
-                'parentCategory'   => $parentCategory,
-                'subCategories'    => $parentCategory->subCategories,
-                'siteSettings'     => $siteSettings,
+                'parentCategory' => $parentCategory,
+                'subCategories' => $parentCategory->subCategories,
+                'siteSettings' => $siteSettings,
                 'homePageSettings' => $homePageSettings,
             ]);
-
         } catch (ModelNotFoundException $e) {
             Log::warning("Exam Babu - Parent Category Page: Category not found for slug '{$slug}'");
             abort(404);
         } catch (\Throwable $e) {
-            Log::error("Exam Babu - Parent Category Page Error: " . $e->getMessage());
+            Log::error('Exam Babu - Parent Category Page Error: ' . $e->getMessage());
             abort(500, 'Unable to load category details.');
         }
     }
