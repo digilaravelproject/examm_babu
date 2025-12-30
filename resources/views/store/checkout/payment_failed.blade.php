@@ -1,31 +1,33 @@
 @extends('layouts.site')
 
 @section('content')
-<div class="flex items-center justify-center min-h-screen bg-slate-50 pt-20 pb-20">
-    <div class="bg-white p-12 rounded-[2.5rem] shadow-2xl text-center max-w-lg w-full border border-red-50 relative overflow-hidden">
+<div class="flex items-center justify-center min-h-screen px-4 bg-slate-50">
+    <div class="relative w-full max-w-sm p-8 overflow-hidden text-center bg-white border border-red-100 shadow-xl rounded-3xl">
 
-        <div class="absolute top-0 left-0 w-full h-2 bg-red-500"></div>
-        <div class="absolute -top-10 -left-10 w-32 h-32 bg-red-50 rounded-full blur-2xl"></div>
+        <div class="absolute top-0 left-0 w-full h-1.5 bg-red-500"></div>
+        <div class="absolute w-24 h-24 rounded-full -top-10 -left-10 bg-red-50 blur-xl opacity-70"></div>
 
-        <div class="w-24 h-24 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">
-            <svg class="w-12 h-12 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12" />
+        <div class="flex items-center justify-center w-16 h-16 mx-auto mb-6 rounded-full bg-red-50 ring-4 ring-red-50">
+            <svg class="w-8 h-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
             </svg>
         </div>
 
-        <h2 class="text-3xl font-extrabold text-slate-900 mb-4">Payment Failed</h2>
-        <p class="text-slate-500 text-lg mb-8 leading-relaxed">
-            Oops! Something went wrong with the transaction. Please check your details or try a different payment method.
+        <h2 class="mb-2 text-2xl font-bold text-slate-800">Payment Failed</h2>
+        <p class="mb-6 text-sm leading-relaxed text-slate-500">
+            Oops! The transaction couldn't be completed. Please check your payment details or try a different card.
         </p>
 
-        <div class="space-y-4">
+        <div class="space-y-3">
             <a href="{{ url()->previous() }}"
-               class="block w-full py-4 rounded-xl text-white font-bold shadow-lg shadow-red-500/30 transition-transform hover:-translate-y-1"
-               style="background-color: var(--danger);">
+               class="block w-full py-3 rounded-xl text-white text-sm font-semibold shadow-md shadow-red-200 transition-all hover:shadow-lg hover:-translate-y-0.5"
+               style="background-color: var(--danger, #ef4444);">
                 Try Again
             </a>
-            <a href="{{ route('welcome') }}" class="block w-full py-4 text-slate-500 font-bold hover:text-slate-800 transition-colors">
-                Cancel
+
+            <a href="{{ route('welcome') }}"
+               class="block w-full py-3 text-sm font-semibold transition-colors text-slate-400 hover:text-slate-600">
+                Cancel Transaction
             </a>
         </div>
     </div>
