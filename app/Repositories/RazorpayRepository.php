@@ -22,7 +22,7 @@ class RazorpayRepository
                 ->withHeaders(['Content-Type' => 'application/json'])
                 ->post('https://api.razorpay.com/v1/orders', [
                     'receipt' => $paymentId,
-                    'amount' => (int) ($amount * 100), // Convert to paise
+                    'amount' => (int) ($amount * 100),
                     'currency' => app(PaymentSettings::class)->default_currency,
                     'payment_capture' => 1,
                 ]);

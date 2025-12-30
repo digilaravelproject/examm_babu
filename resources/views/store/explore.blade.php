@@ -140,7 +140,7 @@
 
                             {{-- CTA Button --}}
                             <div class="p-6 mt-auto">
-                                <a href="#"
+                                <a href="{{ route('checkout', $plan->code) }}"
                                     class="w-full inline-flex justify-center items-center px-4 py-3 text-sm font-bold text-white rounded-lg transition-all duration-300 shadow-md hover:shadow-lg hover:scale-[1.01] focus:outline-none focus:ring-2 focus:ring-blue-200"
                                     style="background: var(--brand-blue);">
                                     Buy Now

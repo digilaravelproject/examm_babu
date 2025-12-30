@@ -20,8 +20,10 @@ class QuestionTemplateSheet implements FromArray, WithHeadings, WithTitle, WithS
                 'What is the capital of India?',
                 'Mumbai', 'Delhi', 'Kolkata', 'Chennai', '',
                 '2', // Correct Answer (Option Index)
+                'Solution text here.',
                 1, 60, 'EASY',
-                'Capital is New Delhi.', 'Solution text here.'
+                'Capital is New Delhi.',
+
             ]
         ];
     }
@@ -35,11 +37,11 @@ class QuestionTemplateSheet implements FromArray, WithHeadings, WithTitle, WithS
             'question',
             'option1', 'option2', 'option3', 'option4', 'option5',
             'correct_answer',
+            'solution',
             'default_marks',
             'default_time_to_solve',
             'difficulty_level',
             'hint',
-            'solution',
         ];
     }
 

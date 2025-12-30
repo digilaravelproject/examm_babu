@@ -16,7 +16,6 @@ class PaymentRepository
     {
         return DB::transaction(function () use ($data) {
             try {
-                // 1. Create Payment Record
                 $payment = new Payment();
                 $payment->payment_id = $data['payment_id'];
                 $payment->currency = $data['currency'];
@@ -24,10 +23,9 @@ class PaymentRepository
                 $payment->user_id = $data['user_id'];
                 $payment->total_amount = $data['total_amount'];
                 $payment->payment_processor = 'razorpay';
-                $payment->status = $data['status']; // 'pending' or 'success'
+                $payment->status = $data['status'];
                 $payment->data = $data['meta_data'] ?? [];
 
-                // If success, update dates and transaction ID
                 if ($data['status'] === 'success') {
                     $payment->payment_date = Carbon::now();
                     $payment->transaction_id = $data['transaction_id'] ?? null;
@@ -35,14 +33,13 @@ class PaymentRepository
 
                 $payment->save();
 
-                // 2. If Success, Create Subscription
                 if ($data['status'] === 'success') {
                     $subscription = new Subscription();
                     $subscription->user_id = $data['user_id'];
                     $subscription->plan_id = $data['plan_id'];
                     $subscription->payment_id = $payment->id;
                     $subscription->starts_at = Carbon::now();
-                    $subscription->ends_at = Carbon::now()->addMonths((int) $data['duration']);
+                    $subscription->ends_at = Carbon::now()->addMonths((int) ($data['duration'] ?? 12));
                     $subscription->status = 'active';
                     $subscription->save();
                 }
@@ -51,7 +48,7 @@ class PaymentRepository
 
             } catch (\Exception $e) {
                 Log::error("DB Transaction Failed: " . $e->getMessage());
-                throw $e; // Re-throw to rollback transaction
+                throw $e;
             }
         });
     }

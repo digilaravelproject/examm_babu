@@ -7,16 +7,14 @@ use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
-| STUDENT ROUTES
+| STUDENT DASHBOARD & SYLLABUS ROUTES
 |--------------------------------------------------------------------------
 */
-
-Route::middleware(['auth', 'verified', 'role:student', 'check.syllabus'])
+Route::middleware(['auth', 'verified', 'role:student'])
     ->prefix('student')
     ->name('student.')
     ->group(function () {
 
-        // --- Syllabus Management (Exempted from check to allow changing syllabus) ---
         Route::controller(SyllabusController::class)
             ->withoutMiddleware(['check.syllabus'])
             ->group(function () {
@@ -25,31 +23,32 @@ Route::middleware(['auth', 'verified', 'role:student', 'check.syllabus'])
                 Route::get('/get-current-syllabus', 'getCurrentSyllabus')->name('get_current_syllabus');
             });
 
-        // --- Dashboard & Exams ---
         Route::controller(StudentDashboardController::class)->group(function () {
             Route::get('/dashboard', 'index')->name('dashboard');
             Route::get('/add-exams', 'addExams')->name('add_exams');
         });
 
-        // --- Demo Interface ---
         Route::get('/exam-demo', function () {
             return view('student.exam-interface');
         })->name('exam_demo');
-
-
-Route::middleware(['auth', 'role:guest|student|employee'])->group(function () {
-    // 1. Show Checkout Page (Bill Summary)
-    Route::get('/checkout/{plan}', [CheckoutController::class, 'checkout'])->name('checkout');
-
-    // 2. Process Checkout (Create Razorpay Order)
-    Route::post('/checkout/{plan}', [CheckoutController::class, 'processCheckout'])->name('process_checkout');
-
-    // 3. Payment Callback (Handle Razorpay Response)
-    Route::post('/callbacks/razorpay', [CheckoutController::class, 'handleRazorpayPayment'])->name('razorpay_callback');
-
-    // 4. Status Pages
-    Route::get('/payment-success', [CheckoutController::class, 'paymentSuccess'])->name('payment_success');
-    Route::get('/payment-failed', [CheckoutController::class, 'paymentFailed'])->name('payment_failed');
-});
-
     });
+
+/*
+|--------------------------------------------------------------------------
+| CHECKOUT & PAYMENT ROUTES
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth', 'verified', 'role:guest|student|employee'])->group(function () {
+
+    // Controller Grouping for cleaner code
+    Route::controller(CheckoutController::class)->group(function () {
+        // Parameter name '{plan}' must match Controller variable
+        Route::get('/checkout/{plan}', 'checkout')->name('checkout');
+        Route::post('/checkout/{plan}', 'processCheckout')->name('process_checkout');
+
+        // Callbacks & Status
+        Route::post('/callbacks/razorpay', 'handleRazorpayPayment')->name('razorpay_callback');
+        Route::get('/payment-success', 'paymentSuccess')->name('payment_success');
+        Route::get('/payment-failed', 'paymentFailed')->name('payment_failed');
+    });
+});
