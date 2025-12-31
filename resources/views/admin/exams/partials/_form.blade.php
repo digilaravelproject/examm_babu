@@ -167,6 +167,76 @@
                 <span :class="isPublished ? 'translate-x-5' : 'translate-x-0'" class="inline-block h-5 w-5 mt-0.5 ml-0.5 transform rounded-full bg-white transition duration-200 shadow-sm"></span>
             </button>
         </div>
+
+        {{-- Topic Toggle --}}
+        <div
+    x-data="{
+        enableTopic: {{ old('topic_id', $exam->topic_id ?? false) ? 'true' : 'false' }},
+        topicId: '{{ old('topic_id', $exam->topic_id) }}'
+    }"
+    class="grid grid-cols-12 gap-4 mt-6"
+>
+
+    {{-- LEFT: Topic Toggle --}}
+    <div class="col-span-12">
+        <div class="flex items-center justify-between p-4 bg-gray-50/80 rounded-2xl border border-gray-100 transition-all hover:bg-gray-50 h-full">
+            <div>
+                <label class="text-[11px] font-black text-gray-500 uppercase tracking-widest">
+                    Topic
+                </label>
+                <p class="text-[10px] font-bold"
+                   :class="enableTopic ? 'text-[var(--brand-blue)]' : 'text-gray-400'"
+                   x-text="enableTopic ? 'TOPIC ENABLED' : 'NO TOPIC'">
+                </p>
+            </div>
+
+            <button
+                type="button"
+                @click="enableTopic = !enableTopic"
+                :class="enableTopic ? 'bg-[var(--brand-blue)]' : 'bg-gray-300'"
+                class="relative inline-flex h-6 w-11 rounded-full transition-colors focus:outline-none"
+            >
+                <span
+                    :class="enableTopic ? 'translate-x-5' : 'translate-x-0'"
+                    class="inline-block h-5 w-5 mt-0.5 ml-0.5 transform rounded-full bg-white transition duration-200 shadow-sm"
+                ></span>
+            </button>
+        </div>
+    </div>
+
+    {{-- RIGHT: Topic Dropdown --}}
+    <div class="col-span-12" x-show="enableTopic" x-transition>
+
+        {{-- Hidden input ONLY when toggle OFF --}}
+        <template x-if="!enableTopic">
+            <input type="hidden" name="topic_id" value="">
+        </template>
+
+        <div class="p-4 bg-gray-50/80 rounded-2xl border border-gray-100 h-full">
+            <label class="text-[11px] font-black text-gray-500 uppercase tracking-widest block mb-2">
+                Select Topic
+            </label>
+
+            <select
+                x-model="topicId"
+                x-bind:disabled="!enableTopic"
+                name="topic_id"
+                class="w-full px-3 py-2 text-sm border-gray-300 rounded-lg
+                       focus:ring-[var(--brand-blue)]
+                       focus:border-[var(--brand-blue)] bg-white"
+            >
+                <option value="">-- Select Topic --</option>
+                @foreach($topics as $topic)
+                    <option value="{{ $topic->id }}">
+                        {{ $topic->name }}
+                    </option>
+                @endforeach
+            </select>
+        </div>
+    </div>
+
+</div>
+
     </div>
 
     {{-- 8. Description --}}

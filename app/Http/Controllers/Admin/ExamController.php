@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Exam;
 use App\Models\ExamType;
+use App\Models\Topic;
 use App\Models\SubCategory;
 use App\Models\MicroCategory; // Added Model
 use App\Repositories\ExamRepository;
@@ -45,8 +46,12 @@ class ExamController extends Controller
             $query->where('is_active', $is_active);
         }
 
+        if ($request->filled('topic_id')) {
+            $query->where('topic_id', $request->topic_id);
+        }
+
         // Added microCategory to eager loading
-        $exams = $query->with(['subCategory', 'examType', 'microCategory'])
+        $exams = $query->with(['subCategory', 'examType', 'microCategory', 'topic'])
             ->withCount(['examSections'])
             ->orderBy('id', 'desc')
             ->paginate(10)
@@ -57,7 +62,74 @@ class ExamController extends Controller
         }
 
         $examTypes = ExamType::where('is_active', 1)->get();
-        return view('admin.exams.index', compact('exams', 'examTypes'));
+        $topics = Topic::where('is_active', 1)->get();
+
+        return view('admin.exams.index', compact('exams', 'examTypes', 'topics'));
+    }
+
+    public function duplicate(Exam $exam)
+    {
+        DB::beginTransaction();
+
+        try {
+            /* ----------------------------
+            * 1. Generate unique title
+            * ---------------------------- */
+            $baseTitle = $exam->title . '_copy';
+            $newTitle  = $baseTitle;
+            $counter   = 1;
+
+            while (Exam::where('title', $newTitle)->exists()) {
+                $newTitle = $baseTitle . '_' . $counter;
+                $counter++;
+            }
+
+            /* ----------------------------
+            * 2. Duplicate Exam
+            * ---------------------------- */
+            $newExam = $exam->replicate();
+            $newExam->title = $newTitle;
+            $newExam->code = 'EX-' . strtoupper(Str::random(8));
+            $newExam->is_active = 0; // Draft
+            $newExam->created_at = now();
+            $newExam->updated_at = now();
+            $newExam->save();
+
+            /* ----------------------------
+            * 3. Copy Exam Settings
+            * ---------------------------- */
+            if (!empty($exam->settings)) {
+                $newExam->settings = $exam->settings;
+                $newExam->save();
+            }
+
+            /* ----------------------------
+            * 4. DUPLICATE ALL SECTIONS
+            * ---------------------------- */
+            foreach ($exam->examSections as $section) {
+                $newSection = $section->replicate();
+                $newSection->exam_id = $newExam->id;
+                $newSection->created_at = now();
+                $newSection->updated_at = now();
+                $newSection->save();
+
+                if (method_exists($newSection, 'updateMeta')) {
+                    $newSection->updateMeta();
+                }
+            }
+
+            DB::commit();
+
+            return redirect()
+                ->route('admin.exams.index')
+                ->with('success', 'Exam duplicated successfully with all sections.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error($e);
+
+            return back()->with('error', 'Failed to duplicate exam.');
+        }
     }
 
     public function search(Request $request)
@@ -90,11 +162,12 @@ class ExamController extends Controller
         $examTypes = ExamType::where('is_active', 1)->get();
         $steps = $this->repository->getSteps(null, 'details');
         $subCategories = SubCategory::where('is_active', 1)->limit(20)->get();
+        $topics = Topic::where('is_active', 1)->get();
 
         // Fetch all active micro categories to pass to the view for dynamic JS filtering
         $microCategories = MicroCategory::where('is_active', 1)->get(['id', 'name', 'sub_category_id']);
 
-        return view('admin.exams.create', compact('exam', 'examTypes', 'subCategories', 'steps', 'microCategories'));
+        return view('admin.exams.create', compact('exam', 'examTypes', 'subCategories', 'steps', 'microCategories', 'topics'));
     }
 
     public function store(Request $request)
@@ -103,6 +176,7 @@ class ExamController extends Controller
         $data = $request->validate([
             'title' => 'required|string|max:255',
             'sub_category_id' => 'required|exists:sub_categories,id',
+            'topic_id' => 'nullable|exists:topics,id',
             'micro_category_id' => 'nullable|exists:micro_categories,id', // Added Nullable Validation
             'exam_type_id' => 'required|exists:exam_types,id',
             'description' => 'nullable|string',
@@ -150,7 +224,9 @@ class ExamController extends Controller
 
         $steps = $this->repository->getSteps($exam->id, 'details');
 
-        return view('admin.exams.edit', compact('exam', 'examTypes', 'subCategories', 'steps', 'microCategories'));
+        $topics = Topic::where('is_active', 1)->get();
+
+        return view('admin.exams.edit', compact('exam', 'examTypes', 'subCategories', 'steps', 'microCategories', 'topics'));
     }
 
     public function update(Request $request, $id)
@@ -161,6 +237,7 @@ class ExamController extends Controller
         $data = $request->validate([
             'title' => 'required|string|max:255',
             'sub_category_id' => 'required|exists:sub_categories,id',
+            'topic_id' => 'nullable|exists:topics,id',
             'micro_category_id' => 'nullable|exists:micro_categories,id', // Added Nullable Validation
             'exam_type_id' => 'required|exists:exam_types,id',
             'description' => 'nullable|string',

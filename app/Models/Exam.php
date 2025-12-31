@@ -187,4 +187,9 @@ class Exam extends Model
             ->dontSubmitEmptyLogs()
             ->setDescriptionForEvent(fn(string $eventName) => "Exam has been {$eventName}");
     }
+
+    public function topic()
+    {
+        return $this->belongsTo(\App\Models\Topic::class);
+    }
 }

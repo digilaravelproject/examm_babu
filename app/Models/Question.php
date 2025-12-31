@@ -101,6 +101,11 @@ class Question extends Model
         return $this->belongsTo(Skill::class);
     }
 
+    public function options()
+    {
+        return $this->hasMany(QuestionOption::class);
+    }
+
     /**
      * Through relation: Question -> Skill -> Section
      */

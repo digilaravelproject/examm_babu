@@ -65,6 +65,17 @@
                     placeholder="Search by Title or Code...">
             </div>
 
+            {{-- Topic Filter --}}
+            <div class="relative w-full md:w-56">
+                <select x-model="topic" @change="fetchExams()"
+                    class="w-full py-2.5 pl-3 pr-8 text-sm font-medium text-gray-600 border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:ring-2 focus:ring-[var(--brand-blue)]">
+                    <option value="">All Topics</option>
+                    @foreach($topics as $topic)
+                        <option value="{{ $topic->id }}">{{ $topic->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+
             {{-- Type Filter --}}
             <div class="relative w-full md:w-56">
                 <select x-model="type" @change="fetchExams()"
@@ -113,6 +124,7 @@
             search: '',
             type: '',
             status: '',
+            topic: '',
             loading: false,
 
             fetchExams(url = "{{ route('admin.exams.index') }}") {
@@ -121,6 +133,7 @@
                 if(this.search) params.append('search', this.search);
                 if(this.type) params.append('type', this.type);
                 if(this.status) params.append('status', this.status);
+                if(this.topic) params.append('topic_id', this.topic);
 
                 const fetchUrl = url.includes('?')
                     ? `${url}&${params.toString()}`

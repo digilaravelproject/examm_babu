@@ -125,6 +125,7 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('ad
     Route::get('search-topics', [TopicController::class, 'search'])->name('topics.search');
 
 
+    Route::post('exams/{exam}/duplicate-exam', [ExamController::class, 'duplicate'])->name('exams.duplicate');
 
 
     // 1. Exam Details (Create/Edit/List)
@@ -132,7 +133,6 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('ad
 
     // Group for steps that require an existing Exam ID
     Route::prefix('exams/{exam}')->name('exams.')->group(function () {
-
         // 2. Settings
         Route::get('settings', [ExamController::class, 'settings'])->name('settings');
         Route::post('settings', [ExamController::class, 'updateSettings'])->name('settings.update');

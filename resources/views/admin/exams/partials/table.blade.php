@@ -6,6 +6,9 @@
                     <th class="px-5 py-4 text-xs font-bold tracking-wider text-gray-500 uppercase">Exam Details</th>
                     <th class="px-5 py-4 text-xs font-bold tracking-wider text-center text-gray-500 uppercase">Sections
                     </th>
+                    <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase">
+                        Topic
+                    </th>
                     <th class="px-5 py-4 text-xs font-bold tracking-wider text-center text-gray-500 uppercase">Status
                     </th>
                     <th class="px-5 py-4 text-xs font-bold tracking-wider text-right text-gray-500 uppercase">Actions
@@ -47,6 +50,23 @@
                                 class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-semibold text-gray-600 border border-gray-200">
                                 {{ $exam->exam_sections_count }} Sections
                             </span>
+                        </td>
+
+                        <td class="px-4 py-3 text-sm">
+                            @if($exam->topic)
+                                <span class="inline-flex items-center gap-1 px-3 py-1 text-xs font-semibold
+                                            text-[var(--brand-blue)] bg-blue-50 border border-blue-100 rounded-full">
+                                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M17.707 9.293l-7-7A1 1 0 009.586 2H4a2 2 0 00-2 2v5.586a1 1 0 00.293.707l7 7a1 1 0 001.414 0l7-7a1 1 0 000-1.414z"/>
+                                    </svg>
+                                    {{ $exam->topic->name }}
+                                </span>
+                            @else
+                                <span class="inline-flex items-center px-3 py-1 text-xs font-medium
+                                            text-gray-400 bg-gray-100 rounded-full">
+                                    No Topic
+                                </span>
+                            @endif
                         </td>
 
                         {{-- Status Badge --}}
@@ -96,6 +116,30 @@
                                             d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                     </svg>
                                 </a>
+
+                                <form method="POST"
+                                    action="{{ route('admin.exams.duplicate', ['exam' => $exam->id]) }}"
+                                    class="inline-block"
+                                    onsubmit="return confirm('Are you sure you want to duplicate this exam?');">
+                                    @csrf
+
+                                    <button type="submit"
+                                        class="flex items-center justify-center w-9 h-9 transition-all bg-white border border-gray-200 rounded-lg shadow-sm
+                                            hover:bg-indigo-500 hover:border-indigo-500 hover:text-white group/btn"
+                                        title="Duplicate Exam">
+
+                                        <svg class="w-4 h-4 text-gray-500 group-hover/btn:text-white"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor">
+                                            <path stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                stroke-width="2"
+                                                d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2M16 8h2a2 2 0 012 2v8a2 2 0 01-2 2h-8a2 2 0 01-2-2v-2" />
+                                        </svg>
+                                    </button>
+                                </form>
+
 
                                 {{-- Delete --}}
                                 <form action="{{ route('admin.exams.destroy', $exam->id) }}" method="POST"
