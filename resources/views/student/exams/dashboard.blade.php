@@ -56,7 +56,7 @@
 
                                 {{-- Unlock Logic: Check Array --}}
                                 @if(!$schedule->exam->is_paid || in_array($schedule->exam->sub_category_id, $subscribedCategoryIds))
-                                    <a href="#" class="text-[10px] font-bold text-white bg-slate-900 px-3 py-1.5 rounded hover:bg-[var(--brand-blue)] transition-colors shadow-sm">
+                                    <a href="{{ route('student.exam.start', $schedule->id) }}" class="text-[10px] font-bold text-white bg-slate-900 px-3 py-1.5 rounded hover:bg-[var(--brand-blue)] transition-colors shadow-sm">
                                         Start
                                     </a>
                                 @else

@@ -29,9 +29,10 @@
             </div>
 
             @if(!$schedule->exam->is_paid || in_array($schedule->exam->sub_category_id, $subscribedCategoryIds))
-                <button class="text-xs font-bold text-white bg-green-600 px-3 py-1.5 rounded hover:bg-green-700 transition-colors shadow-sm">
-                    Attempt
-                </button>
+                <a href="{{ route('student.exam.start', $schedule->id) }}"
+       class="text-xs font-bold text-white bg-green-600 px-3 py-1.5 rounded hover:bg-green-700 transition-colors shadow-sm inline-block text-center">
+        Attempt
+    </a>
             @else
                 <a href="{{ route('pricing') }}" class="flex items-center gap-1 text-xs font-bold transition-colors text-slate-500 hover:text-slate-800">
                     <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>

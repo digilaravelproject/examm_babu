@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Student\CheckoutController;
 use App\Http\Controllers\Student\ExamDashboardController;
+use App\Http\Controllers\Student\ExamSessionController;
 use App\Http\Controllers\Student\PaymentController;
 use App\Http\Controllers\Student\StudentDashboardController;
 use App\Http\Controllers\Student\SubscriptionController;
@@ -56,7 +57,30 @@ Route::middleware(['auth', 'verified', 'role:student'])
             Route::get('/exams/live', 'liveExams')->name('exams.live');
             Route::get('/exams/fetch-live', 'fetchLiveExams')->name('exams.fetch_live'); // AJAX
         });
+        // --- EXAM SESSION ENGINE ---
+        Route::controller(ExamSessionController::class)->group(function () {
 
+            // 1. Start Exam (Logic: Checks Subscription -> Wallet -> Limits)
+            Route::get('/exam/start/{scheduleId}', 'startExam')->name('exam.start');
+
+            // 2. Exam Interface (Main Screen)
+            Route::get('/exam/attempt/{sessionCode}', 'loadInterface')->name('exam.interface');
+
+            // 3. Fetch Questions (AJAX - Section Wise)
+            Route::get('/exam/fetch-section/{sessionCode}/{sectionId}', 'fetchSectionQuestions')->name('exam.fetch_section');
+
+            // 4. Save Answer (AJAX - Realtime)
+            Route::post('/exam/save-answer/{sessionCode}', 'saveAnswer')->name('exam.save_answer');
+
+            // 5. Suspend (Tab Switching Penalty)
+            Route::post('/exam/suspend/{sessionCode}', 'suspendSession')->name('exam.suspend');
+
+            // 6. Finish Exam
+            Route::post('/exam/finish/{sessionCode}', 'finishExam')->name('exam.finish');
+
+            // 7. Results & Solutions
+            Route::get('/exam/result/{sessionId}', 'showResult')->name('exams.result');
+        });
         // Demo Interface
         Route::get('/exam-demo', function () {
             return view('student.exam-interface');
@@ -79,7 +103,6 @@ Route::middleware(['auth', 'verified', 'role:student'])
         });
 
     });
-
 
 /*
 |--------------------------------------------------------------------------
