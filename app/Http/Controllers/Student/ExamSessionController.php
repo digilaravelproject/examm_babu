@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ExamSchedule;
 use App\Models\ExamSession;
 use App\Models\Question;
+use App\Models\ExamSection;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -18,7 +19,7 @@ use Illuminate\Support\Str;
 class ExamSessionController extends Controller
 {
     /**
-     * 1. Start Exam Logic (Checks Subscriptions, Limits, Wallet)
+     * 1. Start Exam Logic
      */
     public function startExam(Request $request, $scheduleId)
     {
@@ -42,7 +43,7 @@ class ExamSessionController extends Controller
             }
 
             // B. Attempt Limit Check
-            $maxAttempts = $exam->settings['no_of_attempts'] ?? 0; // 0 = Unlimited
+            $maxAttempts = $exam->settings['no_of_attempts'] ?? 0;
             $attemptsCount = ExamSession::where('user_id', $user->id)
                 ->where('exam_schedule_id', $schedule->id)
                 ->where('status', 'completed')
@@ -56,7 +57,6 @@ class ExamSessionController extends Controller
             $hasSubscription = $user->hasActiveSubscription($exam->sub_category_id, 'exams');
 
             if ($exam->is_paid && !$hasSubscription) {
-                // Wallet Logic (from old controller)
                 if ($exam->can_redeem && $user->balance >= $exam->points_required) {
                     $user->withdraw($exam->points_required, [
                         'description' => 'Unlocked Exam: ' . $exam->title
@@ -73,18 +73,16 @@ class ExamSessionController extends Controller
             $session->exam_id = $exam->id;
             $session->exam_schedule_id = $schedule->id;
             $session->status = 'started';
-            $session->started_at = now();
-            // End time calculation (Handle fixed vs flexible)
+
+            // TIME FIX
+            $session->starts_at = now();
+
             if ($schedule->schedule_type == 'fixed') {
-                $session->ends_at = $schedule->end_date; // Assuming time included
+                $session->ends_at = $schedule->end_date;
             } else {
                 $session->ends_at = now()->addMinutes($exam->duration ?? 60);
             }
             $session->save();
-
-            // Initialize Sections & Questions (Important for Resume)
-            // Note: Ideally we attach empty records here, but for performance,
-            // we will create pivot entries on-demand in 'saveAnswer'.
 
             return redirect()->route('student.exam.interface', $session->code);
 
@@ -112,21 +110,20 @@ class ExamSessionController extends Controller
                 return redirect()->route('student.exams.result', $session->id);
             }
 
-            // Prepare Section Meta Data
+            // ORDER FIX: Using 'section_order' as per your database
             $sections = $session->exam->examSections()
-                ->orderBy('sort_order')
+                ->orderBy('section_order')
                 ->get(['id', 'name', 'total_questions'])
                 ->map(function($sec) {
                     return [
                         'id' => $sec->id,
                         'name' => $sec->name,
                         'total_questions' => $sec->total_questions,
-                        // We will load questions via AJAX
                         'questions' => []
                     ];
                 });
 
-            return view('student.exam.interface', [
+            return view('student.exams.interface', [
                 'session' => $session,
                 'exam' => $session->exam,
                 'sections' => $sections,
@@ -141,19 +138,25 @@ class ExamSessionController extends Controller
     }
 
     /**
-     * 3. Fetch Questions (AJAX) - Optimized
+     * 3. Fetch Questions (AJAX) - DB QUERY FIX
      */
     public function fetchSectionQuestions($sessionCode, $sectionId)
     {
         try {
             $session = ExamSession::where('code', $sessionCode)->firstOrFail();
 
-            // Get questions
-            $questions = Question::whereHas('examSections', function($q) use ($sectionId) {
-                $q->where('exam_section_id', $sectionId);
-            })->get();
+            // --- FIX: Using DB Table directly instead of missing Model Relation ---
+            // This assumes your pivot table is 'exam_section_questions'
+            // If fetching fails, check your actual pivot table name in DB
+            $questionIds = DB::table('exam_section_questions')
+                ->where('exam_section_id', $sectionId)
+                ->orderBy('sno', 'asc') // Assuming 'sno' column exists for ordering
+                ->pluck('question_id');
 
-            // Get saved answers for status
+            $questions = Question::whereIn('id', $questionIds)->get();
+            // ---------------------------------------------------------------------
+
+            // Get saved answers
             $savedAnswers = DB::table('exam_session_questions')
                 ->where('exam_session_id', $session->id)
                 ->whereIn('question_id', $questions->pluck('id'))
@@ -162,10 +165,17 @@ class ExamSessionController extends Controller
 
             $data = $questions->map(function($q) use ($savedAnswers) {
                 $saved = $savedAnswers->get($q->id);
+
+                // Handle Options (Array/JSON fix)
+                $options = $q->options;
+                if (is_string($options)) {
+                    $options = json_decode($options, true) ?? [];
+                }
+
                 return [
                     'id' => $q->id,
                     'text' => $q->question,
-                    'options' => json_decode($q->options) ?? [],
+                    'options' => $options,
                     'marks' => $q->default_marks,
                     'negative' => $q->default_negative_marks ?? 0,
                     'status' => $saved ? $saved->status : 'not_visited',
@@ -193,7 +203,6 @@ class ExamSessionController extends Controller
             // Evaluation Logic
             $isCorrect = false;
             if ($request->selected_option !== null) {
-                // Simple Match (Add complex logic here if needed like Multi-Select)
                 $isCorrect = ($question->correct_answer == $request->selected_option);
             }
 
@@ -202,19 +211,22 @@ class ExamSessionController extends Controller
                 ? ($question->default_negative_marks ?? 0)
                 : 0;
 
-            // Upsert (Insert or Update)
             DB::table('exam_session_questions')->upsert([
                 'exam_session_id' => $session->id,
                 'question_id' => $question->id,
                 'exam_section_id' => $request->section_id,
                 'user_answer' => serialize($request->selected_option),
-                'status' => $request->status, // answered, marked, not_answered
+                'status' => $request->status,
                 'is_correct' => $isCorrect,
                 'marks_earned' => $marksEarned,
                 'marks_deducted' => $marksDeducted,
-                'time_taken' => $request->time_taken ?? 0, // Optional tracking
+                'time_taken' => $request->time_taken ?? 0,
                 'updated_at' => now()
             ], ['exam_session_id', 'question_id'], ['user_answer', 'status', 'is_correct', 'marks_earned', 'marks_deducted', 'updated_at']);
+
+            $session->current_section = $request->section_id;
+            $session->current_question = $request->question_id;
+            $session->save();
 
             return response()->json(['success' => true]);
 
@@ -225,7 +237,7 @@ class ExamSessionController extends Controller
     }
 
     /**
-     * 5. Suspend Session (Tab Switch Penalty)
+     * 5. Suspend Session
      */
     public function suspendSession($sessionCode)
     {
@@ -245,13 +257,11 @@ class ExamSessionController extends Controller
         $session->completed_at = now();
         $session->save();
 
-        // Trigger Result Calculation Job Here (Optional)
-
         return response()->json(['redirect' => route('student.exams.result', $session->id)]);
     }
 
     public function showResult($sessionId) {
-        // Placeholder for Result Page
-        return view('student.exams.result_placeholder');
+        // Placeholder
+        return "Result Page for Session ID: " . $sessionId;
     }
 }
