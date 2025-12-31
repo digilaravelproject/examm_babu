@@ -100,10 +100,14 @@ class ExamSchedule extends Model
         return $filters->apply($query);
     }
 
-    public function scopeActive(Builder $query): void
-    {
-        $query->where('status', 'active');
-    }
+    // public function scopeActive(Builder $query): void
+    // {
+    //     $query->where('status', 'active');
+    // }
+    public function scopeActive($query) {
+    // Show schedules that haven't ended yet
+    return $query->where('end_date', '>=', now());
+}
 
     /*
     |--------------------------------------------------------------------------

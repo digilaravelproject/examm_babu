@@ -1001,6 +1001,7 @@ namespace App\Models {
      * @property mixed $total_duration
      * @property float|null $total_marks
      * @property mixed $exam_template_id
+     * @property mixed $micro_category_id
      * @property mixed $sub_category_id
      * @property mixed $exam_mode
      * @property mixed $exam_type_id
@@ -1030,6 +1031,7 @@ namespace App\Models {
      * @method static \Illuminate\Database\Eloquent\Builder<Exam>|Exam whereExamTypeId($value)
      * @method static \Illuminate\Database\Eloquent\Builder<Exam>|Exam whereExamMode($value)
      * @method static \Illuminate\Database\Eloquent\Builder<Exam>|Exam whereSubCategoryId($value)
+     * @method static \Illuminate\Database\Eloquent\Builder<Exam>|Exam whereMicroCategoryId($value)
      * @method static \Illuminate\Database\Eloquent\Builder<Exam>|Exam whereExamTemplateId($value)
      * @method static \Illuminate\Database\Eloquent\Builder<Exam>|Exam whereTotalMarks($value)
      * @method static \Illuminate\Database\Eloquent\Builder<Exam>|Exam whereTotalDuration($value)

@@ -173,7 +173,7 @@ class ExamSectionController extends Controller
                 // Manual Calculation: Count * Correct Marks
                 $examSection->total_marks = $examSection->questions()->count() * $request->correct_marks;
             }
-
+// dd($examSection);
             $examSection->save();
 
             // Recalculate everything

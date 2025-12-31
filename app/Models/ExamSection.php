@@ -30,25 +30,30 @@ class ExamSection extends Model
     /**
      * Get the attributes that should be cast (Laravel 11/12 Method Style).
      */
-    protected function casts(): array
-    {
-        return [
-            'auto_duration'           => 'boolean',
-            'auto_grading'            => 'boolean',
-            'enable_negative_marking' => 'boolean',
-            'enable_section_cutoff'   => 'boolean',
-            'assign_examiner'         => 'boolean',
-            'examined'                => 'boolean',
-            'approved'                => 'boolean',
-            'total_questions'         => 'integer',
-            'total_marks'             => 'float',
-            'total_duration'          => 'integer',
-            'examined_at'             => 'datetime',
-            'approved_at'             => 'datetime',
-            'created_at'              => 'datetime',
-            'updated_at'              => 'datetime',
-        ];
-    }
+   protected function casts(): array
+{
+    return [
+        'auto_duration'           => 'boolean',
+        'auto_grading'            => 'boolean',
+        'enable_negative_marking' => 'boolean',
+        'enable_section_cutoff'   => 'boolean',
+        'assign_examiner'         => 'boolean',
+        'examined'                => 'boolean',
+        'approved'                => 'boolean',
+
+        'total_questions' => 'integer',
+        'total_marks'     => 'float',
+        'correct_marks'   => 'float',
+        'negative_marks'  => 'float',
+        'total_duration'  => 'integer',
+
+        'examined_at' => 'datetime',
+        'approved_at' => 'datetime',
+        'created_at'  => 'datetime',
+        'updated_at'  => 'datetime',
+    ];
+}
+
 
     /*
     |--------------------------------------------------------------------------
