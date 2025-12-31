@@ -1,62 +1,77 @@
 @extends('layouts.student')
 
 @section('content')
-<div class="px-4 py-8 sm:px-6 lg:px-8">
+<div class="px-4 py-6 sm:px-6 lg:px-8">
 
-    <div class="flex items-center gap-3 mb-8">
-        <a href="{{ route('student.exams.dashboard') }}" class="p-2 rounded-lg hover:bg-slate-100 text-slate-500">
+    <div class="flex items-center gap-3 pb-4 mb-6 border-b border-slate-200">
+        <a href="{{ route('student.exams.dashboard') }}" class="transition-colors text-slate-400 hover:text-blue-600">
             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
         </a>
-        <div>
-            <h1 class="text-2xl font-bold text-slate-900">{{ $type->name }}</h1>
-            <p class="text-sm text-slate-500">Practice with our curated {{ strtolower($type->name) }} collection.</p>
-        </div>
+        <h1 class="text-lg font-bold text-slate-900">{{ $type->name }}</h1>
     </div>
 
-    @if($exams->count() > 0)
-        <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-            @foreach($exams as $exam)
-                <div class="p-6 transition-all duration-300 bg-white border shadow-sm rounded-2xl border-slate-200 hover:shadow-lg group">
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" id="exam-grid">
+        @include('student.exams.partials.exam_card', ['exams' => $exams, 'subscribedCategoryIds' => $subscribedCategoryIds])
+    </div>
 
-                    <div class="flex items-start justify-between mb-4">
-                        <div class="w-10 h-10 rounded-lg bg-blue-50 text-[var(--brand-blue)] flex items-center justify-center font-bold text-xl">
-                            {{ substr($exam->title, 0, 1) }}
-                        </div>
-                        @if($exam->is_paid && !$subscription)
-                            <span class="px-2 py-1 text-xs font-bold rounded text-amber-600 bg-amber-50">PREMIUM</span>
-                        @else
-                            <span class="px-2 py-1 text-xs font-bold text-green-600 rounded bg-green-50">FREE</span>
-                        @endif
-                    </div>
+    {{-- Loading & Sentinel --}}
+    <div id="loading-spinner" class="hidden py-8 text-center">
+        <svg class="w-8 h-8 text-[var(--brand-blue)] animate-spin mx-auto" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+    </div>
+    <div id="scroll-sentinel" class="h-10"></div>
 
-                    <h3 class="mb-1 text-lg font-bold transition-colors text-slate-900 group-hover:text-blue-600">{{ $exam->title }}</h3>
-                    <p class="mb-6 text-xs text-slate-500">{{ $exam->subCategory->name }}</p>
-
-                    <div class="flex items-center justify-between pt-4 border-t border-slate-100">
-                        <div class="text-xs font-medium text-slate-500">
-                            {{ $exam->duration }} Minutes
-                        </div>
-
-                        @if(!$exam->is_paid || $subscription)
-                            <a href="#" class="text-sm font-bold text-[var(--brand-blue)] hover:underline">Start Now &rarr;</a>
-                        @else
-                            <a href="{{ route('pricing') }}" class="flex items-center gap-1 text-xs font-bold text-slate-400 hover:text-slate-600">
-                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-                                Unlock
-                            </a>
-                        @endif
-                    </div>
-                </div>
-            @endforeach
-        </div>
-
-        <div class="mt-8">
-            {{ $exams->links() }}
-        </div>
-    @else
-        <div class="py-20 text-center border border-dashed bg-slate-50 rounded-2xl border-slate-300">
-            <p class="text-slate-500">No exams found in this category.</p>
+    @if($exams->count() == 0)
+        <div class="py-20 text-center border border-dashed rounded-xl bg-slate-50 border-slate-300">
+            <p class="text-sm text-slate-500">No exams found.</p>
         </div>
     @endif
+
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        let page = 1;
+        let hasMorePages = {{ $exams->hasMorePages() ? 'true' : 'false' }};
+        let isLoading = false;
+        const sentinel = document.getElementById('scroll-sentinel');
+        const spinner = document.getElementById('loading-spinner');
+        const grid = document.getElementById('exam-grid');
+
+        if (!hasMorePages) { sentinel.style.display = 'none'; return; }
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting && hasMorePages && !isLoading) {
+                    loadMoreExams();
+                }
+            });
+        }, { rootMargin: '100px' });
+
+        observer.observe(sentinel);
+
+        function loadMoreExams() {
+            isLoading = true;
+            spinner.classList.remove('hidden');
+            page++;
+
+            // Dynamic Slug from Route is tricky in JS, so we use the URL directly
+            // Or better, pass the fetch URL from backend
+            let fetchUrl = "{{ route('student.exams.fetch_type', $type->slug) }}?page=" + page;
+
+            fetch(fetchUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status) {
+                    grid.insertAdjacentHTML('beforeend', data.html);
+                    hasMorePages = data.hasMore;
+                    if (!hasMorePages) {
+                        observer.unobserve(sentinel);
+                        sentinel.style.display = 'none';
+                    }
+                }
+            })
+            .finally(() => { isLoading = false; spinner.classList.add('hidden'); });
+        }
+    });
+</script>
 @endsection
