@@ -17,7 +17,6 @@
     $jsonOptions = json_encode($currentOptions);
 
     // Correct Answer: Ensure it handles both stored integer or old input
-    // Ensure we convert to integer for JS comparison
     $correctAnswer = $question->correct_answer !== null ? (int)$question->correct_answer : null;
 @endphp
 
@@ -35,7 +34,7 @@
     })"
     class="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden font-sans">
 
-    {{-- FIX 1: Added enctype="multipart/form-data" --}}
+    {{-- Form Start --}}
     <form action="{{ $action }}" method="POST" enctype="multipart/form-data">
         @csrf
         @if($isEdit) @method('PUT') @endif
@@ -76,7 +75,7 @@
                                 <span class="font-serif italic font-bold text-sm leading-none">∑</span> Math
                             </button>
 
-                            {{-- Image Button for Question (Native File Input) --}}
+                            {{-- Image Button for Question --}}
                             <div class="relative">
                                 <input type="file" name="question_image" id="q_image_input" class="hidden" accept="image/*" @change="handleQuestionImageUpload">
                                 <button type="button" @click="document.getElementById('q_image_input').click()" class="flex items-center gap-1 text-xs px-3 py-1.5 bg-white text-gray-600 border border-gray-200 rounded-md hover:border-[#f062a4] hover:text-[#f062a4] transition font-medium shadow-sm">
@@ -101,7 +100,7 @@
                     @error('question') <p class="text-red-500 text-xs mt-1 font-semibold">{{ $message }}</p> @enderror
                 </div>
 
-                {{-- OPTIONS SECTION --}}
+                {{-- OPTIONS SECTION (Updated with TinyMCE) --}}
                 <div class="space-y-5">
                     <div class="flex justify-between items-end border-b border-gray-100 pb-3">
                         <label class="block text-gray-700 font-bold text-xs uppercase tracking-wide flex items-center gap-2">
@@ -118,40 +117,32 @@
                         <template x-for="(opt, index) in options" :key="index">
                             <div class="group relative flex gap-4 p-5 border border-gray-200 rounded-xl hover:border-[#0777be]/30 hover:shadow-lg hover:shadow-blue-50/50 transition-all bg-white">
 
-                                {{-- Correct Answer Selector (FIXED: Uses Index as Value) --}}
+                                {{-- Correct Answer Selector --}}
                                 <div class="pt-8 w-14 shrink-0 flex flex-col items-center border-r border-gray-100 pr-4 mr-2">
                                     <label class="cursor-pointer group/radio relative" title="Mark as Correct">
-                                        {{-- Value is set to Index so controller gets 0, 1, 2 etc --}}
                                         <input type="radio" name="correct_answer" :value="index"
                                             :checked="correctAnswer === index"
                                             @change="correctAnswer = index"
                                             class="peer sr-only">
-
-                                        {{-- Custom Radio UI --}}
                                         <div class="w-8 h-8 rounded-full border-2 border-gray-300 peer-checked:border-[#94c940] peer-checked:bg-[#94c940] transition-all flex items-center justify-center text-white shadow-sm">
                                             <svg class="w-5 h-5 opacity-0 peer-checked:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
                                         </div>
                                     </label>
                                 </div>
 
-                                {{-- Input Area --}}
+                                {{-- Input Area with TinyMCE --}}
                                 <div class="flex-1 space-y-3">
-                                    {{-- FIX 2: Hidden Input for Existing Image --}}
                                     <input type="hidden" :name="'options['+index+'][existing_image]'" :value="opt.image">
 
                                     {{-- Toolbar --}}
-                                    <div class="flex items-center justify-between">
+                                    <div class="flex items-center justify-between mb-2">
                                         <span class="text-[10px] font-bold text-gray-400 uppercase bg-gray-100 px-2 py-1 rounded tracking-wider" x-text="'Option ' + (index + 1)"></span>
-
                                         <div class="flex items-center gap-2">
                                             <button type="button" @click="openMathModal(index)" class="flex items-center gap-1 text-xs px-3 py-1.5 bg-white text-gray-600 border border-gray-200 rounded-md hover:border-[#0777be] hover:text-[#0777be] transition font-medium shadow-sm">
                                                 <span class="font-serif italic font-bold text-sm leading-none">∑</span> Math
                                             </button>
 
-                                            {{-- Native Image Input Trigger --}}
-                                            {{-- Hidden File Input --}}
                                             <input type="file" :name="'options['+index+'][image]'" :id="'opt_img_'+index" class="hidden" accept="image/*" @change="handleOptionImageUpload($event, index)">
-
                                             <button type="button" @click="document.getElementById('opt_img_'+index).click()" class="flex items-center gap-1 text-xs px-3 py-1.5 bg-white text-gray-600 border border-gray-200 rounded-md hover:border-[#f062a4] hover:text-[#f062a4] transition font-medium shadow-sm">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                                                 Image
@@ -163,25 +154,22 @@
                                         </div>
                                     </div>
 
-                                    <div class="flex gap-4 items-start">
-                                        <div class="flex-1 space-y-2">
-                                            <textarea :name="'options['+index+'][option]'" x-model="opt.option"
-                                                @input.debounce.500ms="renderMathPreview(index)"
-                                                rows="2"
-                                                class="w-full border-gray-300 bg-white rounded-lg focus:border-[#0777be] focus:ring-[#0777be] text-sm shadow-sm p-3 resize-y transition-all"
-                                                placeholder="Type option text here..."></textarea>
+                                    {{-- TinyMCE Area --}}
+                                    <div class="space-y-2">
+                                        <textarea :id="'editor_option_' + index"
+                                                  :name="'options['+index+'][option]'"
+                                                  class="w-full opacity-0"
+                                                  placeholder="Type option text here..."></textarea>
 
-                                            {{-- Live Math Preview --}}
-                                            <div :id="'math-preview-' + index"
-                                                 class="min-h-[24px] text-sm text-gray-800 bg-gray-50/50 border border-gray-100 rounded px-3 py-2"
-                                                 x-show="opt.option && opt.option.includes('\\(')">
-                                            </div>
+                                        {{-- Live Math Preview --}}
+                                        <div :id="'math-preview-' + index"
+                                             class="min-h-[24px] text-sm text-gray-800 bg-gray-50/50 border border-gray-100 rounded px-3 py-2"
+                                             x-show="opt.option && opt.option.includes('\\(')">
                                         </div>
 
-                                        {{-- Image Preview Area (Handling both DB URL and New Upload) --}}
-                                        <div x-show="opt.image || opt.previewUrl" class="relative group/img shrink-0">
+                                        {{-- Image Preview --}}
+                                        <div x-show="opt.image || opt.previewUrl" class="relative group/img shrink-0 mt-2">
                                             <div class="h-24 w-24 rounded-lg border border-gray-200 bg-gray-50 p-1 shadow-sm overflow-hidden flex items-center justify-center">
-                                                {{-- Show new preview if exists, else show DB image --}}
                                                 <img :src="opt.previewUrl || opt.image" class="max-h-full max-w-full object-contain">
                                             </div>
                                             <button type="button" @click="removeImage(index)" class="absolute -top-2 -right-2 bg-white text-red-500 border border-red-100 rounded-full p-1 shadow-md hover:bg-red-50 transition opacity-0 group-hover/img:opacity-100">
@@ -203,29 +191,29 @@
                 </div>
             </div>
 
-            {{-- TAB 2: SETTINGS (unchanged) --}}
+            {{-- TAB 2: SETTINGS --}}
             <div x-show="activeTab === 'settings'" class="grid grid-cols-1 md:grid-cols-2 gap-8" style="display: none;">
                 <div class="space-y-6">
                     <div>
                         <label class="form-label">Skill / Subject</label>
                         <div class="relative">
                             <select name="skill_id" x-model="selectedSkill" @change="filterTopics()" class="custom-select w-full">
-    <option value="">-- Select Skill --</option>
-    <template x-for="skill in skills" :key="skill.id">
-        <option :value="skill.id" x-text="skill.name" :selected="skill.id == selectedSkill"></option>
-    </template>
-</select>
+                                <option value="">-- Select Skill --</option>
+                                <template x-for="skill in skills" :key="skill.id">
+                                    <option :value="skill.id" x-text="skill.name" :selected="skill.id == selectedSkill"></option>
+                                </template>
+                            </select>
                         </div>
                     </div>
                     <div>
                         <label class="form-label">Topic</label>
                         <div class="relative">
                            <select name="topic_id" class="custom-select w-full">
-    <option value="">-- Select Topic --</option>
-    <template x-for="topic in availableTopics" :key="topic.id">
-        <option :value="topic.id" x-text="topic.name" :selected="topic.id == '{{ $question->topic_id }}'"></option>
-    </template>
-</select>
+                                <option value="">-- Select Topic --</option>
+                                <template x-for="topic in availableTopics" :key="topic.id">
+                                    <option :value="topic.id" x-text="topic.name" :selected="topic.id == '{{ $question->topic_id }}'"></option>
+                                </template>
+                            </select>
                         </div>
                     </div>
                     <div>
@@ -274,7 +262,7 @@
                 </div>
             </div>
 
-            {{-- TAB 3: SOLUTION (unchanged) --}}
+            {{-- TAB 3: SOLUTION --}}
             <div x-show="activeTab === 'solution'" class="space-y-8" style="display: none;">
                 <div>
                     <label class="form-label mb-2">Detailed Solution</label>
@@ -307,7 +295,7 @@
                 </div>
             </div>
 
-            {{-- TAB 4: ATTACHMENT (unchanged) --}}
+            {{-- TAB 4: ATTACHMENT --}}
             <div x-show="activeTab === 'attachment'" class="space-y-8" style="display: none;">
                 <div class="flex items-center justify-between p-6 bg-[#f062a4]/5 rounded-2xl border border-[#f062a4]/20">
                     <div class="flex items-center gap-4">
@@ -374,7 +362,7 @@
         </div>
     </form>
 
-    {{-- MATH MODAL (unchanged) --}}
+    {{-- MATH MODAL --}}
     <div x-show="showMathModal" style="display: none;"
          class="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-4"
          x-transition.opacity>
@@ -422,6 +410,15 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/7.1.0/tinymce.min.js" referrerpolicy="origin"></script>
 
 <script>
+const getTinyMceConfig = (height = 200) => ({
+    height: height,
+    menubar: false,
+    plugins: 'advlist autolink lists link charmap preview searchreplace visualblocks code fullscreen table help wordcount image',
+    toolbar: 'undo redo | bold italic backcolor | alignleft aligncenter alignright alignjustify | bullist numlist | removeformat | help',
+    content_style: 'body { font-family:Inter,sans-serif; font-size:14px }',
+    convert_urls: false
+});
+
 document.addEventListener('alpine:init', () => {
     Alpine.data('questionForm', (config) => ({
         tabs: [
@@ -432,7 +429,7 @@ document.addEventListener('alpine:init', () => {
         ],
         activeTab: config.activeTab,
         options: config.options,
-        correctAnswer: config.correctAnswer, // Now stores Index (0,1,2,3)
+        correctAnswer: config.correctAnswer,
         hasAttachment: config.hasAttachment,
         attachmentType: config.attachmentType,
         solutionHasVideo: config.solutionHasVideo,
@@ -440,75 +437,104 @@ document.addEventListener('alpine:init', () => {
         mathInput: '',
         videoUrl: '',
         activeContext: null,
-        questionImagePreview: null, // For Question Image
-        skills: config.skills, // Skills data
-    allTopics: config.topics, // Saare Topics data
-    availableTopics: [], // Filtered topics store karne ke liye
-    selectedSkill: config.selectedSkill, // Abhi jo skill selected hai
+        questionImagePreview: null,
+        skills: config.skills,
+        allTopics: config.topics,
+        availableTopics: [],
+        selectedSkill: config.selectedSkill,
 
         init() {
-            this.$nextTick(() => { this.renderAllMath(); });
-            // Initial load par topics filter karo
-        this.filterTopics();
+            this.filterTopics();
+            this.$nextTick(() => {
+                this.renderAllMath();
+                this.options.forEach((_, index) => this.initOptionEditor(index));
+            });
         },
 
-        // --- NEW: Handle Native File Uploads ---
-        // Skill change hone par ye function call hoga
-    filterTopics() {
-        if (!this.selectedSkill) {
-            this.availableTopics = [];
-            return;
-        }
-        // Filter logic: Sirf wahi topic dikhao jinki skill_id match kare
-        this.availableTopics = this.allTopics.filter(t => t.skill_id == this.selectedSkill);
-    },
+        // --- TinyMCE for Options ---
+        initOptionEditor(index) {
+            const id = 'editor_option_' + index;
+            if (tinymce.get(id)) return;
+            tinymce.init({
+                ...getTinyMceConfig(150),
+                selector: '#' + id,
+                setup: (editor) => {
+                    editor.on('init', () => {
+                        if (this.options[index] && this.options[index].option) {
+                            editor.setContent(this.options[index].option);
+                        }
+                    });
+                    editor.on('Change KeyUp Input Undo Redo', () => {
+                        this.options[index].option = editor.getContent();
+                        this.renderMathPreview(index);
+                    });
+                }
+            });
+        },
+        destroyOptionEditors() {
+            this.options.forEach((_, index) => {
+                const editor = tinymce.get('editor_option_' + index);
+                if (editor) editor.remove();
+            });
+        },
 
-        // 1. For Options Images
-        handleOptionImageUpload(event, index) {
-            const file = event.target.files[0];
-            if (file) {
-                // Generate a local preview URL
-                const preview = URL.createObjectURL(file);
-                // We use a temporary property 'previewUrl' so we don't overwrite the string URL
-                // in 'image' immediately (though controller will handle the file input by name)
-                this.options[index].previewUrl = preview;
+        // --- Options Logic ---
+        addOption() {
+            if (this.options.length < 6) {
+                this.destroyOptionEditors();
+                this.options.push({ option: '', image: null, is_correct: false, previewUrl: null });
+                this.$nextTick(() => {
+                    this.options.forEach((_, index) => this.initOptionEditor(index));
+                });
+            }
+        },
+        removeOption(index) {
+            if (this.options.length > 2) {
+                this.destroyOptionEditors();
+                this.options.splice(index, 1);
+                if (this.correctAnswer === index) this.correctAnswer = null;
+                else if (this.correctAnswer > index) this.correctAnswer--;
+                this.$nextTick(() => {
+                    this.options.forEach((_, i) => this.initOptionEditor(i));
+                });
+            } else {
+                Swal.fire('Warning', 'Minimum 2 options required.', 'warning');
             }
         },
 
-        // 2. For Question Image
+        // --- Images & Topics ---
+        filterTopics() {
+            if (!this.selectedSkill) {
+                this.availableTopics = [];
+                return;
+            }
+            this.availableTopics = this.allTopics.filter(t => t.skill_id == this.selectedSkill);
+        },
+        handleOptionImageUpload(event, index) {
+            const file = event.target.files[0];
+            if (file) {
+                const preview = URL.createObjectURL(file);
+                this.options[index].previewUrl = preview;
+            }
+        },
         handleQuestionImageUpload(event) {
             const file = event.target.files[0];
             if (file) {
                 this.questionImagePreview = URL.createObjectURL(file);
             }
         },
-
         removeQuestionImage() {
             this.questionImagePreview = null;
-            // Clear input
             document.getElementById('q_image_input').value = '';
-        },
-
-        // --- Standard Alpine Logic ---
-
-        addOption() {
-            if(this.options.length < 6) {
-                this.options.push({ option: '', image: null, is_correct: false, previewUrl: null });
-            }
-        },
-        removeOption(index) {
-            if(this.options.length > 2) this.options.splice(index, 1);
-            else Swal.fire('Warning', 'Minimum 2 options required.', 'warning');
         },
         removeImage(index) {
             this.options[index].image = null;
             this.options[index].previewUrl = null;
-            // Clear file input
-            const input = document.getElementById('opt_img_'+index);
-            if(input) input.value = '';
+            const input = document.getElementById('opt_img_' + index);
+            if (input) input.value = '';
         },
 
-        // Math Logic
+        // --- Math Logic ---
         openMathModal(context) {
             this.activeContext = context;
             this.mathInput = '';
@@ -521,19 +547,20 @@ document.addEventListener('alpine:init', () => {
         updateMathPreview() {
             const preview = document.getElementById('math-preview-target');
             preview.innerHTML = '\\(' + this.mathInput + '\\)';
-            if(window.MathJax) MathJax.typesetPromise([preview]);
+            if (window.MathJax) MathJax.typesetPromise([preview]);
         },
         insertMath() {
             if (this.activeContext !== null) {
                 const formula = ' \\(' + this.mathInput + '\\) ';
+                let editorId = (this.activeContext === 'question') ? 'editor_question' : 'editor_option_' + this.activeContext;
 
-                if (this.activeContext === 'question') {
-                      if(tinymce.get('editor_question')) {
-                        tinymce.get('editor_question').insertContent(formula);
-                      }
-                } else {
-                    this.options[this.activeContext].option += formula;
-                    this.$nextTick(() => { this.renderMathPreview(this.activeContext); });
+                const editor = tinymce.get(editorId);
+                if (editor) {
+                    editor.insertContent(formula);
+                    if(this.activeContext !== 'question') {
+                        this.options[this.activeContext].option = editor.getContent();
+                        this.renderMathPreview(this.activeContext);
+                    }
                 }
                 this.closeMathModal();
             }
@@ -541,9 +568,11 @@ document.addEventListener('alpine:init', () => {
         renderMathPreview(index) {
             const previewId = 'math-preview-' + index;
             const el = document.getElementById(previewId);
-            if(el && this.options[index].option) {
+            if (el && this.options[index].option) {
                 el.innerHTML = this.options[index].option;
-                if(window.MathJax) MathJax.typesetPromise([el]);
+                if (window.MathJax) MathJax.typesetPromise([el]);
+            } else if (el) {
+                el.innerHTML = '';
             }
         },
         renderAllMath() {
@@ -552,18 +581,10 @@ document.addEventListener('alpine:init', () => {
     }));
 });
 
-// TinyMCE Init
 window.onload = function() {
-    const commonConfig = {
-        height: 250,
-        menubar: false,
-        plugins: 'advlist autolink lists link charmap preview searchreplace visualblocks code fullscreen table help wordcount image',
-        toolbar: 'undo redo | formatselect | bold italic backcolor | alignleft aligncenter alignright alignjustify | bullist numlist | removeformat | help',
-        content_style: 'body { font-family:Inter,sans-serif; font-size:14px }',
-        convert_urls: false
-    };
-    tinymce.init({ selector: '#editor_question', ...commonConfig, height: 300 });
-    tinymce.init({ selector: '#editor_solution', ...commonConfig });
-    tinymce.init({ selector: '#editor_hint', ...commonConfig, height: 150 });
+    const config = getTinyMceConfig(300);
+    tinymce.init({ selector: '#editor_question', ...config });
+    tinymce.init({ selector: '#editor_solution', ...config });
+    tinymce.init({ selector: '#editor_hint', ...config, height: 150 });
 };
 </script>

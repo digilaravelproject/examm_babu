@@ -4,7 +4,11 @@
 
 namespace Composer\Autoload;
 
+<<<<<<< Updated upstream
 class ComposerStaticInit8bfaf98353f1e8135b3ac5fe93020c91
+=======
+class ComposerStaticInita9a736fa32a997ab1e6721df4507a41d
+>>>>>>> Stashed changes
 {
     public static $files = array (
         '6e3fae29631ef280660b3cdad06f25a8' => __DIR__ . '/..' . '/symfony/deprecation-contracts/function.php',
@@ -263,9 +267,9 @@ class ComposerStaticInit8bfaf98353f1e8135b3ac5fe93020c91
         ),
         'phpDocumentor\\Reflection\\' =>
         array (
-            0 => __DIR__ . '/..' . '/phpdocumentor/reflection-docblock/src',
+            0 => __DIR__ . '/..' . '/phpdocumentor/reflection-common/src',
             1 => __DIR__ . '/..' . '/phpdocumentor/type-resolver/src',
-            2 => __DIR__ . '/..' . '/phpdocumentor/reflection-common/src',
+            2 => __DIR__ . '/..' . '/phpdocumentor/reflection-docblock/src',
         ),
         'Znck\\Eloquent\\' =>
         array (
@@ -489,8 +493,8 @@ class ComposerStaticInit8bfaf98353f1e8135b3ac5fe93020c91
         ),
         'Psr\\Http\\Message\\' =>
         array (
-            0 => __DIR__ . '/..' . '/psr/http-factory/src',
-            1 => __DIR__ . '/..' . '/psr/http-message/src',
+            0 => __DIR__ . '/..' . '/psr/http-message/src',
+            1 => __DIR__ . '/..' . '/psr/http-factory/src',
         ),
         'Psr\\Http\\Client\\' =>
         array (
@@ -574,8 +578,8 @@ class ComposerStaticInit8bfaf98353f1e8135b3ac5fe93020c91
         ),
         'Nette\\' =>
         array (
-            0 => __DIR__ . '/..' . '/nette/schema/src',
-            1 => __DIR__ . '/..' . '/nette/utils/src',
+            0 => __DIR__ . '/..' . '/nette/utils/src',
+            1 => __DIR__ . '/..' . '/nette/schema/src',
         ),
         'Monolog\\' =>
         array (
@@ -599,8 +603,8 @@ class ComposerStaticInit8bfaf98353f1e8135b3ac5fe93020c91
         ),
         'League\\Uri\\' =>
         array (
-            0 => __DIR__ . '/..' . '/league/uri',
-            1 => __DIR__ . '/..' . '/league/uri-interfaces',
+            0 => __DIR__ . '/..' . '/league/uri-interfaces',
+            1 => __DIR__ . '/..' . '/league/uri',
         ),
         'League\\MimeTypeDetection\\' =>
         array (
@@ -10766,10 +10770,17 @@ class ComposerStaticInit8bfaf98353f1e8135b3ac5fe93020c91
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
+<<<<<<< Updated upstream
             $loader->prefixLengthsPsr4 = ComposerStaticInit8bfaf98353f1e8135b3ac5fe93020c91::$prefixLengthsPsr4;
             $loader->prefixDirsPsr4 = ComposerStaticInit8bfaf98353f1e8135b3ac5fe93020c91::$prefixDirsPsr4;
             $loader->prefixesPsr0 = ComposerStaticInit8bfaf98353f1e8135b3ac5fe93020c91::$prefixesPsr0;
             $loader->classMap = ComposerStaticInit8bfaf98353f1e8135b3ac5fe93020c91::$classMap;
+=======
+            $loader->prefixLengthsPsr4 = ComposerStaticInita9a736fa32a997ab1e6721df4507a41d::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInita9a736fa32a997ab1e6721df4507a41d::$prefixDirsPsr4;
+            $loader->prefixesPsr0 = ComposerStaticInita9a736fa32a997ab1e6721df4507a41d::$prefixesPsr0;
+            $loader->classMap = ComposerStaticInita9a736fa32a997ab1e6721df4507a41d::$classMap;
+>>>>>>> Stashed changes
 
         }, null, ClassLoader::class);
     }

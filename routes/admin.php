@@ -37,6 +37,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
 
+    Route::get('questions/{id}/usage', [QuestionController::class, 'usage'])->name('questions.usage');
+
     // --- DASHBOARD & SYSTEM ---
     Route::controller(AdminDashboardController::class)->group(function () {
         Route::get('/dashboard', 'index')->name('dashboard');

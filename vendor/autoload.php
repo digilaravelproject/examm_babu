@@ -14,9 +14,16 @@ if (PHP_VERSION_ID < 50600) {
             echo $err;
         }
     }
-    throw new RuntimeException($err);
+    trigger_error(
+        $err,
+        E_USER_ERROR
+    );
 }
 
 require_once __DIR__ . '/composer/autoload_real.php';
 
+<<<<<<< Updated upstream
 return ComposerAutoloaderInit8bfaf98353f1e8135b3ac5fe93020c91::getLoader();
+=======
+return ComposerAutoloaderInita9a736fa32a997ab1e6721df4507a41d::getLoader();
+>>>>>>> Stashed changes

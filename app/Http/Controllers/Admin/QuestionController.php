@@ -73,9 +73,15 @@ class QuestionController extends Controller
             $viewPath = request()->routeIs('instructor.*') ? 'instructor.questions.create' : 'admin.questions.create';
 
             return view($viewPath, compact(
-                'questionType', 'skills', 'topics', 'difficultyLevels', 'tags', 'passages', 'defaultOptions', 'defaultPreferences'
+                'questionType',
+                'skills',
+                'topics',
+                'difficultyLevels',
+                'tags',
+                'passages',
+                'defaultOptions',
+                'defaultPreferences'
             ));
-
         } catch (\Exception $e) {
             Log::error('Create Page Error: ' . $e->getMessage());
             return redirect()->back()->with('error', 'Unable to load creation form.');
@@ -91,7 +97,6 @@ class QuestionController extends Controller
 
             $routePrefix = Auth::user()->hasRole('admin') ? 'admin.' : 'instructor.';
             return redirect()->route($routePrefix . 'questions.index')->with('success', 'Question created successfully.');
-
         } catch (\Exception $e) {
             Log::error('Store Error: ' . $e->getMessage());
             return redirect()->back()->with('error', 'Error creating question: ' . $e->getMessage())->withInput();
@@ -109,7 +114,7 @@ class QuestionController extends Controller
             $skills = Skill::where('is_active', 1)->get();
             // $topics = Topic::where('skill_id', $question->skill_id)->get();
             // Saare topics bhejo taaki JS filter kar sake
-$topics = Topic::select('id', 'name', 'skill_id')->get();
+            $topics = Topic::select('id', 'name', 'skill_id')->get();
             $difficultyLevels = DifficultyLevel::all();
             $tags = Tag::all();
             $passages = ComprehensionPassage::all();
@@ -117,10 +122,15 @@ $topics = Topic::select('id', 'name', 'skill_id')->get();
             $viewPath = request()->routeIs('instructor.*') ? 'instructor.questions.edit' : 'admin.questions.edit';
 
             return view($viewPath, compact(
-                'question', 'activeTab', 'questionType', 'skills',
-                'topics', 'difficultyLevels', 'tags', 'passages'
+                'question',
+                'activeTab',
+                'questionType',
+                'skills',
+                'topics',
+                'difficultyLevels',
+                'tags',
+                'passages'
             ));
-
         } catch (\Exception $e) {
             Log::error('Edit Page Error: ' . $e->getMessage(), ['id' => $id]);
             return redirect()->back()->with('error', 'Unable to load edit page.');
@@ -139,13 +149,12 @@ $topics = Topic::select('id', 'name', 'skill_id')->get();
             $this->questionService->updateQuestion($question, $request->all(), $request);
 
             return redirect()->back()->with('success', 'Question updated successfully.');
-
         } catch (\Exception $e) {
             Log::error('Update Error: ' . $e->getMessage(), ['id' => $id]);
             return redirect()->back()->with('error', 'Update failed: ' . $e->getMessage());
         }
     }
-/**
+    /**
      * Delete Question.
      *
      * @param int $id
@@ -167,7 +176,6 @@ $topics = Topic::select('id', 'name', 'skill_id')->get();
             }
 
             return redirect()->back()->with('success', 'Question deleted successfully.');
-
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Question Delete Error: ' . $e->getMessage(), ['id' => $id]);
@@ -178,7 +186,7 @@ $topics = Topic::select('id', 'name', 'skill_id')->get();
             return redirect()->back()->with('error', 'Error deleting question.');
         }
     }
-     /**
+    /**
      * Load Preview Modal Content.
      *
      * @param int $id
@@ -193,13 +201,12 @@ $topics = Topic::select('id', 'name', 'skill_id')->get();
             $this->authorizeInstructor($question);
 
             return view('admin.questions.partials.preview', compact('question'));
-
         } catch (\Exception $e) {
             Log::error('Preview Error: ' . $e->getMessage(), ['id' => $id]);
             abort(404, 'Question not found or access denied.');
         }
     }
-   /**
+    /**
      * Approve a specific question (Admin Only).
      *
      * @param int $id
@@ -218,7 +225,6 @@ $topics = Topic::select('id', 'name', 'skill_id')->get();
 
             DB::commit();
             return redirect()->back()->with('success', 'Question approved and is now live.');
-
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Question Approval Error: ' . $e->getMessage(), ['question_id' => $id]);
@@ -226,7 +232,7 @@ $topics = Topic::select('id', 'name', 'skill_id')->get();
         }
     }
 
- /**
+    /**
      * Show Pending Questions (Admin Only).
      *
      * @return View|RedirectResponse
@@ -245,7 +251,6 @@ $topics = Topic::select('id', 'name', 'skill_id')->get();
                 ->paginate(10);
 
             return view('admin.questions.pending', compact('questions'));
-
         } catch (\Exception $e) {
             Log::error('Pending Questions Error: ' . $e->getMessage());
             return redirect()->route('admin.dashboard')->with('error', 'Unable to load pending questions.');
@@ -257,5 +262,18 @@ $topics = Topic::select('id', 'name', 'skill_id')->get();
         if (Auth::user()->hasRole('instructor') && $question->created_by != Auth::id()) {
             abort(403, 'You are not authorized to modify this question.');
         }
+    }
+
+
+    public function usage($id)
+    {
+        // Change: 'exams' ki jagah 'linkedExams' load kiya
+        $question = Question::with(['linkedExams', 'skill', 'topic', 'questionType'])->findOrFail($id);
+
+        $this->authorizeInstructor($question);
+
+        $viewName = request()->routeIs('instructor.*') ? 'instructor.questions.usage' : 'admin.questions.usage';
+
+        return view($viewName, compact('question'));
     }
 }

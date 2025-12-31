@@ -26,10 +26,10 @@
                         <td class="px-4 py-4">
                             <div class="flex items-center gap-3">
                                 @if ($category->image_path)
-                                    <img src="{{ asset('storage/' . $category->image_path) }}"
+                                    {{-- FIX: Direct Asset Path --}}
+                                    <img src="{{ asset($category->image_path) }}"
                                         class="object-cover w-10 h-10 border border-gray-100 rounded-lg shadow-sm">
                                 @else
-                                    {{-- mb_substr use karne se Hindi/Marathi characters sahi dikhenge --}}
                                     <div
                                         class="w-10 h-10 rounded-lg bg-[#7fd2ea]/20 flex items-center justify-center text-[#0777be] font-bold text-lg leading-none">
                                         {{ mb_substr($category->name, 0, 1, 'UTF-8') }}
@@ -97,10 +97,4 @@
             </tbody>
         </table>
     </div>
-
-    @if ($categories->hasPages())
-        <div class="px-4 py-3 bg-white border-t border-gray-200 pagination-wrapper">
-            {{ $categories->links() }}
-        </div>
-    @endif
 </div>

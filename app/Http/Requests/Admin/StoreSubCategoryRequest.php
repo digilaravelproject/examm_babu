@@ -8,7 +8,7 @@ class StoreSubCategoryRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true; // Admin middleware already handling this, so set to true
+        return true;
     }
 
     public function rules(): array
@@ -19,19 +19,19 @@ class StoreSubCategoryRequest extends FormRequest
             'sub_category_type_id' => ['required', 'exists:sub_category_types,id'],
             'short_description' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:5000'],
-            'image' => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:2048'],
+
+            // Name: image_path
+            'image_path' => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:2048'],
+
             'is_active' => ['required', 'boolean'],
-            // Code nullable kyunki controller auto-generate karega
             'code' => ['nullable', 'string', 'unique:sub_categories,code'],
         ];
     }
 
-    public function messages(): array
+    protected function prepareForValidation()
     {
-        return [
-            'category_id.required' => 'Please select a parent category.',
-            'sub_category_type_id.required' => 'Please select a sub-category type.',
-            'name.required' => 'The sub-category name is required.',
-        ];
+        $this->merge([
+            'is_active' => $this->has('is_active') ? 1 : 0,
+        ]);
     }
 }

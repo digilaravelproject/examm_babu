@@ -66,6 +66,31 @@
 
 <body class="font-sans antialiased text-gray-600 bg-gray-50">
 
+    {{-- Logic to determine which parent menu should be open on load --}}
+    @php
+        $activeMenu = '';
+        if (request()->routeIs('admin.exam*', 'admin.exam-types*', 'admin.quizzes*')) {
+            $activeMenu = 'engagement';
+        } elseif (request()->routeIs('admin.practice-sets.*', 'admin.lessons.*', 'admin.videos.*')) {
+            $activeMenu = 'learning';
+        } elseif (request()->routeIs('admin.questions.*', 'admin.comprehensions.*', 'admin.question-types.*')) {
+            $activeMenu = 'library';
+        } elseif (
+            request()->routeIs(
+                'admin.categories.*',
+                'admin.sub-categories.*',
+                'admin.micro-categories.*',
+                'admin.tags.*',
+            )
+        ) {
+            $activeMenu = 'master';
+        } elseif (request()->routeIs('admin.sections.*', 'admin.skills.*', 'admin.topics.*')) {
+            $activeMenu = 'subjects';
+        } elseif (request()->routeIs('admin.plans.*', 'admin.subscriptions.*', 'admin.payments.*')) {
+            $activeMenu = 'config';
+        }
+    @endphp
+
     <div class="flex h-screen overflow-hidden" x-data="{ sidebarOpen: false, fileManagerOpen: false }">
 
         <aside
@@ -76,7 +101,8 @@
                 <img src="{{ asset('assets/images/logo.png') }}" alt="Logo" class="w-auto max-h-10">
             </div>
 
-            <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto custom-scroll">
+            {{-- Main Navigation with Single Active State --}}
+            <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto custom-scroll" x-data="{ activeDropdown: '{{ $activeMenu }}' }">
 
                 <a href="{{ Route::has('admin.dashboard') ? route('admin.dashboard') : '#' }}"
                     class="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-all {{ request()->routeIs('admin.dashboard*') ? 'nav-link-active' : 'text-slate-400 hover:bg-slate-800 hover:text-white' }}">
@@ -97,63 +123,79 @@
                     File Manager
                 </button>
 
+
+                {{-- ENGAGEMENT --}}
                 <div class="pt-4 pb-1 pl-4 uppercase text-[10px] font-bold tracking-widest text-slate-600">Engagement
                 </div>
-
-                <div x-data="{ open: {{ request()->routeIs('admin.quizzes*', 'admin.exam*', 'admin.quiz-types*', 'admin.exam-types*') ? 'true' : 'false' }} }">
-                    <button @click="open = !open"
-                        class="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all">
+                <div>
+                    {{-- Parent Menu Button --}}
+                    <button
+                        @click="activeDropdown === 'engagement' ? activeDropdown = null : activeDropdown = 'engagement'"
+                        class="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium rounded-lg transition-all"
+                        :class="activeDropdown === 'engagement' ? 'bg-slate-800 text-white' :
+                            'text-slate-400 hover:bg-slate-800 hover:text-white'">
                         <div class="flex items-center">
-                            <svg class="w-5 h-5 mr-3 text-slate-500" fill="none" stroke="currentColor"
-                                viewBox="0 0 24 24">
+                            <svg class="w-5 h-5 mr-3"
+                                :class="activeDropdown === 'engagement' ? 'text-brand-sky' : 'text-slate-500'"
+                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01">
                                 </path>
                             </svg>
                             Manage Tests
                         </div>
-                        <svg :class="open ? 'rotate-180 text-brand-green' : ''" class="w-4 h-4 transition-transform"
-                            fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg :class="activeDropdown === 'engagement' ? 'rotate-180 text-brand-green' : ''"
+                            class="w-4 h-4 transition-transform" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7">
                             </path>
                         </svg>
                     </button>
-                    <div x-show="open" x-cloak x-collapse class="mx-2 mt-1 space-y-1 rounded-lg bg-slate-800/30">
-                        {{-- <a href="{{ Route::has('admin.quizzes.index') ? route('admin.quizzes.index') : '#' }}"
-                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.quizzes*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Quizzes</a> --}}
 
+                    {{-- Child Links --}}
+                    <div x-show="activeDropdown === 'engagement'" x-cloak x-collapse
+                        class="mx-2 mt-1 space-y-1 rounded-lg bg-slate-800/30">
+
+                        {{-- Exams Link: Added dot (.) after admin.exam to prevent matching exam-types --}}
                         <a href="{{ Route::has('admin.exam.index') ? route('admin.exam.index') : '#' }}"
-                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.exam*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Exams</a>
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.exam.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">
+                            Exams
+                        </a>
 
-                        {{-- <a href="{{ Route::has('admin.quiz-types.index') ? route('admin.quiz-types.index') : '#' }}"
-                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.quiz-types*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Quiz
-                            Types</a> --}}
-
+                        {{-- Exam Types Link --}}
                         <a href="{{ Route::has('admin.exam-types.index') ? route('admin.exam-types.index') : '#' }}"
-                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.exam-types*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Exam
-                            Types</a>
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.exam-types*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">
+                            Exam Types
+                        </a>
+
                     </div>
                 </div>
 
-                <div x-data="{ open: {{ request()->routeIs('admin.practice-sets.*', 'admin.lessons.*', 'admin.videos.*') ? 'true' : 'false' }} }">
-                    <button @click="open = !open"
-                        class="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white">
+                {{-- LEARNING --}}
+                <div>
+                    <button @click="activeDropdown === 'learning' ? activeDropdown = null : activeDropdown = 'learning'"
+                        class="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium rounded-lg transition-all"
+                        :class="activeDropdown === 'learning' ? 'bg-slate-800 text-white' :
+                            'text-slate-400 hover:bg-slate-800 hover:text-white'">
                         <div class="flex items-center">
-                            <svg class="w-5 h-5 mr-3 text-slate-500" fill="none" stroke="currentColor"
-                                viewBox="0 0 24 24">
+                            <svg class="w-5 h-5 mr-3"
+                                :class="activeDropdown === 'learning' ? 'text-brand-sky' : 'text-slate-500'"
+                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253">
                                 </path>
                             </svg>
                             Manage Learning
                         </div>
-                        <svg :class="open ? 'rotate-180' : ''" class="w-4 h-4 transition-transform" fill="none"
-                            stroke="currentColor" viewBox="0 0 24 24">
+                        <svg :class="activeDropdown === 'learning' ? 'rotate-180 text-brand-green' : ''"
+                            class="w-4 h-4 transition-transform" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7">
                             </path>
                         </svg>
                     </button>
-                    <div x-show="open" x-cloak x-collapse class="mx-2 mt-1 space-y-1 rounded-lg bg-slate-800/30">
+                    <div x-show="activeDropdown === 'learning'" x-cloak x-collapse
+                        class="mx-2 mt-1 space-y-1 rounded-lg bg-slate-800/30">
                         <a href="{{ Route::has('admin.practice-sets.index') ? route('admin.practice-sets.index') : '#' }}"
                             class="block px-8 py-2 text-sm {{ request()->routeIs('admin.practice-sets.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Practice
                             Sets</a>
@@ -164,27 +206,32 @@
                     </div>
                 </div>
 
+                {{-- LIBRARY --}}
                 <div class="pt-4 pb-1 pl-4 uppercase text-[10px] font-bold tracking-widest text-slate-600">Library</div>
-
-                <div x-data="{ open: {{ request()->routeIs('admin.questions.*', 'admin.comprehensions.*', 'admin.question-types.*') ? 'true' : 'false' }} }">
-                    <button @click="open = !open"
-                        class="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white">
+                <div>
+                    <button @click="activeDropdown === 'library' ? activeDropdown = null : activeDropdown = 'library'"
+                        class="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium rounded-lg transition-all"
+                        :class="activeDropdown === 'library' ? 'bg-slate-800 text-white' :
+                            'text-slate-400 hover:bg-slate-800 hover:text-white'">
                         <div class="flex items-center">
-                            <svg class="w-5 h-5 mr-3 text-slate-500" fill="none" stroke="currentColor"
-                                viewBox="0 0 24 24">
+                            <svg class="w-5 h-5 mr-3"
+                                :class="activeDropdown === 'library' ? 'text-brand-sky' : 'text-slate-500'"
+                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
                                 </path>
                             </svg>
                             Question Bank
                         </div>
-                        <svg :class="open ? 'rotate-180 text-brand-green' : ''" class="w-4 h-4 transition-transform"
-                            fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg :class="activeDropdown === 'library' ? 'rotate-180 text-brand-green' : ''"
+                            class="w-4 h-4 transition-transform" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7">
                             </path>
                         </svg>
                     </button>
-                    <div x-show="open" x-cloak x-collapse class="mx-2 mt-1 space-y-1 rounded-lg bg-slate-800/30">
+                    <div x-show="activeDropdown === 'library'" x-cloak x-collapse
+                        class="mx-2 mt-1 space-y-1 rounded-lg bg-slate-800/30">
                         <a href="{{ Route::has('admin.questions.index') ? route('admin.questions.index') : '#' }}"
                             class="block px-8 py-2 text-sm {{ request()->routeIs('admin.questions.index') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Questions</a>
                         <a href="{{ Route::has('admin.questions.import') ? route('admin.questions.import') : '#' }}"
@@ -198,61 +245,72 @@
                     </div>
                 </div>
 
+                {{-- MASTER DATA --}}
                 <div class="pt-4 pb-1 pl-4 uppercase text-[10px] font-bold tracking-widest text-slate-600">Master Data
                 </div>
-
-                <div x-data="{ open: {{ request()->routeIs('admin.categories.*', 'admin.sub_categories.*', 'admin.tags.*') ? 'true' : 'false' }} }">
-                    <button @click="open = !open"
-                        class="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all">
+                <div>
+                    <button @click="activeDropdown === 'master' ? activeDropdown = null : activeDropdown = 'master'"
+                        class="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium rounded-lg transition-all"
+                        :class="activeDropdown === 'master' ? 'bg-slate-800 text-white' :
+                            'text-slate-400 hover:bg-slate-800 hover:text-white'">
                         <div class="flex items-center">
-                            <svg class="w-5 h-5 mr-3 text-slate-500" fill="none" stroke="currentColor"
-                                viewBox="0 0 24 24">
+                            <svg class="w-5 h-5 mr-3"
+                                :class="activeDropdown === 'master' ? 'text-brand-sky' : 'text-slate-500'"
+                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z">
                                 </path>
                             </svg>
                             Manage Categories
                         </div>
-                        <svg :class="open ? 'rotate-180 text-brand-green' : ''" class="w-4 h-4 transition-transform"
-                            fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg :class="activeDropdown === 'master' ? 'rotate-180 text-brand-green' : ''"
+                            class="w-4 h-4 transition-transform" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7">
                             </path>
                         </svg>
                     </button>
-                    <div x-show="open" x-cloak x-collapse class="mx-2 mt-1 space-y-1 rounded-lg bg-slate-800/30">
+                    <div x-show="activeDropdown === 'master'" x-cloak x-collapse
+                        class="mx-2 mt-1 space-y-1 rounded-lg bg-slate-800/30">
                         <a href="{{ Route::has('admin.categories.index') ? route('admin.categories.index') : '#' }}"
                             class="block px-8 py-2 text-sm {{ request()->routeIs('admin.categories.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Categories</a>
                         <a href="{{ Route::has('admin.sub-categories.index') ? route('admin.sub-categories.index') : '#' }}"
                             class="block px-8 py-2 text-sm {{ request()->routeIs('admin.sub-categories.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Sub
                             Categories</a>
                         <a href="{{ Route::has('admin.micro-categories.index') ? route('admin.micro-categories.index') : '#' }}"
-                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.micro-categories.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">
-                            Micro Categories
-                        </a>
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.micro-categories.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Micro
+                            Categories</a>
                         <a href="{{ Route::has('admin.tags.index') ? route('admin.tags.index') : '#' }}"
                             class="block px-8 py-2 text-sm {{ request()->routeIs('admin.tags.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Tags</a>
                     </div>
                 </div>
 
-                <div x-data="{ open: {{ request()->routeIs('admin.sections.*', 'admin.skills.*', 'admin.topics.*') ? 'true' : 'false' }} }">
-                    <button @click="open = !open"
-                        class="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all">
+                {{-- SUBJECTS / SECTIONS --}}
+                <div>
+                    <button
+                        @click="activeDropdown === 'subjects' ? activeDropdown = null : activeDropdown = 'subjects'"
+                        class="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium rounded-lg transition-all"
+                        :class="activeDropdown === 'subjects' ? 'bg-slate-800 text-white' :
+                            'text-slate-400 hover:bg-slate-800 hover:text-white'">
                         <div class="flex items-center">
-                            <svg class="w-5 h-5 mr-3 text-slate-500" fill="none" stroke="currentColor"
-                                viewBox="0 0 24 24">
+                            <svg class="w-5 h-5 mr-3"
+                                :class="activeDropdown === 'subjects' ? 'text-brand-sky' : 'text-slate-500'"
+                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253">
                                 </path>
                             </svg>
                             Manage Subjects
                         </div>
-                        <svg :class="open ? 'rotate-180 text-brand-green' : ''" class="w-4 h-4 transition-transform"
-                            fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg :class="activeDropdown === 'subjects' ? 'rotate-180 text-brand-green' : ''"
+                            class="w-4 h-4 transition-transform" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7">
                             </path>
                         </svg>
                     </button>
-                    <div x-show="open" x-cloak x-collapse class="mx-2 mt-1 space-y-1 rounded-lg bg-slate-800/30">
+                    <div x-show="activeDropdown === 'subjects'" x-cloak x-collapse
+                        class="mx-2 mt-1 space-y-1 rounded-lg bg-slate-800/30">
                         <a href="{{ Route::has('admin.sections.index') ? route('admin.sections.index') : '#' }}"
                             class="block px-8 py-2 text-sm {{ request()->routeIs('admin.sections.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Sections</a>
                         <a href="{{ Route::has('admin.skills.index') ? route('admin.skills.index') : '#' }}"
@@ -262,41 +320,43 @@
                     </div>
                 </div>
 
+                {{-- CONFIGURATION --}}
                 <div class="pt-4 pb-1 pl-4 uppercase text-[10px] font-bold tracking-widest text-slate-600">
                     Configuration</div>
-
-                <div x-data="{ open: {{ request()->routeIs('admin.categories.*', 'admin.sub_categories.*', 'admin.tags.*') ? 'true' : 'false' }} }">
-                    <button @click="open = !open"
-                        class="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all">
+                <div>
+                    <button @click="activeDropdown === 'config' ? activeDropdown = null : activeDropdown = 'config'"
+                        class="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium rounded-lg transition-all"
+                        :class="activeDropdown === 'config' ? 'bg-slate-800 text-white' :
+                            'text-slate-400 hover:bg-slate-800 hover:text-white'">
                         <div class="flex items-center">
-                            <svg class="w-5 h-5 mr-3 text-slate-500" fill="none" stroke="currentColor"
-                                viewBox="0 0 24 24">
+                            <svg class="w-5 h-5 mr-3"
+                                :class="activeDropdown === 'config' ? 'text-brand-sky' : 'text-slate-500'"
+                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z">
                                 </path>
                             </svg>
-                            Monitization
+                            Monetization
                         </div>
-                        <svg :class="open ? 'rotate-180 text-brand-green' : ''" class="w-4 h-4 transition-transform"
-                            fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg :class="activeDropdown === 'config' ? 'rotate-180 text-brand-green' : ''"
+                            class="w-4 h-4 transition-transform" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7">
                             </path>
                         </svg>
                     </button>
-                    <div x-show="open" x-cloak x-collapse class="mx-2 mt-1 space-y-1 rounded-lg bg-slate-800/30">
+                    <div x-show="activeDropdown === 'config'" x-cloak x-collapse
+                        class="mx-2 mt-1 space-y-1 rounded-lg bg-slate-800/30">
                         <a href="{{ Route::has('admin.plans.index') ? route('admin.plans.index') : '#' }}"
-                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.plans.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">
-                            Plans
-                        </a>
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.plans.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Plans</a>
                         <a href="{{ Route::has('admin.subscriptions.index') ? route('admin.subscriptions.index') : '#' }}"
                             class="block px-8 py-2 text-sm {{ request()->routeIs('admin.subscriptions.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Subscription</a>
                         <a href="{{ Route::has('admin.payments.index') ? route('admin.payments.index') : '#' }}"
-                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.payments.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">
-                            Payments
-                        </a>
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.payments.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Payments</a>
                     </div>
                 </div>
 
+                {{-- SYSTEM --}}
                 <div class="pt-4 pb-1 pl-4 uppercase text-[10px] font-bold tracking-widest text-slate-600">System</div>
 
                 <a href="{{ Route::has('admin.roles_permissions.index') ? route('admin.roles_permissions.index') : '#' }}"

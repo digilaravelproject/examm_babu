@@ -1,8 +1,8 @@
 <?php
+
 namespace App\Http\Requests\Admin;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class StoreCategoryRequest extends FormRequest
 {
@@ -15,11 +15,19 @@ class StoreCategoryRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:100'],
-            'code' => 'nullable|string|unique:categories,code', // Added Code column
+            'code' => ['nullable', 'string', 'unique:categories,code'],
             'short_description' => ['nullable', 'string', 'max:160'],
             'description' => ['nullable', 'string'],
-            'image' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048'], // Changed logic to file upload
+            // YAHAN CHANGE KIYA: 'image' ki jagah 'image_path' kar diya
+            'image_path' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048'],
             'is_active' => ['required', 'boolean'],
         ];
+    }
+
+    protected function prepareForValidation()
+    {
+        $this->merge([
+            'is_active' => $this->has('is_active') ? 1 : 0,
+        ]);
     }
 }

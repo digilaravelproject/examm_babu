@@ -87,7 +87,16 @@
 
                         {{-- Actions --}}
                         <td class="px-4 py-3 text-right">
+
                             <div class="flex items-center justify-end gap-2">
+                                {{-- Usage / Link Button --}}
+<a href="{{ route($routePrefix . 'questions.usage', $q->id) }}"
+   class="flex items-center justify-center w-8 h-8 transition-all bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-purple-600 hover:border-purple-600 hover:text-white group/btn"
+   title="Check Usage (Where is this used?)">
+    <svg class="w-4 h-4 text-gray-500 group-hover/btn:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
+    </svg>
+</a>
                                 {{-- Preview --}}
                                 <button @click="openPreview({{ $q->id }})"
                                     class="flex items-center justify-center w-8 h-8 transition-all bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-[#0777be] hover:border-[#0777be] hover:text-white group/btn"
