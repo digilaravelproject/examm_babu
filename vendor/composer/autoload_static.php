@@ -4,7 +4,7 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInitc514d8f7b9fc5970bdd94287905ef584
+class ComposerStaticInita9a736fa32a997ab1e6721df4507a41d
 {
     public static $files = array (
         '6e3fae29631ef280660b3cdad06f25a8' => __DIR__ . '/..' . '/symfony/deprecation-contracts/function.php',
@@ -932,7 +932,10 @@ class ComposerStaticInitc514d8f7b9fc5970bdd94287905ef584
         'App\\Http\\Controllers\\ProfileController' => __DIR__ . '/../..' . '/app/Http/Controllers/ProfileController.php',
         'App\\Http\\Controllers\\SiteController' => __DIR__ . '/../..' . '/app/Http/Controllers/SiteController.php',
         'App\\Http\\Controllers\\Student\\CheckoutController' => __DIR__ . '/../..' . '/app/Http/Controllers/Student/CheckoutController.php',
+        'App\\Http\\Controllers\\Student\\ExamDashboardController' => __DIR__ . '/../..' . '/app/Http/Controllers/Student/ExamDashboardController.php',
+        'App\\Http\\Controllers\\Student\\PaymentController' => __DIR__ . '/../..' . '/app/Http/Controllers/Student/PaymentController.php',
         'App\\Http\\Controllers\\Student\\StudentDashboardController' => __DIR__ . '/../..' . '/app/Http/Controllers/Student/StudentDashboardController.php',
+        'App\\Http\\Controllers\\Student\\SubscriptionController' => __DIR__ . '/../..' . '/app/Http/Controllers/Student/SubscriptionController.php',
         'App\\Http\\Controllers\\Student\\SyllabusController' => __DIR__ . '/../..' . '/app/Http/Controllers/Student/SyllabusController.php',
         'App\\Http\\Middleware\\EnsureSyllabusSelected' => __DIR__ . '/../..' . '/app/Http/Middleware/EnsureSyllabusSelected.php',
         'App\\Http\\Requests\\Admin\\StoreCategoryRequest' => __DIR__ . '/../..' . '/app/Http/Requests/Admin/StoreCategoryRequest.php',
@@ -1001,6 +1004,7 @@ class ComposerStaticInitc514d8f7b9fc5970bdd94287905ef584
         'App\\Repositories\\QuestionRepository' => __DIR__ . '/../..' . '/app/Repositories/QuestionRepository.php',
         'App\\Repositories\\RazorpayRepository' => __DIR__ . '/../..' . '/app/Repositories/RazorpayRepository.php',
         'App\\Services\\QuestionService' => __DIR__ . '/../..' . '/app/Services/QuestionService.php',
+        'App\\Settings\\BillingSettings' => __DIR__ . '/../..' . '/app/Settings/BillingSettings.php',
         'App\\Settings\\CategorySettings' => __DIR__ . '/../..' . '/app/Settings/CategorySettings.php',
         'App\\Settings\\HomePageSettings' => __DIR__ . '/../..' . '/app/Settings/HomePageSettings.php',
         'App\\Settings\\LocalizationSettings' => __DIR__ . '/../..' . '/app/Settings/LocalizationSettings.php',
@@ -10762,10 +10766,10 @@ class ComposerStaticInitc514d8f7b9fc5970bdd94287905ef584
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInitc514d8f7b9fc5970bdd94287905ef584::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInitc514d8f7b9fc5970bdd94287905ef584::$prefixDirsPsr4;
-            $loader->prefixesPsr0 = ComposerStaticInitc514d8f7b9fc5970bdd94287905ef584::$prefixesPsr0;
-            $loader->classMap = ComposerStaticInitc514d8f7b9fc5970bdd94287905ef584::$classMap;
+            $loader->prefixLengthsPsr4 = ComposerStaticInita9a736fa32a997ab1e6721df4507a41d::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInita9a736fa32a997ab1e6721df4507a41d::$prefixDirsPsr4;
+            $loader->prefixesPsr0 = ComposerStaticInita9a736fa32a997ab1e6721df4507a41d::$prefixesPsr0;
+            $loader->classMap = ComposerStaticInita9a736fa32a997ab1e6721df4507a41d::$classMap;
 
         }, null, ClassLoader::class);
     }
