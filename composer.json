@@ -19,6 +19,7 @@
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.10.1",
         "maatwebsite/excel": "^3.1",
+        "phpoption/phpoption": "*",
         "razorpay/razorpay": "^2.9",
         "spatie/laravel-activitylog": "^4.10",
         "spatie/laravel-fractal": "^6.3",

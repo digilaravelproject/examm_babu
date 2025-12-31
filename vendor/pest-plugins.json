@@ -1,6 +1,4 @@
 [
-    "Pest\\Arch\\Plugin",
-    "Pest\\Profanity\\Plugin",
     "Pest\\Mutate\\Plugins\\Mutate",
     "Pest\\Plugins\\Configuration",
     "Pest\\Plugins\\Bail",
@@ -20,5 +18,7 @@
     "Pest\\Plugins\\Version",
     "Pest\\Plugins\\Shard",
     "Pest\\Plugins\\Parallel",
-    "Pest\\Laravel\\Plugin"
+    "Pest\\Arch\\Plugin",
+    "Pest\\Laravel\\Plugin",
+    "Pest\\Profanity\\Plugin"
 ]
