@@ -80,8 +80,7 @@ class ExamController extends Controller
             $counter   = 1;
 
             while (Exam::where('title', $newTitle)->exists()) {
-                $newTitle = $baseTitle . '_' . $counter;
-                $counter++;
+                $newTitle = $baseTitle . '_' . $counter++;
             }
 
             /* ----------------------------
@@ -90,7 +89,7 @@ class ExamController extends Controller
             $newExam = $exam->replicate();
             $newExam->title = $newTitle;
             $newExam->code = 'EX-' . strtoupper(Str::random(8));
-            $newExam->is_active = 0; // Draft
+            $newExam->is_active = 0;
             $newExam->created_at = now();
             $newExam->updated_at = now();
             $newExam->save();
@@ -104,8 +103,10 @@ class ExamController extends Controller
             }
 
             /* ----------------------------
-            * 4. DUPLICATE ALL SECTIONS
+            * 4. Duplicate Exam Sections
             * ---------------------------- */
+            $sectionMap = []; // old_section_id => new_section_id
+
             foreach ($exam->examSections as $section) {
                 $newSection = $section->replicate();
                 $newSection->exam_id = $newExam->id;
@@ -113,20 +114,63 @@ class ExamController extends Controller
                 $newSection->updated_at = now();
                 $newSection->save();
 
+                $sectionMap[$section->id] = $newSection->id;
+
                 if (method_exists($newSection, 'updateMeta')) {
                     $newSection->updateMeta();
                 }
+            }
+
+            /* ----------------------------
+            * 5. DUPLICATE exam_questions TABLE
+            * ---------------------------- */
+            $examQuestions = DB::table('exam_questions')
+                ->where('exam_id', $exam->id)
+                ->get();
+
+            foreach ($examQuestions as $row) {
+                DB::table('exam_questions')->insert([
+                    'exam_id'         => $newExam->id,
+                    'question_id'     => $row->question_id,
+                    'exam_section_id' => $sectionMap[$row->exam_section_id] ?? null,
+                ]);
+            }
+
+            /* ----------------------------
+            * 6. DUPLICATE exam_schedules TABLE
+            * ---------------------------- */
+            $examSchedules = DB::table('exam_schedules')
+                ->where('exam_id', $exam->id)
+                ->get();
+
+            foreach ($examSchedules as $schedule) {
+                DB::table('exam_schedules')->insert([
+                    'code'          => 'SCH-' . strtoupper(Str::random(6)),
+                    'exam_id'       => $newExam->id,
+                    'schedule_type' => $schedule->schedule_type,
+                    'start_date'    => $schedule->start_date,
+                    'start_time'    => $schedule->start_time,
+                    'end_date'      => $schedule->end_date,
+                    'end_time'      => $schedule->end_time,
+                    'grace_period'  => $schedule->grace_period,
+                    'status'        => 'inactive',
+                    'created_at'    => now(),
+                    'updated_at'    => now(),
+                ]);
             }
 
             DB::commit();
 
             return redirect()
                 ->route('admin.exams.index')
-                ->with('success', 'Exam duplicated successfully with all sections.');
+                ->with('success', 'Exam duplicated successfully with questions & schedules.');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error($e);
+            Log::error('Exam Duplicate Failed', [
+                'exam_id' => $exam->id,
+                'error'   => $e->getMessage()
+            ]);
 
             return back()->with('error', 'Failed to duplicate exam.');
         }
