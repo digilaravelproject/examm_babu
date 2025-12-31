@@ -109,7 +109,7 @@ class ExamQuestionController extends Controller
             $term = $request->search;
             $query->where(function ($q) use ($term) {
                 $q->where('code', 'like', '%' . $term . '%')
-                  ->orWhere('question', 'like', '%' . $term . '%');
+                    ->orWhere('question', 'like', '%' . $term . '%');
             });
         }
 
@@ -149,7 +149,6 @@ class ExamQuestionController extends Controller
             }
 
             return response()->json(['status' => 'error', 'message' => 'Question already used in this exam.']);
-
         } catch (Exception $e) {
             return response()->json(['status' => 'error', 'message' => $e->getMessage()]);
         }
@@ -170,7 +169,6 @@ class ExamQuestionController extends Controller
             if (method_exists($exam, 'updateMeta')) $exam->updateMeta();
 
             return response()->json(['status' => 'success', 'message' => 'Question removed.']);
-
         } catch (Exception $e) {
             return response()->json(['status' => 'error', 'message' => $e->getMessage()]);
         }

@@ -23,8 +23,7 @@
                     <td class="px-4 py-4">
                         <div class="flex items-center gap-3">
                             @if ($micro->image_path)
-                                <img src="{{ asset('storage/' . $micro->image_path) }}"
-                                    class="object-cover w-10 h-10 rounded-lg">
+                                <img src="{{ asset($micro->image_path) }}" class="object-cover w-10 h-10 rounded-lg">
                             @else
                                 <div
                                     class="w-10 h-10 rounded-lg bg-[#7fd2ea]/20 flex items-center justify-center text-[#0777be] font-bold text-lg">

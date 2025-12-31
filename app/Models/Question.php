@@ -75,8 +75,8 @@ class Question extends Model
     protected function correctAnswer(): Attribute
     {
         return Attribute::make(
-            get: fn ($value) => $value ? unserialize($value) : null,
-            set: fn ($value) => serialize($value),
+            get: fn($value) => $value ? unserialize($value) : null,
+            set: fn($value) => serialize($value),
         );
     }
 
@@ -152,8 +152,7 @@ class Question extends Model
 
     public function exams(): BelongsToMany
     {
-        return $this->belongsToMany(Exam::class, 'exam_questions', 'question_id', 'exam_id')
-            ->withTimestamps();
+        return $this->belongsToMany(Exam::class, 'exam_questions', 'question_id', 'exam_id');
     }
 
     public function examSessions(): BelongsToMany
@@ -167,7 +166,11 @@ class Question extends Model
     {
         return $this->morphToMany(Tag::class, 'taggable');
     }
-
+    public function linkedExams()
+    {
+        // Note: Yahan 'withTimestamps()' NAHI lagaya hai
+        return $this->belongsToMany(Exam::class, 'exam_questions', 'question_id', 'exam_id');
+    }
     /*
     |--------------------------------------------------------------------------
     | SCOPES

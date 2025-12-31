@@ -10,88 +10,116 @@ use App\Models\ExamType;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 
 class ExamDashboardController extends Controller
 {
     /**
-     * 1. User's Main Exam Dashboard
+     * Helper: Get Cached Subscribed Category IDs
+     * Prevents querying the subscription table repeatedly.
+     */
+    private function getCachedSubscribedCategories($user)
+    {
+        return Cache::remember("user_{$user->id}_subscribed_cats", now()->addMinutes(10), function () use ($user) {
+            $categoryIds = $user->subscriptions()
+                ->where('status', 'active')
+                ->where('ends_at', '>', now())
+                ->pluck('category_id')
+                ->toArray();
+
+            // Add Current Selected Syllabus to list
+            $currentSyllabus = $user->selectedSyllabus();
+            if ($currentSyllabus) {
+                $categoryIds[] = $currentSyllabus->id;
+            }
+
+            return array_unique($categoryIds);
+        });
+    }
+
+    /**
+     * 1. User's Main Exam Dashboard (Grouped by Plan)
      */
     public function exam(Request $request): View
     {
         try {
             $user = $request->user();
-            $currentSyllabus = $user->selectedSyllabus();
 
-            // 1. Get IDs of Categories user has SUBSCRIBED to (Active Plans)
-            $subscribedCategoryIds = $user->subscriptions()
-                ->where('status', 'active')
-                ->where('ends_at', '>', now())
-                ->pluck('category_id')
-                ->toArray();
+            // Cache Key for Dashboard Data (Unique per user)
+            $cacheKey = "user_{$user->id}_dashboard_data";
 
-            // 2. Add Current Syllabus ID (From Header) to visibility list
-            $visibleCategoryIds = $subscribedCategoryIds;
-            if ($currentSyllabus) {
-                $visibleCategoryIds[] = $currentSyllabus->id;
-            }
-            $visibleCategoryIds = array_unique($visibleCategoryIds);
+            // Cache Dashboard Data for 30 Minutes
+            $data = Cache::remember($cacheKey, now()->addMinutes(30), function () use ($user) {
 
-            // 3. Fetch Schedules (FIXED LOGIC: Removed Strict User Group Check)
-            // Logic: Show exams if they belong to a category the user has access to.
-            $schedules = ExamSchedule::query()
-                ->whereHas('exam', function (Builder $query) use ($visibleCategoryIds) {
-                    $query->whereIn('sub_category_id', $visibleCategoryIds)
-                          ->where('is_active', true);
-                })
-                ->with(['exam.subCategory', 'exam.examType'])
-                ->orderBy('start_date', 'asc') // Upcoming first
-                ->active() // Must be currently active dates
-                ->limit(4)
-                ->get();
+                // 1. Get Active Subscriptions with Relations
+                $activeSubscriptions = $user->subscriptions()
+                    ->with(['plan.category'])
+                    ->where('status', 'active')
+                    ->where('ends_at', '>', now())
+                    ->get();
 
-            // Fetch Exam Types
-            $examTypes = ExamType::active()->orderBy('name')->get();
+                $organizedExams = [];
+
+                foreach ($activeSubscriptions as $subscription) {
+                    $schedules = ExamSchedule::query()
+                        ->whereHas('exam', function (Builder $query) use ($subscription) {
+                            $query->where('sub_category_id', $subscription->category_id)
+                                  ->where('is_active', true);
+                        })
+                        ->with(['exam.subCategory:id,name', 'exam.examType:id,name']) // Optimized Select
+                        ->orderBy('start_date', 'asc')
+                        ->active()
+                        ->limit(8)
+                        ->get();
+
+                    if ($schedules->isNotEmpty()) {
+                        $organizedExams[] = [
+                            'plan_name' => $subscription->plan->name ?? 'General',
+                            'category_name' => $subscription->plan->category->name ?? 'Exams',
+                            'schedules' => $schedules
+                        ];
+                    }
+                }
+
+                // 2. Fetch Exam Types (Global Cache)
+                $examTypes = Cache::remember('all_active_exam_types', now()->addDay(), function () {
+                    return ExamType::active()->orderBy('name')->get();
+                });
+
+                return [
+                    'organizedExams' => $organizedExams,
+                    'examTypes' => $examTypes
+                ];
+            });
+
+            // Get Subscribed IDs for "Start/Unlock" logic (Fast Cache)
+            $subscribedCategoryIds = $this->getCachedSubscribedCategories($user);
 
             return view('student.exams.dashboard', [
-                'examSchedules' => $schedules,
-                'examTypes'     => $examTypes,
-                'subscription'  => $user->hasActiveSubscription($currentSyllabus->id ?? 0, 'exams'),
-                'category'      => $currentSyllabus
+                'organizedExams' => $data['organizedExams'],
+                'examTypes'      => $data['examTypes'],
+                'subscribedCategoryIds' => $subscribedCategoryIds,
+                'user' => $user
             ]);
 
         } catch (\Throwable $e) {
             Log::error("Exam Dashboard Error: " . $e->getMessage());
-            return view('student.exams.dashboard', [
-                'examSchedules' => collect(), 'examTypes' => collect(), 'subscription' => false, 'category' => null
-            ]);
+            abort(500, 'Unable to load dashboard.');
         }
     }
 
     /**
-     * 2. Live Exams List Page
+     * 2. Live Exams List Page (Initial Load)
      */
     public function liveExams(Request $request): View
     {
         try {
             $user = $request->user();
-            $currentSyllabus = $user->selectedSyllabus();
+            $visibleCategoryIds = $this->getCachedSubscribedCategories($user);
 
-            // Get Subscribed + Selected Categories
-            $subscribedCategoryIds = $user->subscriptions()
-                ->where('status', 'active')
-                ->where('ends_at', '>', now())
-                ->pluck('category_id')
-                ->toArray();
-
-            $visibleCategoryIds = $subscribedCategoryIds;
-            if ($currentSyllabus) {
-                $visibleCategoryIds[] = $currentSyllabus->id;
-            }
-            $visibleCategoryIds = array_unique($visibleCategoryIds);
-
-            // Fetch Exams (User Group Check Removed for Subscribed Users)
+            // Fetch Exams
             $schedules = ExamSchedule::query()
                 ->whereHas('exam', function (Builder $query) use ($visibleCategoryIds) {
                     $query->whereIn('sub_category_id', $visibleCategoryIds)
@@ -103,8 +131,8 @@ class ExamDashboardController extends Controller
                 ->paginate(9);
 
             return view('student.exams.live_exams', [
-                'schedules'    => $schedules,
-                'subscription' => $user->hasActiveSubscription($currentSyllabus->id ?? 0, 'exams')
+                'schedules' => $schedules,
+                'subscribedCategoryIds' => $visibleCategoryIds
             ]);
 
         } catch (\Throwable $e) {
@@ -122,19 +150,8 @@ class ExamDashboardController extends Controller
 
         try {
             $user = $request->user();
-            $currentSyllabus = $user->selectedSyllabus();
+            $visibleCategoryIds = $this->getCachedSubscribedCategories($user);
 
-            $subscribedCategoryIds = $user->subscriptions()
-                ->where('status', 'active')
-                ->where('ends_at', '>', now())
-                ->pluck('category_id')
-                ->toArray();
-
-            $visibleCategoryIds = $subscribedCategoryIds;
-            if ($currentSyllabus) { $visibleCategoryIds[] = $currentSyllabus->id; }
-            $visibleCategoryIds = array_unique($visibleCategoryIds);
-
-            // FIXED QUERY
             $schedules = ExamSchedule::query()
                 ->whereHas('exam', function (Builder $query) use ($visibleCategoryIds) {
                     $query->whereIn('sub_category_id', $visibleCategoryIds)
@@ -145,10 +162,10 @@ class ExamDashboardController extends Controller
                 ->active()
                 ->paginate(9);
 
-            $subscription = $user->hasActiveSubscription($currentSyllabus->id ?? 0, 'exams');
-
-            // Render Partial View to append in grid
-            $view = view('student.exams.partials.live_exam_card', compact('schedules', 'subscription'))->render();
+            $view = view('student.exams.partials.live_exam_card', [
+                'schedules' => $schedules,
+                'subscribedCategoryIds' => $visibleCategoryIds
+            ])->render();
 
             return response()->json([
                 'status' => true,
@@ -158,7 +175,7 @@ class ExamDashboardController extends Controller
 
         } catch (\Throwable $e) {
             Log::error("Fetch Live Exams Error: " . $e->getMessage());
-            return response()->json(['status' => false, 'message' => 'Error loading data'], 500);
+            return response()->json(['status' => false], 500);
         }
     }
 
@@ -169,21 +186,11 @@ class ExamDashboardController extends Controller
     {
         try {
             $user = $request->user();
-            $category = $user->selectedSyllabus();
-
-            // Determine visible categories (Subscribed + Selected)
-            $subscribedCategoryIds = $user->subscriptions()
-                ->where('status', 'active')
-                ->where('ends_at', '>', now())
-                ->pluck('category_id')
-                ->toArray();
-
-            if ($category) { $subscribedCategoryIds[] = $category->id; }
-            $visibleCategoryIds = array_unique($subscribedCategoryIds);
+            $visibleCategoryIds = $this->getCachedSubscribedCategories($user);
 
             $exams = $type->exams()
                 ->has('questions')
-                ->whereIn('sub_category_id', $visibleCategoryIds) // <--- Use array here
+                ->whereIn('sub_category_id', $visibleCategoryIds)
                 ->isPublic()
                 ->published()
                 ->with(['subCategory', 'examType'])
@@ -191,9 +198,9 @@ class ExamDashboardController extends Controller
                 ->paginate(12);
 
             return view('student.exams.type_list', [
-                'type'         => $type,
-                'exams'        => $exams,
-                'subscription' => $user->hasActiveSubscription($category->id ?? 0, 'exams')
+                'type' => $type,
+                'exams' => $exams,
+                'subscribedCategoryIds' => $visibleCategoryIds
             ]);
 
         } catch (\Throwable $e) {
@@ -211,16 +218,7 @@ class ExamDashboardController extends Controller
 
         try {
             $user = $request->user();
-            $category = $user->selectedSyllabus();
-
-             $subscribedCategoryIds = $user->subscriptions()
-                ->where('status', 'active')
-                ->where('ends_at', '>', now())
-                ->pluck('category_id')
-                ->toArray();
-
-            if ($category) { $subscribedCategoryIds[] = $category->id; }
-            $visibleCategoryIds = array_unique($subscribedCategoryIds);
+            $visibleCategoryIds = $this->getCachedSubscribedCategories($user);
 
             $exams = $type->exams()
                 ->has('questions')
@@ -231,10 +229,10 @@ class ExamDashboardController extends Controller
                 ->orderBy('is_paid', 'asc')
                 ->paginate(12);
 
-            $subscription = $user->hasActiveSubscription($category->id ?? 0, 'exams');
-
-            // Assuming reuse of similar partial or you create 'exam_card.blade.php'
-            $view = view('student.exams.partials.exam_card', compact('exams', 'subscription'))->render();
+            $view = view('student.exams.partials.exam_card', [
+                'exams' => $exams,
+                'subscribedCategoryIds' => $visibleCategoryIds
+            ])->render();
 
             return response()->json([
                 'status' => true,
@@ -244,7 +242,7 @@ class ExamDashboardController extends Controller
 
         } catch (\Throwable $e) {
             Log::error("Fetch Exams By Type Error: " . $e->getMessage());
-            return response()->json(['status' => false, 'message' => 'Error loading data'], 500);
+            return response()->json(['status' => false], 500);
         }
     }
 }

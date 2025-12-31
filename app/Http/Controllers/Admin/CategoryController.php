@@ -9,7 +9,7 @@ use App\Models\Category;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\File; // File Facade Added
 use Illuminate\Support\Str;
 
 class CategoryController extends Controller
@@ -20,9 +20,9 @@ class CategoryController extends Controller
 
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('code', 'like', "%{$search}%");
+                    ->orWhere('code', 'like', "%{$search}%");
             });
         }
 
@@ -44,19 +44,26 @@ class CategoryController extends Controller
         return view('admin.categories.create');
     }
 
+    // Store function:
     public function store(StoreCategoryRequest $request)
     {
         DB::beginTransaction();
         try {
             $data = $request->validated();
 
-            // --- AUTO GENERATE CODE ---
-            // Name ke first 3 letters + Random Unique String (e.g., HIS-A12B)
             $prefix = strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $data['name']), 0, 3));
             $data['code'] = $prefix . '-' . strtoupper(Str::random(5));
 
-            if ($request->hasFile('image')) {
-                $data['image_path'] = $request->file('image')->store('categories', 'public');
+            // YAHAN CHANGE: Hum check kar rahe hain 'image_path' input ke liye
+            if ($request->hasFile('image_path')) {
+                $file = $request->file('image_path'); // Yahan bhi 'image_path'
+                $filename = time() . '_' . $file->getClientOriginalName();
+                $path = 'uploads/categories';
+
+                $file->move(public_path($path), $filename);
+
+                // Database me path save karein
+                $data['image_path'] = $path . '/' . $filename;
             }
 
             Category::create($data);
@@ -75,17 +82,31 @@ class CategoryController extends Controller
         return view('admin.categories.edit', compact('category'));
     }
 
+    // Update function ke andar ye logic replace karein:
+
     public function update(UpdateCategoryRequest $request, Category $category)
     {
         DB::beginTransaction();
         try {
-            $data = $request->validated();
+            $data = $request->validated(); // Isme saara form data aa gaya
 
-            if ($request->hasFile('image')) {
-                if ($category->image_path && Storage::disk('public')->exists($category->image_path)) {
-                    Storage::disk('public')->delete($category->image_path);
+            // YAHAN CHANGE: Hum check kar rahe hain 'image_path' input ke liye
+            if ($request->hasFile('image_path')) {
+
+                // Purani image delete karein
+                if ($category->image_path && \Illuminate\Support\Facades\File::exists(public_path($category->image_path))) {
+                    \Illuminate\Support\Facades\File::delete(public_path($category->image_path));
                 }
-                $data['image_path'] = $request->file('image')->store('categories', 'public');
+
+                // Nayi Image Upload Karein
+                $file = $request->file('image_path'); // Yahan bhi 'image_path'
+                $filename = time() . '_' . $file->getClientOriginalName();
+                $path = 'uploads/categories';
+
+                $file->move(public_path($path), $filename);
+
+                // Database me path save karein
+                $data['image_path'] = $path . '/' . $filename;
             }
 
             $category->update($data);
@@ -94,8 +115,8 @@ class CategoryController extends Controller
             return redirect()->route('admin.categories.index')->with('success', 'Category updated successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Category Update Error: ' . $e->getMessage());
-            return back()->with('error', 'Unable to update category.')->withInput();
+            \Illuminate\Support\Facades\Log::error('Update Error: ' . $e->getMessage());
+            return back()->with('error', 'Error: ' . $e->getMessage());
         }
     }
 
@@ -107,8 +128,9 @@ class CategoryController extends Controller
                 return back()->with('error', 'Cannot delete! Category has linked Sub-Categories.');
             }
 
-            if ($category->image_path) {
-                Storage::disk('public')->delete($category->image_path);
+            // Delete Image from Public Folder
+            if ($category->image_path && File::exists(public_path($category->image_path))) {
+                File::delete(public_path($category->image_path));
             }
 
             $category->delete();

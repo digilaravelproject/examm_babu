@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Requests\Admin;
 
 use Illuminate\Foundation\Http\FormRequest;
@@ -15,11 +16,28 @@ class UpdateCategoryRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:100'],
-            'code' => ['required', 'string', 'max:50', Rule::unique('categories', 'code')->ignore($this->category)],
+
+            'code' => [
+                'nullable',
+                'string',
+                'max:50',
+                Rule::unique('categories', 'code')->ignore($this->category)
+            ],
+
             'short_description' => ['nullable', 'string', 'max:160'],
             'description' => ['nullable', 'string'],
-            'image' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048'],
+
+            // YAHAN CHANGE KIYA: 'image' ki jagah 'image_path' kar diya
+            'image_path' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048'],
+
             'is_active' => ['required', 'boolean'],
         ];
+    }
+
+    protected function prepareForValidation()
+    {
+        $this->merge([
+            'is_active' => $this->has('is_active') ? 1 : 0,
+        ]);
     }
 }
