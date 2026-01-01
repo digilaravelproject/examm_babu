@@ -86,22 +86,21 @@ class UserExamRepository
             $currentSectionStart = $now->copy();
 
             foreach ($sections as $section) {
-                // Determine Section Timings (Logic from Old Code)
-                // If section duration is auto, we sum it up, otherwise assume logic
+                // Determine Section Timings
                 $sectionEndTime = $currentSectionStart->copy()->addSeconds($section->total_duration);
 
-                // --- FIX: Add all required columns from Old Code logic ---
+                // --- FIX: Added 'name', 'sno' etc. to prevent Error 1364 ---
                 $sessionSectionsData[] = [
                     'exam_session_id' => $session->id,
-                    'exam_section_id' => $section->id,
-                    'section_id'      => $section->section_id, // Important: The reference ID
-                    'name'            => $section->name,       // FIXED: Missing Name
-                    'sno'             => $section->section_order,
+                    'exam_section_id' => $section->id, // This is the ID from exam_sections table
+                    'section_id'      => $section->section_id, // Reference to master section
+                    'name'            => $section->name,       // FIXED: Required field
+                    'sno'             => $section->section_order, // FIXED: Required field
                     'status'          => ($globalSno == 1) ? 'started' : 'not_visited',
                     'starts_at'       => $currentSectionStart->toDateTimeString(),
                     'ends_at'         => $sectionEndTime->toDateTimeString(),
                     'total_time_taken'=> 0,
-                    'current_question'=> 0, // Default value
+                    'current_question'=> 0,
                     'results'         => null
                 ];
 
@@ -116,15 +115,11 @@ class UserExamRepository
 
                     $sectionQNo = 1;
                     foreach ($qList as $q) {
-                        // Decode Options/Answers for Snapshot
-                        // In old code: formatQuestionProperty & formatOptionsProperty
-                        // Here we store raw, and handle format on frontend fetch
-
                         $sessionQuestionsData[] = [
                             'exam_session_id' => $session->id,
                             'question_id'     => $q->id,
                             'exam_section_id' => $section->id,
-                            'sno'             => $sectionQNo++, // Order in this section
+                            'sno'             => $sectionQNo++,
                             'original_question' => $q->question,
                             'options'         => is_array($q->options) ? json_encode($q->options) : $q->options,
                             'correct_answer'  => is_array($q->correct_answer) ? serialize($q->correct_answer) : $q->correct_answer,
@@ -134,7 +129,6 @@ class UserExamRepository
                             'time_taken'      => 0,
                             'marks_earned'    => 0,
                             'marks_deducted'  => 0,
-                            // NO TIMESTAMPS: Your table definition image shows no created_at/updated_at
                         ];
                         $globalSno++;
                     }
@@ -171,7 +165,6 @@ class UserExamRepository
                 $correctArr = is_string($correctAnswer) ? json_decode($correctAnswer, true) : $correctAnswer;
                 if(!is_array($correctArr)) $correctArr = explode(',', $correctArr);
 
-                // Sort both arrays to compare contents regardless of order
                 $u = $userAnswer; $c = $correctArr;
                 sort($u); sort($c);
                 return $u == $c;

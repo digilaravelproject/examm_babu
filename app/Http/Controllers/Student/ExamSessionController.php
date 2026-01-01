@@ -25,6 +25,7 @@ class ExamSessionController extends Controller
         $this->repository = $repository;
     }
 
+    // ... (Start Exam & Load Interface methods same as before, no change needed there) ...
     public function startExam(Request $request, $scheduleId)
     {
         try {
@@ -32,7 +33,6 @@ class ExamSessionController extends Controller
             $schedule = ExamSchedule::with(['exam.examSections', 'exam.questions'])->findOrFail($scheduleId);
             $exam = $schedule->exam;
 
-            // Check Existing Session
             $existingSession = ExamSession::where('user_id', $user->id)
                 ->where('exam_schedule_id', $schedule->id)
                 ->whereIn('status', ['started', 'paused'])
@@ -45,7 +45,6 @@ class ExamSessionController extends Controller
                 return redirect()->route('student.exam.interface', $existingSession->code);
             }
 
-            // Check Attempts
             $attemptsCount = ExamSession::where('user_id', $user->id)
                 ->where('exam_schedule_id', $schedule->id)
                 ->where('status', 'completed')
@@ -56,13 +55,11 @@ class ExamSessionController extends Controller
                 return redirect()->back()->with('error', __('max_attempts_text'));
             }
 
-            // Access Check
             $accessCheck = $this->repository->checkAccess($schedule, $user);
             if (!$accessCheck['allowed']) {
                 return redirect()->back()->with('error', $accessCheck['message']);
             }
 
-            // Wallet Check
             $hasSubscription = $user->hasActiveSubscription($exam->sub_category_id, 'exams');
             if ($exam->is_paid && !$hasSubscription && $exam->can_redeem) {
                 if ($user->balance < $exam->points_required) {
@@ -71,14 +68,13 @@ class ExamSessionController extends Controller
                 $user->withdraw($exam->points_required, ['description' => 'Attempt: ' . $exam->title]);
             }
 
-            // Create Session
             $session = $this->repository->createSession($exam, $schedule, $user);
 
             return redirect()->route('student.exam.interface', $session->code);
 
         } catch (\Throwable $e) {
             Log::error("Start Exam Error: " . $e->getMessage());
-            return redirect()->back()->with('error', 'Error starting exam. Please try again.');
+            return redirect()->back()->with('error', 'Error starting exam: ' . $e->getMessage());
         }
     }
 
@@ -92,7 +88,6 @@ class ExamSessionController extends Controller
 
         $remainingSeconds = now()->diffInSeconds($session->ends_at, false);
 
-        // Auto Finish if Time is Up
         if ($remainingSeconds <= 0 && $session->status !== 'completed') {
             $session->status = 'completed';
             $session->completed_at = now();
@@ -117,14 +112,16 @@ class ExamSessionController extends Controller
         ]);
     }
 
+    // --- UPDATED FETCH METHOD FOR PASSAGE & DATA ---
     public function fetchSectionQuestions($sessionCode, $sectionId)
     {
         $session = ExamSession::where('code', $sessionCode)->firstOrFail();
 
-        // Fetch from Session Snapshot
         $questionsData = DB::table('exam_session_questions')
             ->join('questions', 'exam_session_questions.question_id', '=', 'questions.id')
             ->join('question_types', 'questions.question_type_id', '=', 'question_types.id')
+            // Left Join for Comprehension Passage
+            ->leftJoin('comprehension_passages', 'questions.comprehension_passage_id', '=', 'comprehension_passages.id')
             ->where('exam_session_questions.exam_session_id', $session->id)
             ->where('exam_session_questions.exam_section_id', $sectionId)
             ->orderBy('exam_session_questions.sno', 'asc')
@@ -136,12 +133,15 @@ class ExamSessionController extends Controller
                 'exam_session_questions.status',
                 'exam_session_questions.user_answer',
                 'exam_session_questions.marks_earned',
-                'exam_session_questions.marks_deducted'
+                'exam_session_questions.marks_deducted',
+                // Select Passage Body
+                'comprehension_passages.title as passage_title',
+                'comprehension_passages.body as passage_body'
             )
             ->get();
 
         $formatted = $questionsData->map(function($q) {
-            // Decode options safely
+            // Decode options carefully
             $options = $q->options;
             if (is_string($options)) {
                 $decoded = json_decode($options, true);
@@ -151,12 +151,17 @@ class ExamSessionController extends Controller
             return [
                 'id' => $q->id,
                 'text' => $q->question_text,
-                'options' => $options,
+                'options' => $options, // Array of objects {option, image}
                 'type' => $q->type_code,
                 'status' => $q->status,
                 'selected_option' => $q->user_answer ? unserialize($q->user_answer) : null,
-                'marks' => $q->marks_earned, // Just for display
-                'negative' => $q->marks_deducted
+                'marks' => $q->marks_earned,
+                'negative' => $q->marks_deducted,
+                // Add Passage Data
+                'passage' => $q->passage_body ? [
+                    'title' => $q->passage_title,
+                    'body' => $q->passage_body
+                ] : null
             ];
         });
 
@@ -185,7 +190,7 @@ class ExamSessionController extends Controller
 
             $marks = $this->repository->calculateMarks($session->exam, $section, $question, $isCorrect);
 
-            // Update Pivot (No Timestamps)
+            // Update Pivot
             DB::table('exam_session_questions')
                 ->where('exam_session_id', $session->id)
                 ->where('question_id', $question->id)
@@ -198,7 +203,7 @@ class ExamSessionController extends Controller
                     'time_taken' => DB::raw("time_taken + " . (int)$request->time_taken)
                 ]);
 
-            // Update Session
+            // Update Session Stats
             $session->update([
                 'current_section' => $request->section_id,
                 'current_question' => $request->question_id,

@@ -10,22 +10,28 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    {{-- MathJax Configuration --}}
+    <script>
+        window.MathJax = {
+            tex: { inlineMath: [['\\(', '\\)'], ['$', '$']] },
+            startup: { typeset: false }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 
     <style>
         [x-cloak] { display: none !important; }
         body { font-family: 'Roboto', sans-serif; user-select: none; }
-
-        /* TCS Palette */
         .btn-status { width: 35px; height: 35px; font-size: 14px; font-weight: 500; display: flex; align-items: center; justify-content: center; cursor: pointer; background: white; border: 1px solid #ccc; }
         .st-not-answered { background: #E74C3C; color: #fff; border-radius: 4px; clip-path: polygon(0% 0%, 100% 0%, 100% 75%, 50% 100%, 0% 75%); padding-bottom: 5px; }
         .st-answered { background: #27AE60; color: #fff; border-radius: 4px; clip-path: polygon(0% 0%, 100% 0%, 100% 75%, 50% 100%, 0% 75%); padding-bottom: 5px; }
         .st-marked { background: #8E44AD; color: #fff; border-radius: 50%; }
         .st-ans-marked { background: #8E44AD; color: #fff; border-radius: 50%; position: relative; }
         .st-ans-marked::after { content: '✔'; position: absolute; bottom: 0; right: -4px; font-size: 10px; background: #27AE60; color: white; width: 14px; height: 14px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 1px solid white; }
-
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #f1f1f1; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        img { max-width: 100%; height: auto; border-radius: 8px; }
     </style>
 </head>
 
@@ -43,6 +49,7 @@
       @contextmenu.prevent="return false;"
       @keydown.f12.prevent="return false;">
 
+    {{-- INSTRUCTIONS OVERLAY (Kept same) --}}
     <div x-show="showInstructions" class="fixed inset-0 z-[100] bg-white overflow-y-auto">
         <header class="sticky top-0 flex items-center h-16 px-6 text-white bg-blue-600 shadow-md">
             <h1 class="text-xl font-bold">Instructions</h1>
@@ -55,34 +62,15 @@
                     <p class="text-gray-500">Read instructions carefully before starting.</p>
                 </div>
             </div>
-
-            <div class="p-5 mb-6 border border-blue-200 rounded-lg bg-blue-50">
-                <h3 class="mb-3 font-bold text-gray-800">Language Preference</h3>
-                <div class="grid grid-cols-2 gap-6">
-                    <div>
-                        <label class="text-xs font-bold text-gray-500 uppercase">Default</label>
-                        <select disabled class="w-full p-2 text-gray-600 bg-gray-100 border rounded"><option>English</option></select>
-                    </div>
-                    <div>
-                        <label class="text-xs font-bold text-gray-500 uppercase">Secondary (Optional)</label>
-                        <select x-model="secondaryLang" class="w-full p-2 bg-white border border-blue-400 rounded shadow-sm">
-                            <option value="">-- None --</option>
-                            <option value="hi">Hindi</option>
-                            <option value="mr">Marathi</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
             <button @click="startExam()" class="w-full px-12 py-4 text-lg font-bold text-white bg-blue-600 rounded-lg shadow-lg md:w-auto hover:bg-blue-700">
                 I am ready to begin
             </button>
         </div>
     </div>
 
+    {{-- TOP HEADER --}}
     <header class="h-16 bg-[#3498db] text-white flex justify-between items-center px-4 shadow-md z-50 shrink-0" x-show="!showInstructions" x-cloak>
         <div class="text-lg font-bold truncate">{{ $exam->title }}</div>
-
         <div class="flex items-center gap-4">
             <div class="text-right" x-show="secondaryLang">
                 <span class="text-[10px] text-blue-100 font-bold uppercase">View In</span>
@@ -101,6 +89,7 @@
 
     <div class="flex flex-1 overflow-hidden" x-show="!showInstructions" x-cloak>
         <main class="relative flex flex-col flex-1 bg-white border-r border-gray-300">
+            {{-- Section Tabs --}}
             <div class="flex overflow-x-auto border-b border-gray-300 bg-gray-50 no-scrollbar">
                 <template x-for="(sec, idx) in sectionsMeta" :key="sec.id">
                     <button @click="switchSection(idx)"
@@ -116,37 +105,66 @@
                 <p class="mt-2 text-sm font-medium text-gray-500">Loading Section...</p>
             </div>
 
-            <div class="flex-1 p-6 overflow-y-auto" x-show="!isLoading && currentQuestion">
-                <div class="max-w-4xl mx-auto">
-                    <div class="flex items-center justify-between pb-4 mb-6 bg-white border-b border-gray-200">
-                        <h2 class="text-lg font-bold text-red-600">Q.<span x-text="currentQuestionIndex + 1"></span></h2>
-                        <div class="flex gap-2 text-xs font-bold text-gray-600">
-                            <span class="px-2 py-1 rounded bg-green-50">+<span x-text="currentQuestion?.marks || '1'"></span></span>
-                            <span class="px-2 py-1 rounded bg-red-50">-<span x-text="currentQuestion?.negative || '0'"></span></span>
+            {{-- MAIN CONTENT AREA (Split for Passage) --}}
+            <div class="flex flex-1 overflow-hidden" x-show="!isLoading && currentQuestion">
+
+                {{-- COMPREHENSION PASSAGE PANE --}}
+                <template x-if="currentQuestion && currentQuestion.passage">
+                    <div class="w-1/2 p-6 overflow-y-auto border-r border-gray-300 bg-gray-50">
+                        <div class="p-5 bg-white border border-gray-200 shadow-sm rounded-xl">
+                            <h3 class="pb-2 mb-3 font-bold text-gray-800 border-b">Passage</h3>
+                            <div class="text-sm leading-relaxed prose text-gray-700 max-w-none" x-html="currentQuestion.passage.body"></div>
                         </div>
                     </div>
+                </template>
 
-                    <div class="mb-6 text-lg font-medium leading-relaxed text-gray-800 select-none">
-                        <div x-html="getQuestionText()"></div>
-                        <div x-show="isTranslating" class="mt-2 text-xs text-orange-500 animate-pulse">Translating...</div>
-                    </div>
-
-                    <div class="space-y-4">
-                        <template x-for="(opt, idx) in getOptions()" :key="idx">
-                            <div @click="selectOption(idx)"
-                                 class="flex items-start p-4 transition-all border-2 cursor-pointer select-none rounded-xl group"
-                                 :class="isSelected(idx) ? 'border-[#3498db] bg-blue-50' : 'border-gray-200 hover:bg-gray-50'">
-                                <div class="flex items-center justify-center w-6 h-6 mr-4 border-2 rounded-full shrink-0"
-                                     :class="isSelected(idx) ? 'border-blue-600 bg-blue-600' : 'border-gray-400'">
-                                    <div class="w-2.5 h-2.5 bg-white rounded-full" x-show="isSelected(idx)"></div>
-                                </div>
-                                <span class="font-medium text-gray-700" x-html="opt"></span>
+                {{-- QUESTION PANE --}}
+                <div class="flex-1 p-6 overflow-y-auto" :class="{'w-1/2': currentQuestion && currentQuestion.passage}">
+                    <div class="max-w-4xl mx-auto">
+                        <div class="flex items-center justify-between pb-4 mb-6 bg-white border-b border-gray-200">
+                            <h2 class="text-lg font-bold text-red-600">Q.<span x-text="currentQuestionIndex + 1"></span></h2>
+                            <div class="flex gap-2 text-xs font-bold text-gray-600">
+                                <span class="px-2 py-1 rounded bg-green-50">+<span x-text="currentQuestion?.marks || '1'"></span></span>
+                                <span class="px-2 py-1 rounded bg-red-50">-<span x-text="currentQuestion?.negative || '0'"></span></span>
                             </div>
-                        </template>
+                        </div>
+
+                        {{-- Question Text --}}
+                        <div class="mb-6 text-lg font-medium leading-relaxed text-gray-800 select-none math-content">
+                            <div x-html="getQuestionText()"></div>
+                            <div x-show="isTranslating" class="mt-2 text-xs text-orange-500 animate-pulse">Translating...</div>
+                        </div>
+
+                        {{-- Options List --}}
+                        <div class="space-y-4">
+                            <template x-for="(opt, idx) in getOptions()" :key="idx">
+                                <div @click="selectOption(idx)"
+                                     class="flex items-start p-4 transition-all border-2 cursor-pointer select-none rounded-xl group"
+                                     :class="isSelected(idx) ? 'border-[#3498db] bg-blue-50' : 'border-gray-200 hover:bg-gray-50'">
+
+                                    {{-- Radio/Checkbox Circle --}}
+                                    <div class="flex items-center justify-center w-6 h-6 mr-4 border-2 rounded-full shrink-0"
+                                         :class="isSelected(idx) ? 'border-blue-600 bg-blue-600' : 'border-gray-400'">
+                                        <div class="w-2.5 h-2.5 bg-white rounded-full" x-show="isSelected(idx)"></div>
+                                    </div>
+
+                                    {{-- Option Content (Text + Image) --}}
+                                    <div class="flex-1">
+                                        {{-- Image if exists --}}
+                                        <template x-if="opt.image">
+                                            <img :src="opt.image" class="block mb-2 border border-gray-200 rounded max-h-40">
+                                        </template>
+                                        {{-- Option Text (This fixes [object Object]) --}}
+                                        <span class="font-medium text-gray-700 math-content" x-html="opt.option"></span>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
                     </div>
                 </div>
             </div>
 
+            {{-- Footer Buttons --}}
             <div class="flex items-center justify-between p-3 border-t border-gray-300 bg-gray-50">
                 <div class="flex gap-2">
                     <button @click="markForReview()" class="px-4 py-2 text-xs font-bold text-white bg-purple-600 rounded hover:bg-purple-700">Mark & Next</button>
@@ -156,19 +174,18 @@
             </div>
         </main>
 
+        {{-- Sidebar --}}
         <aside class="z-20 flex flex-col hidden bg-white border-l border-gray-300 w-80 md:flex shrink-0">
             <div class="p-3 border-b border-gray-200 bg-blue-50">
                 <div class="text-sm font-bold text-gray-800">{{ $user->first_name }} {{ $user->last_name }}</div>
                 <div class="text-[10px] text-gray-500 font-semibold">ID: {{ $session->code }}</div>
             </div>
-
             <div class="p-3 bg-gray-50 border-b border-gray-200 grid grid-cols-2 gap-2 text-[10px] font-medium text-gray-600">
                 <div class="flex items-center gap-1"><div class="w-5 h-5 st-answered"></div> Answered</div>
                 <div class="flex items-center gap-1"><div class="w-5 h-5 st-not-answered"></div> Not Ans</div>
                 <div class="flex items-center gap-1"><div class="w-5 h-5 bg-white border"></div> Not Visited</div>
                 <div class="flex items-center gap-1"><div class="w-5 h-5 st-marked"></div> Marked</div>
             </div>
-
             <div class="flex-1 p-4 overflow-y-auto">
                 <div class="grid grid-cols-4 gap-2">
                     <template x-for="(q, idx) in currentSectionQuestions" :key="q.id">
@@ -188,15 +205,11 @@
                 loadedSections: {},
                 currentSectionIndex: 0,
                 currentQuestionIndex: 0,
-
-                // Timer & Logic State
                 initialDuration: duration,
                 timeRemaining: duration,
                 timerInterval: null,
                 questionStartTime: Date.now(),
                 warningCount: 0,
-
-                // UX State
                 primaryLang: 'en',
                 secondaryLang: '',
                 currentLang: 'en',
@@ -214,16 +227,11 @@
                 },
 
                 initEngine() {
-                    // Load First Section
                     this.loadSectionData(0);
-
-                    // Timer Logic
                     this.timerInterval = setInterval(() => {
                         if(this.timeRemaining > 0) this.timeRemaining--;
                         else this.finishExam(true);
                     }, 1000);
-
-                    // Anti-Cheat
                     document.addEventListener("visibilitychange", () => {
                         if(document.hidden && !this.showInstructions) this.handleViolation();
                     });
@@ -232,11 +240,10 @@
                 startExam() {
                     this.showInstructions = false;
                     this.currentLang = this.primaryLang;
-                    this.questionStartTime = Date.now(); // Start tracking first question time
+                    this.questionStartTime = Date.now();
                     document.documentElement.requestFullscreen().catch(e => console.log(e));
                 },
 
-                // --- DATA LOGIC ---
                 async loadSectionData(index) {
                     let secId = this.sectionsMeta[index].id;
                     if(this.loadedSections[secId]) {
@@ -251,12 +258,11 @@
                         let res = await fetch(url);
                         let data = await res.json();
 
-                        // Process data to match frontend structure for Translations
-                        // Backend returns 'text' and 'options'. We wrap them for translation logic.
+                        // Process Data
                         let processed = data.questions.map(q => ({
                             ...q,
                             text: { en: q.text },
-                            options: { en: q.options }
+                            options: { en: q.options } // Keep options as array of objects
                         }));
 
                         this.loadedSections[secId] = processed;
@@ -272,19 +278,26 @@
                 switchContext(secIndex, qIndex) {
                     this.currentSectionIndex = secIndex;
                     this.currentQuestionIndex = qIndex;
-                    this.questionStartTime = Date.now(); // Reset time tracker for new question
+                    this.questionStartTime = Date.now();
+                    this.renderMath(); // Render Math on Switch
+                },
+
+                // --- NEW MATH RENDERING ---
+                renderMath() {
+                    this.$nextTick(() => {
+                        if (window.MathJax) {
+                            window.MathJax.typesetPromise().catch((err) => console.log('MathJax Error:', err));
+                        }
+                    });
                 },
 
                 async saveAnswer(uiStatus) {
                     const q = this.currentQuestion;
                     const secId = this.sectionsMeta[this.currentSectionIndex].id;
-
-                    // Calculate Time Taken for this specific question
                     const now = Date.now();
                     const timeSpent = Math.round((now - this.questionStartTime) / 1000);
-                    this.questionStartTime = now; // Reset
+                    this.questionStartTime = now;
 
-                    // Map UI status to Backend status
                     let backendStatus = 'visited';
                     if (uiStatus === 'answered') backendStatus = 'answered';
                     if (uiStatus === 'ans_marked') backendStatus = 'answered_mark_for_review';
@@ -300,30 +313,29 @@
                         body: JSON.stringify({
                             question_id: q.id,
                             section_id: secId,
-                            user_answer: q.selected_option, // Changed key to match backend
-                            time_taken: timeSpent,         // Added required field
-                            total_time_taken: (this.initialDuration - this.timeRemaining), // Added global tracker
-                            status: backendStatus          // Mapped status
+                            user_answer: q.selected_option,
+                            time_taken: timeSpent,
+                            total_time_taken: (this.initialDuration - this.timeRemaining),
+                            status: backendStatus
                         })
                     });
                 },
 
-                // --- NAVIGATION & INTERACTION ---
                 switchSection(idx) {
-                    this.saveAnswer(this.currentQuestion.status); // Save current before switch
+                    this.saveAnswer(this.currentQuestion.status);
                     this.loadSectionData(idx);
                 },
 
                 jumpToQuestion(idx) {
-                    this.saveAnswer(this.currentQuestion.status); // Save current before jump
+                    this.saveAnswer(this.currentQuestion.status);
                     this.currentQuestionIndex = idx;
-                    this.questionStartTime = Date.now(); // Reset timer
+                    this.questionStartTime = Date.now();
                     this.checkTranslation();
+                    this.renderMath(); // Render Math on Jump
                 },
 
                 saveAndNext() {
                     const q = this.currentQuestion;
-                    // Logic: If has answer, 'answered', else 'not_answered'
                     q.status = (q.selected_option !== null && q.selected_option !== undefined) ? 'answered' : 'not_answered';
                     this.saveAnswer(q.status);
                     this.moveToNext();
@@ -343,7 +355,6 @@
                 },
 
                 selectOption(idx) {
-                    // Handle Radio vs Checkbox based on type (Logic added just in case, simplified for now)
                     this.currentQuestion.selected_option = idx;
                 },
 
@@ -356,6 +367,7 @@
                         this.currentQuestionIndex++;
                         this.questionStartTime = Date.now();
                         this.checkTranslation();
+                        this.renderMath();
                     } else if (this.currentSectionIndex < this.sectionsMeta.length - 1) {
                         Swal.fire({
                             title: 'Section Completed', text: "Go to next section?",
@@ -364,12 +376,12 @@
                     }
                 },
 
-                // --- TRANSLATION ---
                 handleLangChange() { this.checkTranslation(); },
 
                 getQuestionText() {
                     if(!this.currentQuestion) return '';
-                    return this.currentQuestion.text[this.currentLang] || this.currentQuestion.text['en'];
+                    let txt = this.currentQuestion.text[this.currentLang] || this.currentQuestion.text['en'];
+                    return txt;
                 },
 
                 getOptions() {
@@ -379,19 +391,37 @@
 
                 async checkTranslation() {
                     if(this.currentLang === 'en') return;
+
+                    // Logic needs update because options are now Objects
                     if(this.currentQuestion.text[this.currentLang]) return;
 
                     this.isTranslating = true;
                     try {
+                        // Translate Question Text
                         let textUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(this.currentQuestion.text['en'])}&langpair=en|${this.currentLang}`;
                         let res = await fetch(textUrl);
                         let data = await res.json();
                         this.currentQuestion.text[this.currentLang] = data.responseData.translatedText;
+
+                        // Translate Options (Loop through objects)
+                        let opts = this.currentQuestion.options['en'];
+                        let newOpts = [];
+                        for (let opt of opts) {
+                            let optUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(opt.option)}&langpair=en|${this.currentLang}`;
+                            let optRes = await fetch(optUrl);
+                            let optData = await optRes.json();
+                            newOpts.push({
+                                ...opt,
+                                option: optData.responseData.translatedText
+                            });
+                        }
+                        this.currentQuestion.options[this.currentLang] = newOpts;
+
                     } catch(e) {}
                     this.isTranslating = false;
+                    this.renderMath(); // Re-render math after translation
                 },
 
-                // --- UTILS ---
                 formatTime(s) {
                     if (s < 0) s = 0;
                     return new Date(s * 1000).toISOString().substr(11, 8);
@@ -399,7 +429,6 @@
 
                 getPaletteClass(q, idx) {
                     let cls = "";
-                    // Status mapping for Palette Colors
                     if (q.status === 'not_visited' || !q.status) cls = 'bg-white border';
                     else if (q.status === 'not_answered' || q.status === 'visited') cls = 'st-not-answered';
                     else if (q.status === 'answered') cls = 'st-answered';
