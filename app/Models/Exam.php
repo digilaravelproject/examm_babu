@@ -27,19 +27,9 @@ class Exam extends Model
     use SchemalessAttributesTrait;
     use LogsActivity;
 
-    /*
-    |--------------------------------------------------------------------------
-    | GLOBAL VARIABLES
-    |--------------------------------------------------------------------------
-    */
-
     protected $table = 'exams';
-
     protected $guarded = [];
 
-    /**
-     * Get the attributes that should be cast (Laravel 11/12 Method Style).
-     */
     protected function casts(): array
     {
         return [
@@ -53,18 +43,9 @@ class Exam extends Model
         ];
     }
 
-    /**
-     * Define schemaless attributes column.
-     */
     protected array $schemalessAttributes = [
         'settings',
     ];
-
-    /*
-    |--------------------------------------------------------------------------
-    | FUNCTIONS
-    |--------------------------------------------------------------------------
-    */
 
     public function sluggable(): array
     {
@@ -75,28 +56,20 @@ class Exam extends Model
         ];
     }
 
-    /**
-     * The "booted" method of the model.
-     */
     protected static function booted(): void
     {
         static::creating(function (Exam $exam) {
-            // Fixed variable name from $subCategory to $exam
             if (empty($exam->code)) {
                 $exam->code = 'exam_' . Str::lower(Str::random(11));
             }
         });
     }
 
-    /**
-     * Update meta information for the exam.
-     */
     public function updateMeta(): void
     {
         $this->total_questions = $this->questions()->count();
         $this->total_duration = $this->examSections()->sum('total_duration');
         $this->total_marks = $this->examSections()->sum('total_marks');
-
         $this->save();
     }
 
@@ -121,10 +94,12 @@ class Exam extends Model
         return $this->hasMany(ExamSchedule::class);
     }
 
+    // --- THIS IS THE FIX ---
     public function questions(): BelongsToMany
     {
         return $this->belongsToMany(Question::class, 'exam_questions', 'exam_id', 'question_id')
-            ->withTimestamps();
+            ->withPivot('exam_section_id'); // <--- ADDED THIS
+            // ->withTimestamps(); // Keep this commented out as per your DB
     }
 
     public function sessions(): HasMany
@@ -153,11 +128,6 @@ class Exam extends Model
         return $filters->apply($query);
     }
 
-    // public function scopeWithSettings(Builder $query): Builder
-    // {
-    //     return $this->settings->modelCast();
-    // }
-
     public function scopePublished(Builder $query): void
     {
         $query->where('is_active', true);
@@ -172,12 +142,6 @@ class Exam extends Model
     {
         $query->where('is_private', true);
     }
-
-    /*
-    |--------------------------------------------------------------------------
-    | ACTIVITY LOG CONFIG
-    |--------------------------------------------------------------------------
-    */
 
     public function getActivitylogOptions(): LogOptions
     {

@@ -105,8 +105,8 @@ class ExamSection extends Model
 
     public function questions(): BelongsToMany
     {
-        return $this->belongsToMany(Question::class, 'exam_questions', 'exam_section_id', 'question_id')
-            ->withTimestamps();
+        return $this->belongsToMany(Question::class, 'exam_questions', 'exam_section_id', 'question_id');
+            // ->withTimestamps();
     }
 
     public function examSessions(): BelongsToMany

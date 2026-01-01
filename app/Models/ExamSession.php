@@ -16,31 +16,18 @@ use Spatie\SchemalessAttributes\SchemalessAttributesTrait;
 
 class ExamSession extends Model
 {
-    /** @use HasFactory<\Database\Factories\ExamSessionFactory> */
     use HasFactory;
     use SchemalessAttributesTrait;
     use SoftDeletes;
     use SecureDeletes;
     use LogsActivity;
 
-    /*
-    |--------------------------------------------------------------------------
-    | GLOBAL VARIABLES
-    |--------------------------------------------------------------------------
-    */
-
     protected $guarded = [];
 
-    /**
-     * Define schemaless attributes column.
-     */
     protected array $schemalessAttributes = [
         'results',
     ];
 
-    /**
-     * Get the attributes that should be cast (Laravel 11/12 Method Style).
-     */
     protected function casts(): array
     {
         return [
@@ -54,30 +41,14 @@ class ExamSession extends Model
         ];
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | FUNCTIONS
-    |--------------------------------------------------------------------------
-    */
-
-    /**
-     * The "booted" method of the model.
-     */
     protected static function booted(): void
     {
         static::creating(function (ExamSession $examSession) {
-            // Fixed variable name from $category to $examSession
             if (empty($examSession->code)) {
                 $examSession->code = (string) Str::uuid();
             }
         });
     }
-
-    /*
-    |--------------------------------------------------------------------------
-    | RELATIONS
-    |--------------------------------------------------------------------------
-    */
 
     public function exam(): BelongsTo
     {
@@ -102,8 +73,8 @@ class ExamSession extends Model
                 'total_time_taken',
                 'current_question',
                 'results'
-            ])
-            ->withTimestamps();
+            ]);
+            // Removed withTimestamps() based on your DB schema
     }
 
     public function questions(): BelongsToMany
@@ -121,8 +92,8 @@ class ExamSession extends Model
                 'marks_earned',
                 'marks_deducted'
             ])
-            ->withTimestamps()
             ->withTrashed();
+            // Removed withTimestamps() based on your DB schema
     }
 
     public function examSchedule(): BelongsTo
@@ -130,22 +101,10 @@ class ExamSession extends Model
         return $this->belongsTo(ExamSchedule::class);
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | SCOPES
-    |--------------------------------------------------------------------------
-    */
-
     public function scopePending(Builder $query): void
     {
         $query->where('status', 'started');
     }
-
-    /*
-    |--------------------------------------------------------------------------
-    | ACTIVITY LOG CONFIG
-    |--------------------------------------------------------------------------
-    */
 
     public function getActivitylogOptions(): LogOptions
     {
