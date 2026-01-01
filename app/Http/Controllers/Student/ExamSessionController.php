@@ -25,7 +25,10 @@ class ExamSessionController extends Controller
         $this->repository = $repository;
     }
 
-    // ... (Start Exam & Load Interface methods same as before, no change needed there) ...
+    /**
+     * 1. Start Exam
+     * Checks constraints (Attempts, Time, Wallet) and creates a session.
+     */
     public function startExam(Request $request, $scheduleId)
     {
         try {
@@ -33,6 +36,7 @@ class ExamSessionController extends Controller
             $schedule = ExamSchedule::with(['exam.examSections', 'exam.questions'])->findOrFail($scheduleId);
             $exam = $schedule->exam;
 
+            // A. Check Existing Session (Resume)
             $existingSession = ExamSession::where('user_id', $user->id)
                 ->where('exam_schedule_id', $schedule->id)
                 ->whereIn('status', ['started', 'paused'])
@@ -45,9 +49,10 @@ class ExamSessionController extends Controller
                 return redirect()->route('student.exam.interface', $existingSession->code);
             }
 
+            // B. Check Attempts
             $attemptsCount = ExamSession::where('user_id', $user->id)
                 ->where('exam_schedule_id', $schedule->id)
-                ->where('status', 'completed')
+                ->whereIn('status', ['completed', 'terminated'])
                 ->count();
 
             $maxAttempts = $exam->settings['no_of_attempts'] ?? 0;
@@ -55,11 +60,13 @@ class ExamSessionController extends Controller
                 return redirect()->back()->with('error', __('max_attempts_text'));
             }
 
+            // C. Validate Access
             $accessCheck = $this->repository->checkAccess($schedule, $user);
             if (!$accessCheck['allowed']) {
                 return redirect()->back()->with('error', $accessCheck['message']);
             }
 
+            // D. Wallet / Subscription Check
             $hasSubscription = $user->hasActiveSubscription($exam->sub_category_id, 'exams');
             if ($exam->is_paid && !$hasSubscription && $exam->can_redeem) {
                 if ($user->balance < $exam->points_required) {
@@ -68,35 +75,41 @@ class ExamSessionController extends Controller
                 $user->withdraw($exam->points_required, ['description' => 'Attempt: ' . $exam->title]);
             }
 
+            // E. Create Session
             $session = $this->repository->createSession($exam, $schedule, $user);
 
             return redirect()->route('student.exam.interface', $session->code);
 
         } catch (\Throwable $e) {
             Log::error("Start Exam Error: " . $e->getMessage());
-            return redirect()->back()->with('error', 'Error starting exam: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error starting exam.');
         }
     }
 
+    /**
+     * 2. Load Interface
+     * Loads the main exam screen. Handles redirection if expired/completed.
+     */
     public function loadInterface($sessionCode)
     {
-        $session = ExamSession::where('code', $sessionCode)
-            ->with(['exam'])
-            ->firstOrFail();
+        $session = ExamSession::where('code', $sessionCode)->with(['exam'])->firstOrFail();
 
         if ($session->user_id !== Auth::id()) abort(403);
 
-        $remainingSeconds = now()->diffInSeconds($session->ends_at, false);
+        // If Exam Terminated (Cheating), send to Dashboard
+        if ($session->status === 'terminated') {
+            return redirect()->route('student.dashboard')->with('error', 'Exam was terminated due to malpractice.');
+        }
 
-        if ($remainingSeconds <= 0 && $session->status !== 'completed') {
-            $session->status = 'completed';
-            $session->completed_at = now();
-            $session->save();
+        // If Exam Completed, send to Result
+        if ($session->status === 'completed') {
             return redirect()->route('student.exams.result', $session->id);
         }
 
-        if ($session->status === 'completed') {
-            return redirect()->route('student.exams.result', $session->id);
+        // Check Timer
+        $remainingSeconds = now()->diffInSeconds($session->ends_at, false);
+        if ($remainingSeconds <= 0) {
+            return $this->finishExamLogic($session); // Auto Submit
         }
 
         $sections = $session->exam->examSections()
@@ -112,7 +125,10 @@ class ExamSessionController extends Controller
         ]);
     }
 
-    // --- UPDATED FETCH METHOD FOR PASSAGE & DATA ---
+    /**
+     * 3. Fetch Questions (AJAX)
+     * Returns Section Questions + Options + Passage Data.
+     */
     public function fetchSectionQuestions($sessionCode, $sectionId)
     {
         $session = ExamSession::where('code', $sessionCode)->firstOrFail();
@@ -120,7 +136,7 @@ class ExamSessionController extends Controller
         $questionsData = DB::table('exam_session_questions')
             ->join('questions', 'exam_session_questions.question_id', '=', 'questions.id')
             ->join('question_types', 'questions.question_type_id', '=', 'question_types.id')
-            // Left Join for Comprehension Passage
+            // Left Join for Passage Data
             ->leftJoin('comprehension_passages', 'questions.comprehension_passage_id', '=', 'comprehension_passages.id')
             ->where('exam_session_questions.exam_session_id', $session->id)
             ->where('exam_session_questions.exam_section_id', $sectionId)
@@ -134,7 +150,7 @@ class ExamSessionController extends Controller
                 'exam_session_questions.user_answer',
                 'exam_session_questions.marks_earned',
                 'exam_session_questions.marks_deducted',
-                // Select Passage Body
+                // Passage Columns
                 'comprehension_passages.title as passage_title',
                 'comprehension_passages.body as passage_body'
             )
@@ -151,13 +167,13 @@ class ExamSessionController extends Controller
             return [
                 'id' => $q->id,
                 'text' => $q->question_text,
-                'options' => $options, // Array of objects {option, image}
+                'options' => $options, // Returns Array of Objects {option, image}
                 'type' => $q->type_code,
                 'status' => $q->status,
                 'selected_option' => $q->user_answer ? unserialize($q->user_answer) : null,
                 'marks' => $q->marks_earned,
                 'negative' => $q->marks_deducted,
-                // Add Passage Data
+                // Attach Passage if exists
                 'passage' => $q->passage_body ? [
                     'title' => $q->passage_title,
                     'body' => $q->passage_body
@@ -165,7 +181,7 @@ class ExamSessionController extends Controller
             ];
         });
 
-        // Mark Section Visited
+        // Mark Section as Visited
         DB::table('exam_session_sections')
             ->where('exam_session_id', $session->id)
             ->where('exam_section_id', $sectionId)
@@ -174,20 +190,24 @@ class ExamSessionController extends Controller
         return response()->json(['questions' => $formatted]);
     }
 
+    /**
+     * 4. Save Answer (AJAX)
+     * Validates and saves answer immediately.
+     */
     public function saveAnswer(ExamUpdateAnswerRequest $request, $sessionCode)
     {
         try {
             $session = ExamSession::with('exam')->where('code', $sessionCode)->firstOrFail();
-
             $question = Question::with('questionType')->find($request->question_id);
             $section = ExamSection::find($request->section_id);
 
-            // Scoring
+            // Calculate correctness
             $isCorrect = false;
             if ($request->status == 'answered' || $request->status == 'answered_mark_for_review') {
                 $isCorrect = $this->repository->evaluateAnswer($question, $request->user_answer);
             }
 
+            // Calculate Marks
             $marks = $this->repository->calculateMarks($session->exam, $section, $question, $isCorrect);
 
             // Update Pivot
@@ -218,18 +238,64 @@ class ExamSessionController extends Controller
         }
     }
 
-    public function finishExam($sessionCode)
+    /**
+     * 5. Terminate Exam (Violation)
+     * Redirects to Dashboard immediately.
+     */
+    public function terminateExam($sessionCode)
     {
         $session = ExamSession::where('code', $sessionCode)->firstOrFail();
 
-        if ($session->status == 'completed') {
-             return response()->json(['redirect' => route('student.exams.result', $session->id)]);
-        }
-
-        $session->status = 'completed';
+        $session->status = 'terminated';
         $session->completed_at = now();
         $session->save();
 
-        return response()->json(['redirect' => route('student.exams.result', $session->id)]);
+        return response()->json(['redirect' => route('student.dashboard')]);
+    }
+
+    /**
+     * 6. Finish Exam (Submit)
+     * Calculates Result and Redirects to Result Page.
+     */
+    public function finishExam($sessionCode)
+    {
+        $session = ExamSession::where('code', $sessionCode)->firstOrFail();
+        return $this->finishExamLogic($session);
+    }
+
+    private function finishExamLogic($session)
+    {
+        if ($session->status !== 'completed' && $session->status !== 'terminated') {
+            $session->status = 'completed';
+            $session->completed_at = now();
+
+            // Calculate and Store Results
+            // This relies on the function I added to your Repository
+            $session->results = $this->repository->sessionResults($session, $session->exam);
+
+            $session->save();
+        }
+
+        if (request()->wantsJson()) {
+            return response()->json(['redirect' => route('student.exams.result', $session->id)]);
+        }
+
+        return redirect()->route('student.exams.result', $session->id);
+    }
+
+    /**
+     * 7. Show Result Page (Fixes 500 Error)
+     */
+    public function showResult($sessionId)
+    {
+        // Eager load exam and sections for the view
+        $session = ExamSession::with(['exam', 'sections'])->findOrFail($sessionId);
+
+        // Security check: Don't show result if terminated
+        if($session->status === 'terminated') {
+            return redirect()->route('student.dashboard')->with('error', 'Exam Terminated due to policy violation.');
+        }
+
+        return view('student.exams.result', compact('session'));
     }
 }

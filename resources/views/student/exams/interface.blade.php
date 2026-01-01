@@ -1,16 +1,21 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full">
+<html lang="en" class="h-full select-none">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ $exam->title }}</title>
+    <title>{{ $exam->title }} - Exam Babu</title>
 
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    {{-- Fonts --}}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+    {{-- Libraries --}}
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    {{-- MathJax Configuration --}}
+
+    {{-- MathJax --}}
     <script>
         window.MathJax = {
             tex: { inlineMath: [['\\(', '\\)'], ['$', '$']] },
@@ -22,16 +27,54 @@
     <style>
         [x-cloak] { display: none !important; }
         body { font-family: 'Roboto', sans-serif; user-select: none; }
-        .btn-status { width: 35px; height: 35px; font-size: 14px; font-weight: 500; display: flex; align-items: center; justify-content: center; cursor: pointer; background: white; border: 1px solid #ccc; }
-        .st-not-answered { background: #E74C3C; color: #fff; border-radius: 4px; clip-path: polygon(0% 0%, 100% 0%, 100% 75%, 50% 100%, 0% 75%); padding-bottom: 5px; }
-        .st-answered { background: #27AE60; color: #fff; border-radius: 4px; clip-path: polygon(0% 0%, 100% 0%, 100% 75%, 50% 100%, 0% 75%); padding-bottom: 5px; }
-        .st-marked { background: #8E44AD; color: #fff; border-radius: 50%; }
-        .st-ans-marked { background: #8E44AD; color: #fff; border-radius: 50%; position: relative; }
-        .st-ans-marked::after { content: '✔'; position: absolute; bottom: 0; right: -4px; font-size: 10px; background: #27AE60; color: white; width: 14px; height: 14px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 1px solid white; }
-        ::-webkit-scrollbar { width: 6px; }
+
+        /* --- TCS iON Palette Styles --- */
+        .btn-status {
+            width: 40px; height: 35px; font-size: 14px; font-weight: 500;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: all 0.1s; background: white; border: 1px solid #ccc;
+            clip-path: polygon(0% 0%, 100% 0%, 100% 85%, 50% 100%, 0% 85%); /* Iconic Shape */
+            margin-bottom: 4px;
+        }
+
+        /* Status Colors */
+        .st-not-visited { background: #ffffff; color: #000; border-color: #ccc; clip-path: none; border-radius: 4px; border: 1px solid #e5e7eb; }
+        .st-not-answered { background: #E74C3C; color: #fff; border: none; }
+        .st-answered { background: #27AE60; color: #fff; border: none; }
+        .st-marked { background: #8E44AD; color: #fff; clip-path: none; border-radius: 50%; }
+        .st-ans-marked { background: #8E44AD; color: #fff; clip-path: none; border-radius: 50%; position: relative; }
+        .st-ans-marked::after {
+            content: '✔'; position: absolute; bottom: 0; right: -2px;
+            font-size: 9px; background: #27AE60; color: white;
+            width: 14px; height: 14px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center; border: 1px solid white;
+        }
+
+        /* Active Question Highlighting */
+        .active-q { box-shadow: 0 0 0 2px #3498db inset; border-color: #3498db; font-weight: bold; }
+
+        /* Split Layout & Scrollbars */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: #f1f1f1; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-        img { max-width: 100%; height: auto; border-radius: 8px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Loader */
+        .loader {
+            border: 4px solid #f3f3f3; border-radius: 50%; border-top: 4px solid #3498db;
+            width: 40px; height: 40px; animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Image Handling */
+        img { max-width: 100%; height: auto; border-radius: 4px; border: 1px solid #eee; margin-top: 5px; display: block; }
+
+        /* Dual Language Separator */
+        .lang-separator {
+            display: flex; align-items: center; color: #9ca3af; margin: 15px 0; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;
+        }
+        .lang-separator::before, .lang-separator::after { content: ''; flex: 1; border-bottom: 1px dashed #d1d5db; }
+        .lang-separator::before { margin-right: 10px; } .lang-separator::after { margin-left: 10px; }
     </style>
 </head>
 
@@ -42,120 +85,198 @@
           '{{ $session->code }}',
           '{{ route('student.exam.fetch_section', ['sessionCode' => $session->code, 'sectionId' => 'SECTION_ID']) }}',
           '{{ route('student.exam.save_answer', $session->code) }}',
-          '{{ route('student.exam.suspend', $session->code) }}',
+          '{{ route('student.exam.terminate', $session->code) }}',
           '{{ route('student.exam.finish', $session->code) }}'
       )"
-      x-init="initEngine()"
+      x-init="init()"
       @contextmenu.prevent="return false;"
-      @keydown.f12.prevent="return false;">
+      @keydown.f12.prevent="return false;"
+      @keydown.ctrl.shift.i.prevent="return false;"
+      @keydown.ctrl.u.prevent="return false;">
 
-    {{-- INSTRUCTIONS OVERLAY (Kept same) --}}
+    {{-- ========================================== --}}
+    {{-- 1. INSTRUCTIONS MODAL (Start Screen)       --}}
+    {{-- ========================================== --}}
     <div x-show="showInstructions" class="fixed inset-0 z-[100] bg-white overflow-y-auto">
         <header class="sticky top-0 flex items-center h-16 px-6 text-white bg-blue-600 shadow-md">
-            <h1 class="text-xl font-bold">Instructions</h1>
+            <h1 class="text-xl font-bold">Instructions - {{ $exam->title }}</h1>
         </header>
-        <div class="max-w-5xl p-8 mx-auto">
+
+        <div class="max-w-5xl p-6 mx-auto md:p-10">
             <div class="flex items-center gap-4 mb-6">
                 <img src="https://ui-avatars.com/api/?name={{ urlencode($user->first_name . ' ' . $user->last_name) }}&background=0D8ABC&color=fff" class="w-16 h-16 border-4 border-gray-200 rounded-full">
                 <div>
                     <h2 class="text-2xl font-bold text-gray-800">{{ $user->first_name }} {{ $user->last_name }}</h2>
-                    <p class="text-gray-500">Read instructions carefully before starting.</p>
+                    <p class="text-gray-500">Please read the instructions carefully before starting.</p>
                 </div>
             </div>
-            <button @click="startExam()" class="w-full px-12 py-4 text-lg font-bold text-white bg-blue-600 rounded-lg shadow-lg md:w-auto hover:bg-blue-700">
-                I am ready to begin
-            </button>
+
+            <div class="p-4 mb-6 text-sm text-yellow-800 border-l-4 border-yellow-500 bg-yellow-50">
+                <strong>Strict Warning:</strong> Switching tabs or windows is prohibited.
+                You will be <strong>disqualified</strong> immediately after 3 warnings.
+            </div>
+
+            <div class="p-5 mb-6 border border-blue-200 rounded-lg bg-blue-50">
+                <h3 class="pb-2 mb-3 font-bold text-gray-800 border-b border-blue-200">Language Preference</h3>
+                <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                    <div>
+                        <label class="block mb-1 text-xs font-bold tracking-wide text-gray-500 uppercase">Primary Language</label>
+                        <select class="w-full p-2 text-gray-600 bg-gray-100 border border-gray-300 rounded cursor-not-allowed" disabled>
+                            <option>English</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block mb-1 text-xs font-bold tracking-wide text-gray-500 uppercase">Secondary Language (Optional)</label>
+                        <select x-model="secondaryLang" class="w-full p-2 font-bold text-gray-800 bg-white border border-blue-400 rounded shadow-sm focus:ring-2 focus:ring-blue-500">
+                            <option value="">-- Select Language --</option>
+                            <option value="hi">Hindi</option>
+                            <option value="mr">Marathi</option>
+                            <option value="bn">Bengali</option>
+                            <option value="gu">Gujarati</option>
+                            <option value="ta">Tamil</option>
+                        </select>
+                        <p class="text-[10px] text-blue-600 mt-1" x-show="secondaryLang">
+                            * Questions will be translated to <span x-text="secondaryLang.toUpperCase()"></span> automatically.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pt-4 mt-6 border-t">
+                <label class="flex items-center gap-3 p-3 transition rounded-lg cursor-pointer select-none hover:bg-gray-50">
+                    <input type="checkbox" x-model="agreed" class="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                    <span class="font-bold text-gray-800">I have read the instructions and agree to the terms.</span>
+                </label>
+            </div>
+
+            <div class="flex justify-center mt-8">
+                <button @click="startSequence()" :disabled="!agreed"
+                    class="px-12 py-4 text-lg font-bold text-white transition transform bg-blue-600 rounded-lg shadow-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95">
+                    I am ready to begin
+                </button>
+            </div>
         </div>
     </div>
 
-    {{-- TOP HEADER --}}
-    <header class="h-16 bg-[#3498db] text-white flex justify-between items-center px-4 shadow-md z-50 shrink-0" x-show="!showInstructions" x-cloak>
-        <div class="text-lg font-bold truncate">{{ $exam->title }}</div>
-        <div class="flex items-center gap-4">
-            <div class="text-right" x-show="secondaryLang">
-                <span class="text-[10px] text-blue-100 font-bold uppercase">View In</span>
-                <select x-model="currentLang" @change="handleLangChange()" class="px-2 py-1 text-xs font-bold text-black rounded cursor-pointer">
-                    <option value="en">English</option>
-                    <option :value="secondaryLang" x-text="secondaryLang.toUpperCase()"></option>
-                </select>
+    {{-- ========================================== --}}
+    {{-- 2. PREPARING SCREEN (Translation Loader)   --}}
+    {{-- ========================================== --}}
+    <div x-show="isPreparing" class="fixed inset-0 z-[90] bg-white flex flex-col items-center justify-center" x-cloak>
+        <div class="mb-4 loader"></div>
+        <h2 class="text-xl font-bold text-gray-800">Preparing Exam Environment...</h2>
+        <p class="mt-2 text-sm font-medium text-gray-500">Translating Content... <span x-text="progress + '%'"></span></p>
+        <div class="w-64 h-2 mt-4 overflow-hidden bg-gray-200 rounded">
+            <div class="h-full transition-all duration-300 bg-blue-500" :style="'width: '+progress+'%'"></div>
+        </div>
+        <p class="mt-2 text-xs text-gray-400">Do not refresh the page.</p>
+    </div>
+
+    {{-- ========================================== --}}
+    {{-- 3. MAIN EXAM INTERFACE                     --}}
+    {{-- ========================================== --}}
+
+    {{-- Header --}}
+    <header class="h-16 bg-[#3498db] text-white flex justify-between items-center px-4 shadow-md z-50 shrink-0" x-show="started" x-cloak>
+        <div class="text-lg font-bold tracking-wide truncate">{{ $exam->title }}</div>
+
+        <div class="flex items-center gap-6">
+            <div class="flex flex-col items-end min-w-[80px]">
+                <span class="text-[10px] text-blue-100 uppercase font-semibold">Time Left</span>
+                <span class="font-mono text-xl font-bold" :class="timeRemaining < 300 ? 'text-yellow-300 animate-pulse' : 'text-white'" x-text="formatTime(timeRemaining)"></span>
             </div>
-            <div class="text-right min-w-[80px]">
-                <span class="text-[10px] text-blue-100 font-bold uppercase">Time Left</span>
-                <div class="font-mono text-xl font-bold" x-text="formatTime(timeRemaining)"></div>
-            </div>
-            <button @click="finishExam()" class="bg-red-500 hover:bg-red-600 text-white text-xs font-bold py-1.5 px-4 rounded shadow">Submit</button>
+
+            <button @click="submitExam()" class="px-4 py-2 text-xs font-bold text-white transition bg-red-500 border border-red-600 rounded shadow-md hover:bg-red-600 active:scale-95">
+                Submit Exam
+            </button>
         </div>
     </header>
 
-    <div class="flex flex-1 overflow-hidden" x-show="!showInstructions" x-cloak>
+    <div class="flex flex-1 overflow-hidden" x-show="started" x-cloak>
+
+        {{-- LEFT: Main Question Area --}}
         <main class="relative flex flex-col flex-1 bg-white border-r border-gray-300">
+
             {{-- Section Tabs --}}
             <div class="flex overflow-x-auto border-b border-gray-300 bg-gray-50 no-scrollbar">
                 <template x-for="(sec, idx) in sectionsMeta" :key="sec.id">
                     <button @click="switchSection(idx)"
-                            class="px-5 py-3 text-sm font-bold transition-colors border-r border-gray-300 whitespace-nowrap focus:outline-none"
-                            :class="currentSectionIndex === idx ? 'bg-[#3498db] text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'">
+                        class="relative px-5 py-3 text-sm font-bold transition-colors border-r border-gray-300 whitespace-nowrap focus:outline-none"
+                        :class="currSecIdx === idx ? 'bg-[#3498db] text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'">
                         <span x-text="sec.name"></span>
                     </button>
                 </template>
             </div>
 
-            <div x-show="isLoading" class="absolute inset-0 z-40 flex flex-col items-center justify-center bg-white">
-                <div class="w-10 h-10 border-b-2 border-blue-600 rounded-full animate-spin"></div>
-                <p class="mt-2 text-sm font-medium text-gray-500">Loading Section...</p>
+            {{-- Question Header --}}
+            <div class="flex items-center justify-between px-6 py-3 bg-white border-b border-gray-200 shadow-sm">
+                <h2 class="text-lg font-bold text-red-600">Question No. <span x-text="currQIdx + 1"></span></h2>
+                <div class="flex gap-2 text-xs font-bold text-gray-600">
+                    <span class="px-2 py-1 text-green-700 border border-green-200 rounded bg-green-50">+<span x-text="currQ?.marks"></span></span>
+                    <span class="px-2 py-1 text-red-700 border border-red-200 rounded bg-red-50">-<span x-text="currQ?.negative"></span></span>
+                </div>
             </div>
 
-            {{-- MAIN CONTENT AREA (Split for Passage) --}}
-            <div class="flex flex-1 overflow-hidden" x-show="!isLoading && currentQuestion">
+            {{-- Question Content Scrollable --}}
+            <div class="flex-1 p-6 overflow-y-auto bg-white" x-show="!loading && currQ">
+                {{-- Flex Container for Split View (Passage) --}}
+                <div class="flex h-full gap-6" :class="{'flex-row': currQ.passage, 'flex-col': !currQ.passage}">
 
-                {{-- COMPREHENSION PASSAGE PANE --}}
-                <template x-if="currentQuestion && currentQuestion.passage">
-                    <div class="w-1/2 p-6 overflow-y-auto border-r border-gray-300 bg-gray-50">
-                        <div class="p-5 bg-white border border-gray-200 shadow-sm rounded-xl">
-                            <h3 class="pb-2 mb-3 font-bold text-gray-800 border-b">Passage</h3>
-                            <div class="text-sm leading-relaxed prose text-gray-700 max-w-none" x-html="currentQuestion.passage.body"></div>
-                        </div>
-                    </div>
-                </template>
-
-                {{-- QUESTION PANE --}}
-                <div class="flex-1 p-6 overflow-y-auto" :class="{'w-1/2': currentQuestion && currentQuestion.passage}">
-                    <div class="max-w-4xl mx-auto">
-                        <div class="flex items-center justify-between pb-4 mb-6 bg-white border-b border-gray-200">
-                            <h2 class="text-lg font-bold text-red-600">Q.<span x-text="currentQuestionIndex + 1"></span></h2>
-                            <div class="flex gap-2 text-xs font-bold text-gray-600">
-                                <span class="px-2 py-1 rounded bg-green-50">+<span x-text="currentQuestion?.marks || '1'"></span></span>
-                                <span class="px-2 py-1 rounded bg-red-50">-<span x-text="currentQuestion?.negative || '0'"></span></span>
+                    {{-- Passage Pane --}}
+                    <template x-if="currQ.passage">
+                        <div class="w-1/2 pr-2 overflow-y-auto border-r border-gray-200">
+                            <div class="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                                <h3 class="pb-2 mb-3 font-bold text-blue-800 border-b" x-text="currQ.passage.title"></h3>
+                                <div class="text-sm font-medium leading-relaxed prose text-gray-800" x-html="currQ.passage.body"></div>
                             </div>
                         </div>
+                    </template>
 
-                        {{-- Question Text --}}
-                        <div class="mb-6 text-lg font-medium leading-relaxed text-gray-800 select-none math-content">
-                            <div x-html="getQuestionText()"></div>
-                            <div x-show="isTranslating" class="mt-2 text-xs text-orange-500 animate-pulse">Translating...</div>
+                    {{-- Question Pane --}}
+                    <div class="flex-1 overflow-y-auto" :class="{'pl-2': currQ.passage}">
+
+                        {{-- 1. QUESTION TEXT (Dual Lang) --}}
+                        <div class="mb-6">
+                            {{-- English (Always) --}}
+                            <div class="text-lg font-medium leading-relaxed text-gray-800" x-html="currQ.text['en']"></div>
+
+                            {{-- Secondary Language (If Selected) --}}
+                            <template x-if="secondaryLang && currQ.text[secondaryLang]">
+                                <div class="mt-4">
+                                    <div class="lang-separator" x-text="secondaryLang"></div>
+                                    <div class="text-lg font-medium text-[#0777be] leading-relaxed" x-html="currQ.text[secondaryLang]"></div>
+                                </div>
+                            </template>
                         </div>
 
-                        {{-- Options List --}}
+                        {{-- 2. OPTIONS (Dual Lang) --}}
                         <div class="space-y-4">
-                            <template x-for="(opt, idx) in getOptions()" :key="idx">
+                            <template x-for="(opt, idx) in currQ.options['en']" :key="idx">
                                 <div @click="selectOption(idx)"
-                                     class="flex items-start p-4 transition-all border-2 cursor-pointer select-none rounded-xl group"
-                                     :class="isSelected(idx) ? 'border-[#3498db] bg-blue-50' : 'border-gray-200 hover:bg-gray-50'">
+                                    class="relative flex items-start p-4 transition-all border-2 cursor-pointer select-none rounded-xl group"
+                                    :class="currQ.selected_option === idx ? 'border-[#3498db] bg-blue-50 shadow-md' : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'">
 
-                                    {{-- Radio/Checkbox Circle --}}
-                                    <div class="flex items-center justify-center w-6 h-6 mr-4 border-2 rounded-full shrink-0"
-                                         :class="isSelected(idx) ? 'border-blue-600 bg-blue-600' : 'border-gray-400'">
-                                        <div class="w-2.5 h-2.5 bg-white rounded-full" x-show="isSelected(idx)"></div>
+                                    {{-- Radio Circle --}}
+                                    <div class="flex items-center justify-center w-6 h-6 mt-1 mr-4 border-2 rounded-full shrink-0"
+                                         :class="currQ.selected_option === idx ? 'border-blue-600 bg-blue-600' : 'border-gray-400 group-hover:border-blue-400'">
+                                        <div class="w-2.5 h-2.5 bg-white rounded-full transition-transform duration-200"
+                                             :class="currQ.selected_option === idx ? 'scale-100' : 'scale-0'"></div>
                                     </div>
 
-                                    {{-- Option Content (Text + Image) --}}
                                     <div class="flex-1">
-                                        {{-- Image if exists --}}
-                                        <template x-if="opt.image">
-                                            <img :src="opt.image" class="block mb-2 border border-gray-200 rounded max-h-40">
+                                        {{-- English Option --}}
+                                        <div class="text-base font-medium text-gray-700">
+                                            <template x-if="opt.image">
+                                                <img :src="opt.image" class="mb-2 border rounded shadow-sm max-h-32">
+                                            </template>
+                                            <span x-html="opt.option"></span>
+                                        </div>
+
+                                        {{-- Secondary Option --}}
+                                        <template x-if="secondaryLang && currQ.options[secondaryLang]">
+                                            <div class="mt-2 pt-2 border-t border-dashed border-gray-300 text-base font-medium text-[#0777be]">
+                                                <span x-html="currQ.options[secondaryLang][idx].option"></span>
+                                            </div>
                                         </template>
-                                        {{-- Option Text (This fixes [object Object]) --}}
-                                        <span class="font-medium text-gray-700 math-content" x-html="opt.option"></span>
                                     </div>
                                 </div>
                             </template>
@@ -164,309 +285,324 @@
                 </div>
             </div>
 
+            {{-- Loading State --}}
+            <div x-show="loading" class="flex flex-col items-center justify-center flex-1">
+                <div class="loader"></div>
+                <p class="mt-4 font-bold text-gray-500 animate-pulse">Loading Section...</p>
+            </div>
+
             {{-- Footer Buttons --}}
-            <div class="flex items-center justify-between p-3 border-t border-gray-300 bg-gray-50">
-                <div class="flex gap-2">
-                    <button @click="markForReview()" class="px-4 py-2 text-xs font-bold text-white bg-purple-600 rounded hover:bg-purple-700">Mark & Next</button>
-                    <button @click="clearResponse()" class="px-4 py-2 text-xs font-bold text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-100">Clear</button>
+            <div class="flex items-center justify-between p-4 border-t border-gray-300 bg-gray-50">
+                <div class="flex gap-3">
+                    <button @click="markReview()" class="px-5 py-2 text-sm font-bold text-white bg-purple-600 border border-purple-800 rounded shadow-sm hover:bg-purple-700">
+                        Mark for Review & Next
+                    </button>
+                    <button @click="clear()" class="px-5 py-2 text-sm font-bold text-gray-700 bg-white border border-gray-300 rounded shadow-sm hover:bg-gray-100">
+                        Clear Response
+                    </button>
                 </div>
-                <button @click="saveAndNext()" class="px-8 py-2 bg-[#27AE60] hover:bg-[#219150] text-white text-sm font-bold rounded shadow-md">Save & Next</button>
+                <button @click="saveNext()" class="px-8 py-2 bg-[#27AE60] hover:bg-[#219150] text-white text-sm font-bold rounded shadow-md border border-[#219150] transform active:scale-95 transition">
+                    Save & Next
+                </button>
             </div>
         </main>
 
-        {{-- Sidebar --}}
-        <aside class="z-20 flex flex-col hidden bg-white border-l border-gray-300 w-80 md:flex shrink-0">
-            <div class="p-3 border-b border-gray-200 bg-blue-50">
-                <div class="text-sm font-bold text-gray-800">{{ $user->first_name }} {{ $user->last_name }}</div>
-                <div class="text-[10px] text-gray-500 font-semibold">ID: {{ $session->code }}</div>
+        {{-- RIGHT: Palette & Info --}}
+        <aside class="z-20 flex-col hidden bg-white border-l border-gray-300 md:flex w-80 shrink-0">
+            {{-- User Info --}}
+            <div class="flex items-center gap-3 p-4 border-b border-gray-200 bg-blue-50">
+                <img src="https://ui-avatars.com/api/?name={{ urlencode($user->first_name) }}&background=0D8ABC&color=fff" class="w-10 h-10 border-2 border-white rounded shadow-sm">
+                <div class="overflow-hidden">
+                    <div class="text-sm font-bold text-gray-800 truncate">{{ $user->first_name }} {{ $user->last_name }}</div>
+                    <div class="text-[10px] text-gray-500 font-bold">ID: {{ $session->code }}</div>
+                </div>
             </div>
-            <div class="p-3 bg-gray-50 border-b border-gray-200 grid grid-cols-2 gap-2 text-[10px] font-medium text-gray-600">
-                <div class="flex items-center gap-1"><div class="w-5 h-5 st-answered"></div> Answered</div>
-                <div class="flex items-center gap-1"><div class="w-5 h-5 st-not-answered"></div> Not Ans</div>
-                <div class="flex items-center gap-1"><div class="w-5 h-5 bg-white border"></div> Not Visited</div>
-                <div class="flex items-center gap-1"><div class="w-5 h-5 st-marked"></div> Marked</div>
+
+            {{-- Legend --}}
+            <div class="p-4 border-b border-gray-200 bg-gray-50">
+                <div class="grid grid-cols-2 gap-y-2 gap-x-1 text-[11px] font-bold text-gray-600">
+                    <div class="flex items-center gap-2"><div class="w-5 h-5 st-answered"></div> Answered</div>
+                    <div class="flex items-center gap-2"><div class="w-5 h-5 st-not-answered"></div> Not Answered</div>
+                    <div class="flex items-center gap-2"><div class="w-5 h-5 border st-not-visited"></div> Not Visited</div>
+                    <div class="flex items-center gap-2"><div class="w-5 h-5 st-marked"></div> Marked</div>
+                    <div class="flex items-center col-span-2 gap-2"><div class="w-5 h-5 st-ans-marked"></div> Ans & Marked</div>
+                </div>
             </div>
+
+            {{-- Grid --}}
             <div class="flex-1 p-4 overflow-y-auto">
+                <h3 class="flex justify-between mb-3 text-xs font-bold tracking-wider text-gray-400 uppercase">
+                    Question Palette
+                    <span class="text-blue-600" x-text="sectionsMeta[currSecIdx].name"></span>
+                </h3>
                 <div class="grid grid-cols-4 gap-2">
-                    <template x-for="(q, idx) in currentSectionQuestions" :key="q.id">
-                        <div @click="jumpToQuestion(idx)" class="btn-status" :class="getPaletteClass(q, idx)">
+                    <template x-for="(q, idx) in currentSectionQs" :key="q.id">
+                        <div @click="jumpTo(idx)" class="btn-status" :class="getStatusClass(q, idx)">
                             <span x-text="idx + 1"></span>
                         </div>
                     </template>
                 </div>
             </div>
+
+            {{-- Sidebar Footer --}}
+            <div class="p-4 bg-gray-100 border-t border-gray-300">
+                <button @click="submitExam()" class="w-full bg-[#2980b9] hover:bg-[#2c3e50] text-white font-bold py-3 rounded shadow-lg transition transform active:scale-95 border border-[#2980b9]">
+                    SUBMIT TEST
+                </button>
+            </div>
         </aside>
     </div>
 
+    {{-- SCRIPTS --}}
     <script>
-        function examEngine(sectionsMeta, duration, sessionCode, fetchUrlTemplate, saveUrl, suspendUrl, finishUrl) {
+        function examEngine(sectionsMeta, duration, sessionCode, fetchUrl, saveUrl, terminateUrl, finishUrl) {
             return {
-                sectionsMeta: sectionsMeta,
-                loadedSections: {},
-                currentSectionIndex: 0,
-                currentQuestionIndex: 0,
-                initialDuration: duration,
-                timeRemaining: duration,
-                timerInterval: null,
-                questionStartTime: Date.now(),
-                warningCount: 0,
-                primaryLang: 'en',
-                secondaryLang: '',
-                currentLang: 'en',
-                showInstructions: true,
-                isLoading: false,
-                isTranslating: false,
+                // Data
+                sectionsMeta, loadedSections: {}, currSecIdx: 0, currQIdx: 0,
 
-                get currentSectionQuestions() {
-                    let secId = this.sectionsMeta[this.currentSectionIndex].id;
-                    return this.loadedSections[secId] || [];
+                // Config
+                primaryLang: 'en', secondaryLang: '',
+
+                // State
+                showInstructions: true, agreed: false, isPreparing: false,
+                started: false, loading: false, progress: 0,
+                timeRemaining: duration, timer: null, qStartTime: 0, warnings: 0,
+
+                get currentSectionQs() { return this.loadedSections[this.sectionsMeta[this.currSecIdx].id] || []; },
+                get currQ() { return this.currentSectionQs[this.currQIdx] || null; },
+
+                init() {
+                    // Security Listeners
+                    document.addEventListener("visibilitychange", () => { if(document.hidden && this.started) this.violation(); });
+                    window.addEventListener("blur", () => { if(this.started) this.violation(); });
+
+                    // Disable Back Button
+                    history.pushState(null, null, location.href); window.onpopstate = () => history.go(1);
                 },
 
-                get currentQuestion() {
-                    return this.currentSectionQuestions[this.currentQuestionIndex] || null;
-                },
-
-                initEngine() {
-                    this.loadSectionData(0);
-                    this.timerInterval = setInterval(() => {
-                        if(this.timeRemaining > 0) this.timeRemaining--;
-                        else this.finishExam(true);
-                    }, 1000);
-                    document.addEventListener("visibilitychange", () => {
-                        if(document.hidden && !this.showInstructions) this.handleViolation();
-                    });
-                },
-
-                startExam() {
+                async startSequence() {
                     this.showInstructions = false;
-                    this.currentLang = this.primaryLang;
-                    this.questionStartTime = Date.now();
-                    document.documentElement.requestFullscreen().catch(e => console.log(e));
-                },
 
-                async loadSectionData(index) {
-                    let secId = this.sectionsMeta[index].id;
-                    if(this.loadedSections[secId]) {
-                        this.switchContext(index, 0);
-                        return;
+                    if (this.secondaryLang) {
+                        this.isPreparing = true;
+                        // Load and translate FIRST section immediately
+                        await this.loadData(0, true);
+                        this.isPreparing = false;
+                    } else {
+                        // Just load english
+                        await this.loadData(0, false);
                     }
 
-                    this.isLoading = true;
-                    let url = fetchUrlTemplate.replace('SECTION_ID', secId);
+                    this.startExamTimer();
+                },
+
+                startExamTimer() {
+                    this.started = true;
+                    this.qStartTime = Date.now();
+                    document.documentElement.requestFullscreen().catch(e => console.log(e));
+
+                    this.timer = setInterval(() => {
+                        if (this.timeRemaining > 0) this.timeRemaining--;
+                        else this.submitExam(true);
+                    }, 1000);
+                },
+
+                // --- DATA & TRANSLATION ---
+                async loadData(idx, translate) {
+                    let secId = this.sectionsMeta[idx].id;
+
+                    if (this.loadedSections[secId]) {
+                        this.currSecIdx = idx; this.currQIdx = 0; return;
+                    }
+
+                    if(!this.isPreparing) this.loading = true;
 
                     try {
-                        let res = await fetch(url);
+                        let res = await fetch(fetchUrl.replace('SECTION_ID', secId));
                         let data = await res.json();
 
-                        // Process Data
+                        // Structure Data: { id, text: {en: "...", hi: "..."}, options: {en: [...], hi: [...]} }
                         let processed = data.questions.map(q => ({
                             ...q,
                             text: { en: q.text },
-                            options: { en: q.options } // Keep options as array of objects
+                            options: { en: q.options } // options is array of objects {option, image}
                         }));
 
+                        // Parallel Translation using Google GTX
+                        if(translate && this.secondaryLang) {
+                            await this.translateBatch(processed, this.secondaryLang);
+                        }
+
                         this.loadedSections[secId] = processed;
-                        this.switchContext(index, 0);
+                        this.currSecIdx = idx;
+                        this.currQIdx = 0;
+                        this.renderMath();
+
                     } catch(e) {
                         console.error(e);
-                        Swal.fire("Error", "Network Error. Please retry.", "error");
+                        Swal.fire("Error", "Failed to load section.", "error");
                     } finally {
-                        this.isLoading = false;
+                        this.loading = false;
                     }
                 },
 
-                switchContext(secIndex, qIndex) {
-                    this.currentSectionIndex = secIndex;
-                    this.currentQuestionIndex = qIndex;
-                    this.questionStartTime = Date.now();
-                    this.renderMath(); // Render Math on Switch
-                },
+                // --- GOOGLE GTX API (FAST & UNLIMITED) ---
+                async translateBatch(questions, target) {
+                    let promises = questions.map(async (q, index) => {
+                        try {
+                            // 1. Translate Question Text
+                            let qUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=${target}&dt=t&q=${encodeURIComponent(q.text['en'])}`;
+                            let qRes = await fetch(qUrl);
+                            let qJson = await qRes.json();
+                            // Combine all segments
+                            q.text[target] = qJson[0].map(x => x[0]).join('');
 
-                // --- NEW MATH RENDERING ---
-                renderMath() {
-                    this.$nextTick(() => {
-                        if (window.MathJax) {
-                            window.MathJax.typesetPromise().catch((err) => console.log('MathJax Error:', err));
+                            // 2. Translate Options (Loop)
+                            q.options[target] = [];
+                            for(let opt of q.options['en']) {
+                                let oUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=${target}&dt=t&q=${encodeURIComponent(opt.option)}`;
+                                let oRes = await fetch(oUrl);
+                                let oJson = await oRes.json();
+                                let transText = oJson[0].map(x => x[0]).join('');
+
+                                q.options[target].push({
+                                    ...opt, // copy image, etc.
+                                    option: transText
+                                });
+                            }
+
+                            // Update Progress Bar
+                            this.progress = Math.round(((index + 1) / questions.length) * 100);
+
+                        } catch(e) {
+                            // Fallback to English if translation fails
+                            q.text[target] = q.text['en'];
+                            q.options[target] = q.options['en'];
                         }
                     });
+
+                    await Promise.all(promises);
                 },
 
-                async saveAnswer(uiStatus) {
-                    const q = this.currentQuestion;
-                    const secId = this.sectionsMeta[this.currentSectionIndex].id;
-                    const now = Date.now();
-                    const timeSpent = Math.round((now - this.questionStartTime) / 1000);
-                    this.questionStartTime = now;
+                // --- NAVIGATION ---
+                switchSection(idx) {
+                    this.saveAnswer(this.currQ.status);
+                    let needTrans = (this.secondaryLang && !this.loadedSections[this.sectionsMeta[idx].id]);
+                    this.loadData(idx, needTrans);
+                },
 
-                    let backendStatus = 'visited';
-                    if (uiStatus === 'answered') backendStatus = 'answered';
-                    if (uiStatus === 'ans_marked') backendStatus = 'answered_mark_for_review';
-                    if (uiStatus === 'marked') backendStatus = 'mark_for_review';
-                    if (uiStatus === 'not_answered') backendStatus = 'visited';
+                jumpTo(idx) {
+                    this.saveAnswer(this.currQ.status);
+                    this.currQIdx = idx;
+                    this.qStartTime = Date.now();
+                    this.renderMath();
+                },
 
-                    await fetch(saveUrl, {
+                // --- LOGIC ---
+                selectOption(idx) { this.currQ.selected_option = idx; },
+
+                saveNext() {
+                    this.currQ.status = (this.currQ.selected_option !== null) ? 'answered' : 'not_answered';
+                    this.saveAnswer(this.currQ.status);
+                    this.next();
+                },
+
+                markReview() {
+                    this.currQ.status = (this.currQ.selected_option !== null) ? 'ans_marked' : 'marked';
+                    this.saveAnswer(this.currQ.status);
+                    this.next();
+                },
+
+                clear() {
+                    this.currQ.selected_option = null;
+                    this.currQ.status = 'not_answered';
+                    this.saveAnswer('not_answered');
+                },
+
+                next() {
+                    if (this.currQIdx < this.currentSectionQs.length - 1) {
+                        this.currQIdx++; this.qStartTime = Date.now(); this.renderMath();
+                    } else if (this.currSecIdx < this.sectionsMeta.length - 1) {
+                        Swal.fire({
+                            title: 'Next Section?', showCancelButton: true, confirmButtonText: 'Yes', confirmButtonColor: '#3498db'
+                        }).then(r => { if(r.isConfirmed) this.switchSection(this.currSecIdx+1); });
+                    }
+                },
+
+                async saveAnswer(status) {
+                    let q = this.currQ;
+                    let time = Math.round((Date.now() - this.qStartTime)/1000);
+                    this.qStartTime = Date.now();
+
+                    let backStatus = 'visited';
+                    if(status === 'answered') backStatus = 'answered';
+                    if(status === 'ans_marked') backStatus = 'answered_mark_for_review';
+                    if(status === 'marked') backStatus = 'mark_for_review';
+
+                    fetch(saveUrl, {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                        },
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
                         body: JSON.stringify({
                             question_id: q.id,
-                            section_id: secId,
+                            section_id: this.sectionsMeta[this.currSecIdx].id,
                             user_answer: q.selected_option,
-                            time_taken: timeSpent,
-                            total_time_taken: (this.initialDuration - this.timeRemaining),
-                            status: backendStatus
+                            time_taken: time,
+                            total_time_taken: (this.sectionsMeta[0].duration - this.timeRemaining), // approximate
+                            status: backStatus
                         })
                     });
                 },
 
-                switchSection(idx) {
-                    this.saveAnswer(this.currentQuestion.status);
-                    this.loadSectionData(idx);
-                },
-
-                jumpToQuestion(idx) {
-                    this.saveAnswer(this.currentQuestion.status);
-                    this.currentQuestionIndex = idx;
-                    this.questionStartTime = Date.now();
-                    this.checkTranslation();
-                    this.renderMath(); // Render Math on Jump
-                },
-
-                saveAndNext() {
-                    const q = this.currentQuestion;
-                    q.status = (q.selected_option !== null && q.selected_option !== undefined) ? 'answered' : 'not_answered';
-                    this.saveAnswer(q.status);
-                    this.moveToNext();
-                },
-
-                markForReview() {
-                    const q = this.currentQuestion;
-                    q.status = (q.selected_option !== null && q.selected_option !== undefined) ? 'ans_marked' : 'marked';
-                    this.saveAnswer(q.status);
-                    this.moveToNext();
-                },
-
-                clearResponse() {
-                    this.currentQuestion.selected_option = null;
-                    this.currentQuestion.status = 'not_answered';
-                    this.saveAnswer('not_answered');
-                },
-
-                selectOption(idx) {
-                    this.currentQuestion.selected_option = idx;
-                },
-
-                isSelected(idx) {
-                    return this.currentQuestion && this.currentQuestion.selected_option === idx;
-                },
-
-                moveToNext() {
-                    if (this.currentQuestionIndex < this.currentSectionQuestions.length - 1) {
-                        this.currentQuestionIndex++;
-                        this.questionStartTime = Date.now();
-                        this.checkTranslation();
-                        this.renderMath();
-                    } else if (this.currentSectionIndex < this.sectionsMeta.length - 1) {
-                        Swal.fire({
-                            title: 'Section Completed', text: "Go to next section?",
-                            showCancelButton: true, confirmButtonText: 'Yes'
-                        }).then(r => { if(r.isConfirmed) this.switchSection(this.currentSectionIndex + 1); });
-                    }
-                },
-
-                handleLangChange() { this.checkTranslation(); },
-
-                getQuestionText() {
-                    if(!this.currentQuestion) return '';
-                    let txt = this.currentQuestion.text[this.currentLang] || this.currentQuestion.text['en'];
-                    return txt;
-                },
-
-                getOptions() {
-                    if(!this.currentQuestion) return [];
-                    return this.currentQuestion.options[this.currentLang] || this.currentQuestion.options['en'];
-                },
-
-                async checkTranslation() {
-                    if(this.currentLang === 'en') return;
-
-                    // Logic needs update because options are now Objects
-                    if(this.currentQuestion.text[this.currentLang]) return;
-
-                    this.isTranslating = true;
-                    try {
-                        // Translate Question Text
-                        let textUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(this.currentQuestion.text['en'])}&langpair=en|${this.currentLang}`;
-                        let res = await fetch(textUrl);
-                        let data = await res.json();
-                        this.currentQuestion.text[this.currentLang] = data.responseData.translatedText;
-
-                        // Translate Options (Loop through objects)
-                        let opts = this.currentQuestion.options['en'];
-                        let newOpts = [];
-                        for (let opt of opts) {
-                            let optUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(opt.option)}&langpair=en|${this.currentLang}`;
-                            let optRes = await fetch(optUrl);
-                            let optData = await optRes.json();
-                            newOpts.push({
-                                ...opt,
-                                option: optData.responseData.translatedText
-                            });
-                        }
-                        this.currentQuestion.options[this.currentLang] = newOpts;
-
-                    } catch(e) {}
-                    this.isTranslating = false;
-                    this.renderMath(); // Re-render math after translation
-                },
-
-                formatTime(s) {
-                    if (s < 0) s = 0;
-                    return new Date(s * 1000).toISOString().substr(11, 8);
-                },
-
-                getPaletteClass(q, idx) {
-                    let cls = "";
-                    if (q.status === 'not_visited' || !q.status) cls = 'bg-white border';
-                    else if (q.status === 'not_answered' || q.status === 'visited') cls = 'st-not-answered';
-                    else if (q.status === 'answered') cls = 'st-answered';
-                    else if (q.status === 'marked' || q.status === 'mark_for_review') cls = 'st-marked';
-                    else if (q.status === 'ans_marked' || q.status === 'answered_mark_for_review') cls = 'st-ans-marked';
-
-                    if (idx === this.currentQuestionIndex) cls += ' ring-2 ring-blue-500 ring-offset-2';
-                    return cls;
-                },
-
-                handleViolation() {
-                    this.warningCount++;
-                    if(this.warningCount >= 3) {
-                        fetch(suspendUrl, {
+                // --- SECURITY & SUBMIT ---
+                violation() {
+                    this.warnings++;
+                    if(this.warnings >= 3) {
+                        fetch(terminateUrl, {
                             method: 'POST',
                             headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content }
                         }).then(r => r.json()).then(d => window.location.href = d.redirect);
                     } else {
-                        Swal.fire("Warning", `Do not switch tabs! Warning ${this.warningCount}/3`, "warning");
+                        Swal.fire({
+                            title: `Warning ${this.warnings}/3`,
+                            text: "Do not switch tabs! You will be disqualified.",
+                            icon: "warning",
+                            confirmButtonColor: "#d33",
+                            allowOutsideClick: false
+                        });
                     }
                 },
 
-                finishExam(auto = false) {
+                submitExam(auto = false) {
                     if(!auto) {
                         Swal.fire({
-                            title: "Submit Exam?", text: "Are you sure?", icon: "warning",
-                            showCancelButton: true, confirmButtonText: "Submit"
-                        }).then(r => { if(r.isConfirmed) this.submitData(); });
+                            title: "Submit Exam?", text: "Are you sure you want to finish?", icon: "question",
+                            showCancelButton: true, confirmButtonText: "Submit", confirmButtonColor: "#27AE60"
+                        }).then(r => { if(r.isConfirmed) this.doSubmit(); });
                     } else {
-                        this.submitData();
+                        this.doSubmit();
                     }
                 },
 
-                submitData() {
+                doSubmit() {
                     fetch(finishUrl, {
                         method: 'POST',
                         headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content }
                     }).then(r => r.json()).then(d => window.location.href = d.redirect);
+                },
+
+                // --- UTILS ---
+                formatTime(s) { return new Date(s*1000).toISOString().substr(11,8); },
+                renderMath() { this.$nextTick(() => { if(window.MathJax) window.MathJax.typesetPromise(); }); },
+                getStatusClass(q, idx) {
+                    let c = "";
+                    if(q.status === 'not_visited' || !q.status) c='st-not-visited border';
+                    else if(q.status === 'not_answered') c='st-not-answered';
+                    else if(q.status === 'answered') c='st-answered';
+                    else if(q.status === 'marked') c='st-marked';
+                    else if(q.status === 'ans_marked') c='st-ans-marked';
+
+                    if(idx === this.currQIdx) c += ' active-q';
+                    return c;
                 }
             }
         }

@@ -210,4 +210,52 @@ class UserExamRepository
 
         return ['earned' => $earned, 'deducted' => $deducted];
     }
+
+    /**
+     * Calculate Final Session Results (MISSING FUNCTION ADDED HERE)
+     */
+    public function sessionResults($session, $exam)
+    {
+        // 1. Get all questions attempted in this session
+        $questions = DB::table('exam_session_questions')
+            ->where('exam_session_id', $session->id)
+            ->get();
+
+        // 2. Calculate Counts
+        $totalQuestions = $questions->count();
+        $answered = $questions->whereIn('status', ['answered', 'answered_mark_for_review'])->count();
+        $correct = $questions->where('is_correct', 1)->count();
+        $wrong = $questions->whereIn('status', ['answered', 'answered_mark_for_review'])->where('is_correct', 0)->count();
+
+        // 3. Calculate Scores
+        $totalMarksEarned = $questions->sum('marks_earned');
+        $totalMarksDeducted = $questions->sum('marks_deducted');
+        $finalScore = $totalMarksEarned - $totalMarksDeducted;
+
+        // 4. Calculate Percentage
+        $totalExamMarks = $exam->total_marks > 0 ? $exam->total_marks : 1; // Avoid divide by zero
+        $percentage = round(($finalScore / $totalExamMarks) * 100, 2);
+
+        // 5. Pass/Fail Status
+        $cutoff = $exam->settings['cutoff'] ?? 0;
+        $status = $percentage >= $cutoff ? 'Passed' : 'Failed';
+
+        // 6. Accuracy
+        $accuracy = $answered > 0 ? round(($correct / $answered) * 100, 2) : 0;
+
+        // 7. Return Result Array (Stored in 'results' JSON column)
+        return [
+            'score' => number_format($finalScore, 2),
+            'marks_earned' => $totalMarksEarned,
+            'marks_deducted' => $totalMarksDeducted,
+            'percentage' => $percentage,
+            'pass_or_fail' => $status,
+            'total_questions' => $totalQuestions,
+            'answered_questions' => $answered,
+            'correct_answered_questions' => $correct,
+            'wrong_answered_questions' => $wrong,
+            'accuracy' => $accuracy,
+            'generated_at' => now()->toDateTimeString()
+        ];
+    }
 }
