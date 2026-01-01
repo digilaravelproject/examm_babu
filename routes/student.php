@@ -57,30 +57,30 @@ Route::middleware(['auth', 'verified', 'role:student'])
             Route::get('/exams/live', 'liveExams')->name('exams.live');
             Route::get('/exams/fetch-live', 'fetchLiveExams')->name('exams.fetch_live'); // AJAX
         });
-       // --- EXAM SESSION ENGINE ---
-Route::controller(ExamSessionController::class)->group(function () {
+        // --- EXAM SESSION ENGINE ---
+        Route::controller(ExamSessionController::class)->group(function () {
 
-    // 1. Start Exam (Checks Limits/Wallet)
-    Route::get('/exam/start/{scheduleId}', 'startExam')->name('exam.start');
+            // 1. Start Exam (Checks Limits/Wallet)
+            Route::get('/exam/start/{scheduleId}', 'startExam')->name('exam.start');
 
-    // 2. Main Exam Interface
-    Route::get('/exam/attempt/{sessionCode}', 'loadInterface')->name('exam.interface');
+            // 2. Main Exam Interface
+            Route::get('/exam/attempt/{sessionCode}', 'loadInterface')->name('exam.interface');
 
-    // 3. Fetch Data (AJAX)
-    Route::get('/exam/fetch-section/{sessionCode}/{sectionId}', 'fetchSectionQuestions')->name('exam.fetch_section');
+            // 3. Fetch Data (AJAX)
+            Route::get('/exam/fetch-section/{sessionCode}/{sectionId}', 'fetchSectionQuestions')->name('exam.fetch_section');
 
-    // 4. Save Answer (AJAX)
-    Route::post('/exam/save-answer/{sessionCode}', 'saveAnswer')->name('exam.save_answer');
+            // 4. Save Answer (AJAX)
+            Route::post('/exam/save-answer/{sessionCode}', 'saveAnswer')->name('exam.save_answer');
 
-    // 5. Terminate (Disqualified due to Tab Switch)
-    Route::post('/exam/terminate/{sessionCode}', 'terminateExam')->name('exam.terminate');
+            // 5. Terminate (Disqualified due to Tab Switch)
+            Route::post('/exam/terminate/{sessionCode}', 'terminateExam')->name('exam.terminate');
 
-    // 6. Finish Exam (Normal Submit)
-    Route::post('/exam/finish/{sessionCode}', 'finishExam')->name('exam.finish');
+            // 6. Finish Exam (Normal Submit)
+            Route::post('/exam/finish/{sessionCode}', 'finishExam')->name('exam.finish');
 
-    // 7. Show Result (Fixed 500 Error)
-    Route::get('/exam/result/{sessionId}', 'showResult')->name('exams.result');
-});
+            // 7. Show Result (Fixed 500 Error)
+            Route::get('/exam/result/{sessionId}', 'showResult')->name('exams.result');
+        });
         // Demo Interface
         Route::get('/exam-demo', function () {
             return view('student.exam-interface');
@@ -101,7 +101,6 @@ Route::controller(ExamSessionController::class)->group(function () {
             Route::get('/payments', 'index')->name('payments.index');
             Route::get('/payments/{id}/invoice', 'downloadInvoice')->name('payments.invoice');
         });
-
     });
 
 /*
@@ -124,5 +123,4 @@ Route::middleware(['auth', 'verified', 'role:guest|student|employee'])->group(fu
         Route::get('/payment-success', 'paymentSuccess')->name('payment_success');
         Route::get('/payment-failed', 'paymentFailed')->name('payment_failed');
     });
-
 });
