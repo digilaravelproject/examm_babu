@@ -3,7 +3,11 @@
         <div class="grid grid-cols-1 gap-12 mb-12 md:grid-cols-4">
             <div class="col-span-1 md:col-span-1">
                 <a href="/" class="flex items-center gap-2 mb-6">
-                    <div class="flex items-center justify-center w-8 h-8 font-bold rounded-lg" style="background-color: var(--brand-blue);">E</div>
+                    <img
+                        src="{{ asset('storage/site_images/logo1dotcom.png') }}"
+                        alt="ExamBabu"
+                        class="object-cover w-10 h-10 rounded-full shadow-lg"
+                    >
                     <span class="text-xl font-bold">ExamBabu</span>
                 </a>
                 <p class="mb-6 text-sm leading-relaxed text-slate-400">
@@ -31,8 +35,7 @@
             <div>
                 <h4 class="mb-6 text-lg font-bold">Popular Goals</h4>
                 <ul class="space-y-3 text-sm text-slate-400">
-                    <li><a href="#" class="transition hover:text-white">SSC CGL 2025</a></li>
-                    <li><a href="#" class="transition hover:text-white">SBI PO</a></li>
+                    <li><a href="#" class="transition hover:text-white">SSC CGL {{ date('Y') }}</a></li> <li><a href="#" class="transition hover:text-white">SBI PO</a></li>
                     <li><a href="#" class="transition hover:text-white">RRB NTPC</a></li>
                     <li><a href="#" class="transition hover:text-white">CTET</a></li>
                 </ul>
@@ -50,7 +53,8 @@
         </div>
 
         <div class="flex items-center justify-between px-6 pt-8 border-t border-slate-800">
-            <p class="text-sm text-slate-500">&copy; 2025 Exam Babu. All rights reserved.</p>
+            <p class="text-sm text-slate-500">&copy; {{ date('Y') }} Exam Babu. All rights reserved.</p>
+
             <p class="text-sm text-slate-500">
                 Design and Developed By <a href="https://www.digiemperor.com" class="hover:underline" style="color: var(--brand-blue);">Digi Emperor</a>
             </p>

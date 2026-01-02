@@ -7,7 +7,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Admin Panel') - {{ config('app.name', 'Exam Babu') }}</title>
 
-    <link rel="icon" type="image/jpeg" href="{{ asset('assets/images/favicon.jpg') }}">
+    <link rel="icon" type="image/png" href="{{ asset('storage/site_images/logo1dotcom.png') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
@@ -96,9 +96,14 @@
         <aside
             class="fixed inset-y-0 left-0 z-30 flex flex-col w-64 h-full transition-all duration-300 transform border-r bg-slate-900 border-slate-800 md:static md:translate-x-0"
             :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'">
+            <div class="flex items-center h-16 gap-3 px-6 border-b border-slate-800"
+                style="background-color: var(--sidebar-bg);">
+                <img src="{{ asset('storage/site_images/logo1dotcom.png') }}" alt="ExamBabu"
+                    class="object-cover w-10 h-10 border rounded-full shadow-sm border-slate-700">
 
-            <div class="flex items-center justify-center h-16 px-4 border-b bg-slate-950 border-slate-800">
-                <img src="{{ asset('assets/images/logo.png') }}" alt="Logo" class="w-auto max-h-10">
+                <span class="text-xl font-bold tracking-wide text-white">
+                    Exam<span style="color: var(--brand-blue);">Babu</span>
+                </span>
             </div>
 
             {{-- Main Navigation with Single Active State --}}

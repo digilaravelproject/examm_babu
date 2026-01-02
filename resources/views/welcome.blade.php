@@ -1568,7 +1568,7 @@
                 </div>
             </div>
 
-            <div class="pt-8 border-t border-slate-800 flex justify-between items-center px-6">
+            <div class="flex items-center justify-between px-6 pt-8 border-t border-slate-800">
                 <p class="text-sm text-slate-500">&copy; 2025 Exam Babu. All rights reserved. Made with ❤️ in India.</p>
                 <p class="text-sm text-slate-500">
                     Design and Developed By <a href="https://www.digiemperor.com" class="text-blue-500 hover:underline">Digi Emperor</a>
