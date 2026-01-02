@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Models\Category;
 use App\Models\Feature;
 use App\Models\SubCategory;
+use App\Models\Plan; // Make sure to import Plan
 use App\Settings\HomePageSettings;
 use App\Settings\PaymentSettings;
 use App\Settings\SiteSettings;
@@ -22,11 +23,79 @@ class SiteController extends Controller
     public function index(HomePageSettings $homePageSettings, SiteSettings $siteSettings): View
     {
         try {
+            // ---------------------------------------------------------
+            // 1. DYNAMIC DATA: Fetch Categories -> SubCategories -> Plans
+            // ---------------------------------------------------------
+            $categories = Category::where('is_active', true)
+                ->with(['subCategories' => function($q) {
+                    $q->where('is_active', true)
+                      ->with(['plans' => function($pq) {
+                          // Fetch Active Plans sorted by their order
+                          $pq->where('is_active', true)
+                             ->orderBy('sort_order', 'asc')
+                             ->orderBy('created_at', 'desc');
+                      }]);
+                }])
+                ->orderBy('name', 'asc') // Sort Categories by Name (since sort_order missing in DB)
+                ->get();
+
+            // Default Active Tab (First Category Name)
+            $defaultTab = $categories->first()->name ?? '';
+
+            // ---------------------------------------------------------
+            // 2. STATIC DATA (For Stats, Footer, etc.)
+            // ---------------------------------------------------------
+            $stats = [
+                ['count' => '53,567', 'label' => 'Total Selections', 'icon' => '🏆', 'color' => 'text-yellow-600', 'bg' => 'bg-yellow-100'],
+                ['count' => '19,054', 'label' => 'Selections in SSC', 'icon' => '🏛️', 'color' => 'text-brand-blue', 'bg' => 'bg-blue-100'],
+                ['count' => '18,921', 'label' => 'Selections in Banking', 'icon' => '🏦', 'color' => 'text-green-600', 'bg' => 'bg-green-100'],
+                ['count' => '7,087', 'label' => 'Selections in Railways', 'icon' => '🚆', 'color' => 'text-orange-600', 'bg' => 'bg-orange-100'],
+                ['count' => '8,505', 'label' => 'Other Govt Exams', 'icon' => '🎖️', 'color' => 'text-purple-600', 'bg' => 'bg-purple-100'],
+            ];
+
+            // Bottom "Popular Test Series" Section (Static for now)
+            $popularTestSeries = [
+                [
+                    'title' => 'SSC GD Constable 2026 Mock Test Series',
+                    'users' => '285.9k',
+                    'total_tests' => '779',
+                    'free_tests' => '11',
+                    'languages' => ['English', 'Hindi'],
+                    'features' => ['1 Scholarship Test', '7 Live Test'],
+                    'more_count' => '+726 more tests',
+                ],
+                [
+                    'title' => 'RRB Group D Mock Test Series',
+                    'users' => '2M+',
+                    'total_tests' => '2104',
+                    'free_tests' => '48',
+                    'languages' => ['English', 'Hindi', 'Marathi'],
+                    'features' => ['6 Official Mock', 'Exam Day Special'],
+                    'more_count' => '+1916 more tests',
+                ],
+            ];
+
+            // Footer Links
+            $allTestSeries = [
+                'Popular' => ['JEE Main 2025', 'CUET 2025', 'NEET 2025', 'SSC GD'],
+                'Engineering' => ['GATE 2025', 'SSC JE', 'RRB JE'],
+                'Banking' => ['SBI PO', 'IBPS PO', 'RBI Grade B'],
+                'SSC & Railways' => ['SSC CGL', 'SSC CHSL', 'RRB NTPC'],
+            ];
+
+            // ---------------------------------------------------------
+            // 3. RETURN VIEW
+            // ---------------------------------------------------------
             return view('store.index', [
                 'siteSettings' => $siteSettings,
                 'homePageSettings' => $homePageSettings,
+                'categories' => $categories,       // Dynamic Tabs Data
+                'defaultTab' => $defaultTab,       // Dynamic Default Tab
+                'stats' => $stats,
+                'popularTestSeries' => $popularTestSeries,
+                'allTestSeries' => $allTestSeries
             ]);
-            // return view('welcome');
+
         } catch (\Throwable $e) {
             Log::error('Exam Babu - Home Page Error: ' . $e->getMessage());
             abort(500, 'Something went wrong while loading the home page.');
@@ -34,7 +103,7 @@ class SiteController extends Controller
     }
 
     /**
-     * Explore category page (Shows plans for a sub-category)
+     * Explore category page
      */
     public function explore(
         string $slug,
@@ -43,17 +112,14 @@ class SiteController extends Controller
         PaymentSettings $paymentSettings
     ): View {
         try {
-            // Data fetch with Eager Loading (Plans aur unke Features sath me ayenge)
             $category = SubCategory::with(['plans' => function ($query) {
                 $query->where('is_active', true)
                     ->orderBy('sort_order')
-                    ->with('features'); // Plan ke features bhi load kar liye
+                    ->with('features');
             }])->where('slug', $slug)->firstOrFail();
 
-            // Saare available features list (Display ke liye agar chahiye ho)
             $features = Feature::orderBy('sort_order')->get();
 
-            // Minimum price calculate karna safe tarike se
             $leastPrice = 0;
             if ($category->plans->isNotEmpty()) {
                 $leastPrice = formatPrice(
@@ -64,10 +130,10 @@ class SiteController extends Controller
             }
 
             return view('store.explore', [
-                'category' => $category, // Pura model bhej diya, Blade me jo chahiye use kar lo
+                'category' => $category,
                 'least_price' => $leastPrice,
-                'plans' => $category->plans, // Direct Collection pass kiya (No Transformer)
-                'features' => $features, // Features bhi pass kar diye agar compare karna ho
+                'plans' => $category->plans,
+                'features' => $features,
                 'siteSettings' => $siteSettings,
                 'homePageSettings' => $homePageSettings,
             ]);
@@ -81,15 +147,13 @@ class SiteController extends Controller
     }
 
     /**
-     * Pricing Page (Shows all categories and plans)
+     * Pricing Page
      */
     public function pricing(HomePageSettings $homePageSettings, SiteSettings $siteSettings): View
     {
         try {
-            // Saare features load kiye
             $features = Feature::orderBy('sort_order')->get();
 
-            // Sirf wahi categories layenge jinke paas active plans hain
             $categories = SubCategory::whereHas('plans')
                 ->with(['category', 'plans' => function ($query) {
                     $query->where('is_active', true)
@@ -100,8 +164,8 @@ class SiteController extends Controller
                 ->get();
 
             return view('store.pricing', [
-                'categories' => $categories, // Direct Data (No Transformer)
-                'features' => $features,     // Comparison table ke liye
+                'categories' => $categories,
+                'features' => $features,
                 'selectedCategory' => $categories->count() > 0 ? $categories->first()->code : '',
                 'siteSettings' => $siteSettings,
                 'homePageSettings' => $homePageSettings,
@@ -113,7 +177,7 @@ class SiteController extends Controller
     }
 
     /**
-     * Parent category page – shows all subcategories of a parent category
+     * Parent category page
      */
     public function category(string $slug, HomePageSettings $homePageSettings, SiteSettings $siteSettings): View
     {

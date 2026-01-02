@@ -199,98 +199,16 @@
         </div>
     </section>
 
-    <section class="py-20 bg-white" x-data="{ currentTab: 'Engineering' }">
-        <div class="px-4 mx-auto max-w-7xl sm:px-6 lg:px-8">
-            <div class="mb-12 text-center">
-                <h2 class="mb-4 text-3xl font-extrabold lg:text-4xl text-slate-900">Popular Mock Tests</h2>
-                <p class="text-lg text-slate-500">Attempt free mock tests curated by experts.</p>
-            </div>
-
-            <div class="flex flex-wrap justify-center gap-2 mb-12">
-                @foreach ($popularTabs as $tab)
-                    <button @click="currentTab = '{{ $tab }}'"
-                        class="px-6 py-2.5 rounded-full text-sm font-bold transition-all duration-300"
-                        :class="currentTab === '{{ $tab }}' ? 'text-white shadow-lg shadow-blue-500/30 scale-105' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
-                        :style="currentTab === '{{ $tab }}' ? 'background-color: var(--brand-blue);' : ''">
-                        {{ $tab }}
-                    </button>
-                @endforeach
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 min-h-[400px]">
-                @foreach ($mockTests['Engineering'] as $test)
-                    <div x-show="currentTab === 'Engineering'" x-transition:enter="transition ease-out duration-300"
-                        class="flex flex-col overflow-hidden transition-all duration-300 bg-white border shadow-sm group rounded-2xl border-slate-100 hover:shadow-xl hover:-translate-y-1">
-                        <div class="relative flex-1 p-6">
-                            <div class="absolute top-0 right-0 p-4 transition-opacity opacity-10 group-hover:opacity-20">
-                                <svg class="w-16 h-16" style="color: var(--brand-blue);" fill="currentColor" viewBox="0 0 24 24">
-                                    <path d="M12 2L2 7l10 5 10-5-10-5zm0 9l2.5-1.25L12 8.5l-2.5 1.25L12 11zm0 2.5l-5-2.5-5 2.5L12 22l10-8.5-5-2.5-5 2.5z" />
-                                </svg>
-                            </div>
-                            <div class="flex gap-2 mb-3">
-                                @foreach ($test['tags'] as $tag)
-                                    <span class="px-2 py-1 text-xs font-bold tracking-wider uppercase rounded-md bg-blue-50" style="color: var(--brand-blue);">{{ $tag }}</span>
-                                @endforeach
-                            </div>
-                            <h3 class="mb-2 text-xl font-bold transition-colors text-slate-800" style="group-hover:color: var(--brand-blue);">{{ $test['title'] }}</h3>
-                            <p class="mb-4 text-sm text-slate-500">{{ $test['subtitle'] }}</p>
-                            <div class="flex items-center gap-4 text-xs font-semibold text-slate-400">
-                                <span class="flex items-center gap-1">60 Mins</span>
-                                <span class="flex items-center gap-1">{{ $test['users'] }} Users</span>
-                            </div>
-                        </div>
-                        <div class="flex items-center justify-between p-4 border-t border-slate-50 bg-slate-50/50">
-                            <div class="text-lg font-bold text-slate-900">₹{{ $test['price'] }} <span class="text-xs font-normal line-through text-slate-400">₹{{ $test['price'] * 2 }}</span></div>
-                            <button class="px-4 py-2 text-sm font-bold transition-all bg-white border rounded-lg shadow-sm hover:text-white"
-                                    style="color: var(--brand-blue); border-color: var(--brand-blue); hover:background-color: var(--brand-blue);">Attempt Now</button>
-                        </div>
-                    </div>
-                @endforeach
-
-                @foreach ($mockTests['Civil Services'] as $test)
-                    <div x-show="currentTab === 'Civil Services'" x-transition:enter="transition ease-out duration-300"
-                        class="flex flex-col overflow-hidden transition-all duration-300 bg-white border shadow-sm group rounded-2xl border-slate-100 hover:shadow-xl hover:-translate-y-1">
-                        <div class="relative flex-1 p-6">
-                            <div class="flex gap-2 mb-3">
-                                @foreach ($test['tags'] as $tag)
-                                    <span class="px-2 py-1 text-xs font-bold tracking-wider text-orange-600 uppercase rounded-md bg-orange-50">{{ $tag }}</span>
-                                @endforeach
-                            </div>
-                            <h3 class="mb-2 text-xl font-bold transition-colors text-slate-800 group-hover:text-orange-600">{{ $test['title'] }}</h3>
-                            <p class="mb-4 text-sm text-slate-500">{{ $test['subtitle'] }}</p>
-                        </div>
-                        <div class="flex items-center justify-between p-4 border-t border-slate-50 bg-slate-50/50">
-                            <div class="text-lg font-bold text-slate-900">₹{{ $test['price'] }}</div>
-                            <button class="px-4 py-2 text-sm font-bold text-orange-600 transition-all bg-white border border-orange-600 rounded-lg shadow-sm hover:bg-orange-600 hover:text-white">Attempt Now</button>
-                        </div>
-                    </div>
-                @endforeach
-
-                <div x-show="!['Engineering', 'Civil Services'].includes(currentTab)" class="py-12 text-center col-span-full">
-                    <p class="mb-4 text-slate-400">Showing top picks for <span x-text="currentTab" class="font-bold text-slate-600"></span></p>
-                    <div class="grid grid-cols-1 gap-8 text-left md:grid-cols-2 lg:grid-cols-3">
-                        @foreach ($mockTests['default'] as $test)
-                            <div class="flex flex-col overflow-hidden transition-all duration-300 bg-white border shadow-sm group rounded-2xl border-slate-100 hover:shadow-xl hover:-translate-y-1">
-                                <div class="relative flex-1 p-6">
-                                    <h3 class="mb-2 text-xl font-bold transition-colors text-slate-800" style="group-hover:color: var(--brand-pink);">{{ $test['title'] }}</h3>
-                                    <p class="mb-4 text-sm text-slate-500">{{ $test['subtitle'] }}</p>
-                                </div>
-                                <div class="flex items-center justify-between p-4 border-t border-slate-50 bg-slate-50/50">
-                                    <div class="text-lg font-bold text-slate-900">₹{{ $test['price'] }}</div>
-                                    <button class="px-4 py-2 text-sm font-bold transition-all bg-white border rounded-lg shadow-sm hover:text-white"
-                                            style="color: var(--brand-pink); border-color: var(--brand-pink); hover:background-color: var(--brand-pink);">Attempt Now</button>
-                                </div>
-                            </div>
-                        @endforeach
-                    </div>
-                </div>
-            </div>
-
-            <div class="mt-12 text-center">
-                <button class="px-8 py-3 font-bold transition bg-white border shadow-sm border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50">View All Test Series</button>
-            </div>
-        </div>
-    </section>
+{{-- @include('store.partials.home.popular_tests', [
+    'popularTabs' => $popularTabs,
+    'mockTests' => $mockTests
+]) --}}
+ @if(isset($categories) && $categories->isNotEmpty())
+        @include('store.partials.home.popular_tests', [
+            'categories' => $categories,
+            'defaultTab' => $defaultTab
+        ])
+    @endif
 
     <section class="px-4 py-12">
         <div class="mx-auto max-w-7xl">
