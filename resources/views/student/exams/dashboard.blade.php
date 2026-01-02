@@ -29,11 +29,51 @@
                 {{-- Horizontal Scrollable Grid for this Plan --}}
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     @foreach($section['schedules'] as $schedule)
+
+                        {{-- 🟢 TIMEZONE FIXED LOGIC --}}
+                        @php
+                            // 1. Set Admin Timezone (India)
+                            $adminTimezone = 'Asia/Kolkata';
+
+                            // 2. Parse Dates correctly in IST
+                            $startDateStr = \Carbon\Carbon::parse($schedule->start_date)->format('Y-m-d');
+                            $startDt = \Carbon\Carbon::createFromFormat(
+                                'Y-m-d H:i:s',
+                                $startDateStr . ' ' . $schedule->start_time,
+                                $adminTimezone
+                            );
+
+                            // 3. Determine End Time
+                            if($schedule->end_date) {
+                                $endDateStr = \Carbon\Carbon::parse($schedule->end_date)->format('Y-m-d');
+                                $endTimeStr = $schedule->end_time ?? '23:59:59';
+                                $endDt = \Carbon\Carbon::createFromFormat(
+                                    'Y-m-d H:i:s',
+                                    $endDateStr . ' ' . $endTimeStr,
+                                    $adminTimezone
+                                );
+                            } else {
+                                // Fallback Logic
+                                if($schedule->schedule_type == 'fixed') {
+                                    $endDt = $startDt->copy()->addMinutes($schedule->grace_period ?? 30);
+                                } else {
+                                    $endDt = $startDt->copy()->addYears(1);
+                                }
+                            }
+
+                            // 4. Compare with Current IST Time
+                            $now = now()->setTimezone($adminTimezone);
+
+                            $isUpcoming = $now->lt($startDt);
+                            $isExpired = $now->gt($endDt);
+                            $isLive = !$isUpcoming && !$isExpired;
+                        @endphp
+
                         <div class="relative flex flex-col h-full p-4 transition-all bg-white border rounded-lg border-slate-200 hover:border-blue-300 hover:shadow-md group">
 
-                            {{-- Live Dot --}}
-                            @if(\Carbon\Carbon::parse($schedule->start_date)->isToday())
-                                <span class="absolute top-3 right-3 flex h-2.5 w-2.5">
+                            {{-- 🔴 Live Dot (Only if Actually Live) --}}
+                            @if($isLive)
+                                <span class="absolute top-3 right-3 flex h-2.5 w-2.5" title="Live Now">
                                     <span class="absolute inline-flex w-full h-full bg-red-400 rounded-full opacity-75 animate-ping"></span>
                                     <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
                                 </span>
@@ -49,17 +89,44 @@
                             </div>
 
                             <div class="flex items-center justify-between pt-3 mt-2 border-t border-slate-100">
+
+                                {{-- 🕒 Time Status Text --}}
                                 <div class="flex items-center gap-1.5 text-xs font-medium text-slate-500">
                                     <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                    <span>{{ \Carbon\Carbon::parse($schedule->start_date)->format('M d, h:i A') }}</span>
+
+                                    @if($isUpcoming)
+                                        <span class="font-semibold text-orange-600" title="{{ $startDt->format('d M, h:i A') }}">
+                                            Starts {{ $startDt->diffForHumans() }}
+                                        </span>
+                                    @elseif($isExpired)
+                                        <span class="text-gray-400">Ended</span>
+                                    @else
+                                        <span class="font-bold text-green-600 animate-pulse">Live Now</span>
+                                    @endif
                                 </div>
 
-                                {{-- Unlock Logic: Check Array --}}
+                                {{-- 🔘 Smart Action Buttons --}}
                                 @if(!$schedule->exam->is_paid || in_array($schedule->exam->sub_category_id, $subscribedCategoryIds))
-                                    <a href="{{ route('student.exam.start', $schedule->id) }}" class="text-[10px] font-bold text-white bg-slate-900 px-3 py-1.5 rounded hover:bg-[var(--brand-blue)] transition-colors shadow-sm">
-                                        Start
-                                    </a>
+
+                                    @if($isUpcoming)
+                                        {{-- Condition 1: Not Started --}}
+                                        <button disabled class="text-[10px] font-bold text-slate-400 bg-slate-100 px-3 py-1.5 rounded cursor-not-allowed border border-slate-200">
+                                            Wait
+                                        </button>
+                                    @elseif($isExpired)
+                                        {{-- Condition 2: Expired --}}
+                                        <button disabled class="text-[10px] font-bold text-slate-400 bg-slate-100 px-3 py-1.5 rounded cursor-not-allowed border border-slate-200">
+                                            Closed
+                                        </button>
+                                    @else
+                                        {{-- Condition 3: Live --}}
+                                        <a href="{{ route('student.exam.start', $schedule->id) }}" class="text-[10px] font-bold text-white bg-slate-900 px-3 py-1.5 rounded hover:bg-[var(--brand-blue)] transition-colors shadow-sm">
+                                            Start
+                                        </a>
+                                    @endif
+
                                 @else
+                                    {{-- Condition 4: Not Subscribed --}}
                                     <a href="{{ route('pricing') }}" class="text-[10px] font-bold text-slate-500 border border-slate-200 px-2 py-1 rounded hover:bg-slate-50 transition-colors">
                                         Unlock
                                     </a>

@@ -7,6 +7,8 @@ use App\Models\ExamSchedule;
 use App\Models\ExamSession;
 use App\Models\Question;
 use App\Models\ExamSection;
+// Add Subscription Model Import
+use App\Models\Subscription;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -18,26 +20,89 @@ class UserExamRepository
      */
     public function checkAccess(ExamSchedule $schedule, $user)
     {
-        $now = now();
-        $allowAccess = false;
+        // 1. Define Timezone (India)
+        $adminTimezone = 'Asia/Kolkata';
 
-        // 1. Check Time Window
+        // 2. Get Current Time in India
+        $now = now()->setTimezone($adminTimezone);
+
+        // 3. Fix Date Parsing (Clean Y-m-d first to avoid double time error)
+        $startDateStr = Carbon::parse($schedule->start_date)->format('Y-m-d');
+
+        // Combine Date & Time safely
+        $startDateTime = Carbon::createFromFormat(
+            'Y-m-d H:i:s',
+            $startDateStr . ' ' . $schedule->start_time,
+            $adminTimezone
+        );
+
+        // 4. Check Time Window based on Type
         if ($schedule->schedule_type == 'fixed') {
-            $graceEnd = $schedule->starts_at->copy()->addMinutes($schedule->grace_period ?? 0);
-            $allowAccess = $now->between($schedule->starts_at, $graceEnd);
+            // End Date Logic
+            if ($schedule->end_date) {
+                $endDateStr = Carbon::parse($schedule->end_date)->format('Y-m-d');
+                $endTimeStr = $schedule->end_time ?? '23:59:59';
+                $endDateTime = Carbon::createFromFormat(
+                    'Y-m-d H:i:s',
+                    $endDateStr . ' ' . $endTimeStr,
+                    $adminTimezone
+                );
+            } else {
+                // Default Buffer
+                $endDateTime = $startDateTime->copy()->addHours(($schedule->exam->total_duration / 3600) + 1);
+            }
+
+            $graceEnd = $startDateTime->copy()->addMinutes($schedule->grace_period ?? 0);
+
+            // Case A: Early
+            if ($now->lt($startDateTime)) {
+                return ['allowed' => false, 'message' => 'Exam starts at: ' . $startDateTime->format('d M, h:i A')];
+            }
+
+            // Case B: Late
+            if ($now->gt($graceEnd)) {
+                return ['allowed' => false, 'message' => 'Entry time for this exam has expired.'];
+            }
+
         } elseif ($schedule->schedule_type == 'flexible') {
-            $allowAccess = $now->between($schedule->starts_at, $schedule->ends_at);
+
+            if ($schedule->end_date) {
+                $endDateStr = Carbon::parse($schedule->end_date)->format('Y-m-d');
+                $endTimeStr = $schedule->end_time ?? '23:59:59';
+
+                $endDateTime = Carbon::createFromFormat(
+                    'Y-m-d H:i:s',
+                    $endDateStr . ' ' . $endTimeStr,
+                    $adminTimezone
+                );
+            } else {
+                $endDateTime = $now->copy()->addYears(1);
+            }
+
+            // Strict Check
+            if ($now->lt($startDateTime)) {
+                 return ['allowed' => false, 'message' => 'Exam is not active yet. Starts: ' . $startDateTime->format('d M, h:i A')];
+            }
+
+            if ($now->gt($endDateTime)) {
+                 return ['allowed' => false, 'message' => 'Exam has expired on: ' . $endDateTime->format('d M, h:i A')];
+            }
         }
 
-        if (!$allowAccess) {
-            return ['allowed' => false, 'message' => __('schedule_close_note')];
-        }
+        // 5. Check Subscription (DIRECT DB QUERY FIX)
+        // Hum Trait use nahi kar rahe, direct table check kar rahe hain taaki koi confusion na ho.
+        if ($schedule->exam->is_paid) {
+            $hasSubscription = Subscription::query()
+                ->where('user_id', $user->id)
+                ->where('category_id', $schedule->exam->sub_category_id) // ID Match
+                ->where('category_type', \App\Models\SubCategory::class) // Exact Class Name Match
+                ->where('status', 'active') // Status Match
+                ->where('ends_at', '>', now()) // Expiry Match
+                ->exists();
 
-        // 2. Check Subscription
-        $hasSubscription = $user->hasActiveSubscription($schedule->exam->sub_category_id, 'exams');
-
-        if ($schedule->exam->is_paid && !$hasSubscription) {
-             return ['allowed' => false, 'message' => __('You need an active plan to access this exam.')];
+            if (!$hasSubscription) {
+                 return ['allowed' => false, 'message' => __('You need an active plan to access this exam.')];
+            }
         }
 
         return ['allowed' => true];
@@ -53,7 +118,13 @@ class UserExamRepository
 
             // Calculate End Time
             if ($schedule->schedule_type == 'fixed') {
-                $endsAt = $schedule->ends_at;
+                if ($schedule->end_date) {
+                    $endDateStr = Carbon::parse($schedule->end_date)->format('Y-m-d');
+                    $endTimeStr = $schedule->end_time ?? '23:59:59';
+                    $endsAt = Carbon::parse($endDateStr . ' ' . $endTimeStr);
+                } else {
+                    $endsAt = $now->copy()->addSeconds($exam->total_duration);
+                }
             } else {
                 $endsAt = $now->copy()->addSeconds($exam->total_duration);
             }
@@ -89,7 +160,6 @@ class UserExamRepository
                 // Determine Section Timings
                 $sectionEndTime = $currentSectionStart->copy()->addSeconds($section->total_duration);
 
-                // --- FIX: Added 'name', 'sno' etc. to prevent Error 1364 ---
                 $sessionSectionsData[] = [
                     'exam_session_id' => $session->id,
                     'exam_section_id' => $section->id, // This is the ID from exam_sections table
@@ -212,7 +282,7 @@ class UserExamRepository
     }
 
     /**
-     * Calculate Final Session Results (MISSING FUNCTION ADDED HERE)
+     * Calculate Final Session Results
      */
     public function sessionResults($session, $exam)
     {

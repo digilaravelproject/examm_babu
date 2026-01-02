@@ -12,6 +12,7 @@
     </div>
 
     {{-- Grid Container --}}
+    {{-- Notice: Logic yahan nahi, balki 'partials.live_exam_card' ke andar hai --}}
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" id="exam-grid">
         @include('student.exams.partials.live_exam_card', ['schedules' => $schedules, 'subscribedCategoryIds' => $subscribedCategoryIds])
     </div>
@@ -30,6 +31,7 @@
     {{-- Empty State --}}
     @if($schedules->count() == 0)
         <div class="flex flex-col items-center justify-center py-20 border border-dashed bg-slate-50 border-slate-300 rounded-xl">
+            <svg class="w-12 h-12 mx-auto mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
             <p class="text-sm font-medium text-slate-500">No live exams available.</p>
         </div>
     @endif

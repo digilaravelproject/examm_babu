@@ -2,9 +2,10 @@
     // Jaise hi yeh file load hogi, yeh code user ko 'home' route par redirect kar dega
     // aur baaki ka page load nahi hoga.
     return redirect()->route('home')->send();
+    die();
 @endphp
 {{-- Yahan hum layout ko 'extend' kar rahe hain (Include wala style) --}}
-@extends('layouts.candidate')
+@extends('layouts.app')
 
 {{-- Yeh section 'content' ke andar ka maal masala hai --}}
 @section('content')

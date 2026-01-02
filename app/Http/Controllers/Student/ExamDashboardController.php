@@ -24,8 +24,8 @@ class ExamDashboardController extends Controller
     {
         return Cache::remember("user_{$user->id}_subscribed_cats", now()->addMinutes(10), function () use ($user) {
             $categoryIds = $user->subscriptions()
-                ->where('status', 'active')
-                ->where('ends_at', '>', now())
+                ->where('status', 'active') // Yahan check hai: Cancelled plans nahi aayenge
+                ->where('ends_at', '>', now()) // Expired plans nahi aayenge
                 ->pluck('category_id')
                 ->toArray();
 
@@ -56,7 +56,7 @@ class ExamDashboardController extends Controller
                 // 1. Get Active Subscriptions with Relations
                 $activeSubscriptions = $user->subscriptions()
                     ->with(['plan.category'])
-                    ->where('status', 'active')
+                    ->where('status', 'active') // Only Active Plans
                     ->where('ends_at', '>', now())
                     ->get();
 
