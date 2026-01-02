@@ -177,7 +177,7 @@
                 </div>
 
                 {{-- LEARNING --}}
-                <div>
+                <div x-data="{ activeDropdown: '{{ request()->routeIs('admin.practice-sets.*', 'admin.lessons.*', 'admin.videos.*') ? 'learning' : '' }}' }">
                     <button @click="activeDropdown === 'learning' ? activeDropdown = null : activeDropdown = 'learning'"
                         class="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium rounded-lg transition-all"
                         :class="activeDropdown === 'learning' ? 'bg-slate-800 text-white' :
@@ -199,18 +199,30 @@
                             </path>
                         </svg>
                     </button>
+
                     <div x-show="activeDropdown === 'learning'" x-cloak x-collapse
                         class="mx-2 mt-1 space-y-1 rounded-lg bg-slate-800/30">
-                        <a href="{{ Route::has('admin.practice-sets.index') ? route('admin.practice-sets.index') : '#' }}"
-                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.practice-sets.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Practice
-                            Sets</a>
+
+                        {{-- Practice Sets Link --}}
+                        <a href="{{ route('admin.practice-sets.index') }}"
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.practice-sets.*') ? 'text-white font-bold bg-slate-700/50 rounded' : 'text-slate-400 hover:text-white' }}">
+                            Practice Sets
+                        </a>
+
+                        {{-- Lessons Link (Assuming route exists, otherwise use #) --}}
                         <a href="{{ Route::has('admin.lessons.index') ? route('admin.lessons.index') : '#' }}"
-                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.lessons.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Lessons</a>
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.lessons.*') ? 'text-white font-bold bg-slate-700/50 rounded' : 'text-slate-400 hover:text-white' }}">
+                            Lessons
+                        </a>
+
+                        {{-- Videos Link (Assuming route exists, otherwise use #) --}}
                         <a href="{{ Route::has('admin.videos.index') ? route('admin.videos.index') : '#' }}"
-                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.videos.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Videos</a>
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.videos.*') ? 'text-white font-bold bg-slate-700/50 rounded' : 'text-slate-400 hover:text-white' }}">
+                            Videos
+                        </a>
+
                     </div>
                 </div>
-
                 {{-- LIBRARY --}}
                 <div class="pt-4 pb-1 pl-4 uppercase text-[10px] font-bold tracking-widest text-slate-600">Library</div>
                 <div>

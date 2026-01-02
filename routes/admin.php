@@ -27,6 +27,7 @@ use App\Http\Controllers\Admin\PlanCrudController;
 use App\Http\Controllers\Admin\SubscriptionCrudController;
 use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\MicroCategoryController;
+use App\Http\Controllers\Admin\PracticeSetController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -179,10 +180,22 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('ad
         Route::get('/create', 'create')->name('create');
     });
 
-    Route::controller(PracticeSetsController::class)->prefix('practice-sets')->name('practice-sets.')->group(function () {
-        Route::get('/index', 'index')->name('index');
-        Route::get('/create', 'create')->name('create');
-    });
+    // Route::controller(PracticeSetsController::class)->prefix('practice-sets')->name('practice-sets.')->group(function () {
+    //     Route::get('/index', 'index')->name('index');
+    //     Route::get('/create', 'create')->name('create');
+    // });
+    
+
+        // Resource Routes (Index, Create, Store, Edit, Update, Destroy)
+        Route::resource('practice-sets', PracticeSetController::class);
+
+        // Custom Routes for the "Settings" Step
+        Route::get('practice-sets/{practice_set}/settings', [PracticeSetController::class, 'settings'])->name('practice-sets.settings');
+        Route::post('practice-sets/{practice_set}/settings', [PracticeSetController::class, 'updateSettings'])->name('practice-sets.settings.update');
+
+        // Analytics/Report Route (Referenced in your Vue code)
+        Route::get('practice-sets/{practice_set}/report', [PracticeSetController::class, 'overallReport'])->name('practice-sets.overall_report');
+
 
     Route::get('/quiz-types/index', [QuizTypeController::class, 'index'])->name('quiz-types.index');
     Route::get('/exam-types/index', [ExamTypeController::class, 'index'])->name('exam-types.index');
