@@ -81,7 +81,6 @@ class ExamScheduleController extends Controller
 
             DB::commit();
             return redirect()->back()->with('success', 'Exam Schedule created successfully!');
-
         } catch (Exception $e) {
             DB::rollBack();
             return redirect()->back()->with('error', 'Error creating schedule: ' . $e->getMessage());
@@ -91,14 +90,20 @@ class ExamScheduleController extends Controller
     /**
      * Edit - Returns JSON for Modals
      */
-    public function edit(Exam $exam, $id)
+    public function edit(Exam $exam, ExamSchedule $schedule)
     {
-        $schedule = ExamSchedule::with('userGroups')->findOrFail($id);
+        // Load relationship properly
+        $schedule->load('userGroups');
+
         $now = Carbon::now();
-        $startDateTime = Carbon::parse($schedule->start_date . ' ' . $schedule->start_time);
+
+        // FIX: Date ko pehle parse karein, phir Time set karein (String concatenation avoid karein)
+        $startDateTime = Carbon::parse($schedule->start_date)->setTimeFromTimeString($schedule->start_time);
+
         $startsIn = $now->diffInSeconds($startDateTime, false);
 
-        $disableFlag = $schedule->status == 'expired' || ($startsIn < 15 && $startsIn > -99999);
+        // Logic: Cannot edit if expired
+        $disableFlag = $schedule->status == 'expired';
 
         return response()->json([
             'schedule' => $schedule,
@@ -146,7 +151,6 @@ class ExamScheduleController extends Controller
 
             DB::commit();
             return redirect()->back()->with('success', 'Exam Schedule updated successfully!');
-
         } catch (Exception $e) {
             DB::rollBack();
             return redirect()->back()->with('error', 'Error updating schedule: ' . $e->getMessage());
