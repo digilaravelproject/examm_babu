@@ -119,13 +119,15 @@
             <div class="p-5 mb-6 border border-blue-200 rounded-lg bg-blue-50">
                 <h3 class="pb-2 mb-3 font-bold text-gray-800 border-b border-blue-200">Language Preference</h3>
                 <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-                    <div>
+                    {{-- FIX: Primary Language Hidden as requested --}}
+                    <div style="display: none;">
                         <label class="block mb-1 text-xs font-bold tracking-wide text-gray-500 uppercase">Primary Language</label>
                         <select class="w-full p-2 text-gray-600 bg-gray-100 border border-gray-300 rounded cursor-not-allowed" disabled>
                             <option>English</option>
                         </select>
                     </div>
-                    <div>
+                    {{-- Secondary Language (Visible) --}}
+                    <div class="col-span-2 md:col-span-1">
                         <label class="block mb-1 text-xs font-bold tracking-wide text-gray-500 uppercase">Secondary Language (Optional)</label>
                         <select x-model="secondaryLang" class="w-full p-2 font-bold text-gray-800 bg-white border border-blue-400 rounded shadow-sm focus:ring-2 focus:ring-blue-500">
                             <option value="">-- Select Language --</option>
@@ -176,25 +178,31 @@
     {{-- ========================================== --}}
 
     {{-- Header --}}
-    <header class="h-16 bg-[#3498db] text-white flex justify-between items-center px-4 shadow-md z-50 shrink-0" x-show="started" x-cloak>
-        <div class="text-lg font-bold tracking-wide truncate">{{ $exam->title }}</div>
+    <header class="h-16 bg-[#3498db] text-white flex justify-between items-center px-4 shadow-md z-50 shrink-0 sticky top-0">
+        <div class="flex items-center gap-3">
+            {{-- Mobile Menu Toggle --}}
+            <button @click="showPalette = !showPalette" class="p-2 rounded md:hidden hover:bg-blue-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+            </button>
+            <div class="text-lg font-bold tracking-wide truncate max-w-[200px] md:max-w-md">{{ $exam->title }}</div>
+        </div>
 
-        <div class="flex items-center gap-6">
+        <div class="flex items-center gap-3 md:gap-6">
             <div class="flex flex-col items-end min-w-[80px]">
-                <span class="text-[10px] text-blue-100 uppercase font-semibold">Time Left</span>
-                <span class="font-mono text-xl font-bold" :class="timeRemaining < 300 ? 'text-yellow-300 animate-pulse' : 'text-white'" x-text="formatTime(timeRemaining)"></span>
+                <span class="text-[10px] text-blue-100 uppercase font-semibold hidden md:block">Time Left</span>
+                <span class="font-mono text-lg font-bold md:text-xl" :class="timeRemaining < 300 ? 'text-yellow-300 animate-pulse' : 'text-white'" x-text="formatTime(timeRemaining)"></span>
             </div>
 
-            <button @click="submitExam()" class="px-4 py-2 text-xs font-bold text-white transition bg-red-500 border border-red-600 rounded shadow-md hover:bg-red-600 active:scale-95">
-                Submit Exam
+            <button @click="submitExam()" class="px-3 py-1.5 md:px-4 md:py-2 text-xs font-bold text-white transition bg-red-500 border border-red-600 rounded shadow-md hover:bg-red-600 active:scale-95">
+                Submit
             </button>
         </div>
     </header>
 
-    <div class="flex flex-1 overflow-hidden" x-show="started" x-cloak>
+    <div class="relative flex flex-1 overflow-hidden">
 
         {{-- LEFT: Main Question Area --}}
-        <main class="relative flex flex-col flex-1 bg-white border-r border-gray-300">
+        <main class="relative flex flex-col flex-1 w-full bg-white border-gray-300 md:border-r">
 
             {{-- Section Tabs --}}
             <div class="flex overflow-x-auto border-b border-gray-300 bg-gray-50 no-scrollbar">
@@ -208,8 +216,8 @@
             </div>
 
             {{-- Question Header --}}
-            <div class="flex items-center justify-between px-6 py-3 bg-white border-b border-gray-200 shadow-sm">
-                <h2 class="text-lg font-bold text-red-600">Question No. <span x-text="currQIdx + 1"></span></h2>
+            <div class="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 shadow-sm md:px-6">
+                <h2 class="text-base font-bold text-red-600 md:text-lg">Question No. <span x-text="currQIdx + 1"></span></h2>
                 <div class="flex gap-2 text-xs font-bold text-gray-600">
                     <span class="px-2 py-1 text-green-700 border border-green-200 rounded bg-green-50">+<span x-text="currQ?.marks"></span></span>
                     <span class="px-2 py-1 text-red-700 border border-red-200 rounded bg-red-50">-<span x-text="currQ?.negative"></span></span>
@@ -217,13 +225,13 @@
             </div>
 
             {{-- Question Content Scrollable --}}
-            <div class="flex-1 p-6 overflow-y-auto bg-white" x-show="!loading && currQ">
-                {{-- Flex Container for Split View (Passage) --}}
-                <div class="flex h-full gap-6" :class="{'flex-row': currQ.passage, 'flex-col': !currQ.passage}">
+            <div class="flex-1 p-4 overflow-y-auto bg-white md:p-6" x-show="!loading && currQ">
+                {{-- Flex Container for Split View (Responsive: Col on Mobile, Row on Desktop) --}}
+                <div class="flex h-full gap-6" :class="{'flex-col lg:flex-row': currQ.passage, 'flex-col': !currQ.passage}">
 
                     {{-- Passage Pane --}}
                     <template x-if="currQ.passage">
-                        <div class="w-1/2 pr-2 overflow-y-auto border-r border-gray-200">
+                        <div class="w-full lg:w-1/2 pr-0 lg:pr-2 overflow-y-auto lg:border-r border-gray-200 mb-4 lg:mb-0 max-h-[30vh] lg:max-h-full">
                             <div class="p-4 border border-gray-200 rounded-lg bg-gray-50">
                                 <h3 class="pb-2 mb-3 font-bold text-blue-800 border-b" x-text="currQ.passage.title"></h3>
                                 <div class="text-sm font-medium leading-relaxed prose text-gray-800" x-html="currQ.passage.body"></div>
@@ -232,18 +240,18 @@
                     </template>
 
                     {{-- Question Pane --}}
-                    <div class="flex-1 overflow-y-auto" :class="{'pl-2': currQ.passage}">
+                    <div class="flex-1 overflow-y-auto" :class="{'lg:pl-2': currQ.passage}">
 
                         {{-- 1. QUESTION TEXT (Dual Lang) --}}
                         <div class="mb-6">
                             {{-- English (Always) --}}
-                            <div class="text-lg font-medium leading-relaxed text-gray-800" x-html="currQ.text['en']"></div>
+                            <div class="text-base font-medium leading-relaxed text-gray-800 md:text-lg" x-html="currQ.text['en']"></div>
 
                             {{-- Secondary Language (If Selected) --}}
                             <template x-if="secondaryLang && currQ.text[secondaryLang]">
                                 <div class="mt-4">
                                     <div class="lang-separator" x-text="secondaryLang"></div>
-                                    <div class="text-lg font-medium text-[#0777be] leading-relaxed" x-html="currQ.text[secondaryLang]"></div>
+                                    <div class="text-base md:text-lg font-medium text-[#0777be] leading-relaxed" x-html="currQ.text[secondaryLang]"></div>
                                 </div>
                             </template>
                         </div>
@@ -256,7 +264,7 @@
                                 <div class="space-y-3">
                                     <template x-for="(opt, idx) in currQ.options['en']" :key="idx">
                                         <div @click="selectOption(idx)"
-                                            class="relative flex items-start p-4 transition-all border-2 cursor-pointer select-none rounded-xl group"
+                                            class="relative flex items-start p-3 transition-all border-2 cursor-pointer select-none md:p-4 rounded-xl group"
                                             :class="currQ.selected_option === idx ? 'border-[#3498db] bg-blue-50 shadow-md' : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'">
 
                                             <div class="flex items-center justify-center w-6 h-6 mt-1 mr-4 border-2 rounded-full shrink-0"
@@ -266,14 +274,14 @@
                                             </div>
 
                                             <div class="flex-1">
-                                                <div class="text-base font-medium text-gray-700">
+                                                <div class="text-sm font-medium text-gray-700 md:text-base">
                                                     <template x-if="opt.image">
                                                         <img :src="opt.image" class="mb-2 border rounded shadow-sm max-h-32">
                                                     </template>
                                                     <span x-html="opt.option"></span>
                                                 </div>
                                                 <template x-if="secondaryLang && currQ.options[secondaryLang]">
-                                                    <div class="mt-2 pt-2 border-t border-dashed border-gray-300 text-base font-medium text-[#0777be]">
+                                                    <div class="mt-2 pt-2 border-t border-dashed border-gray-300 text-sm md:text-base font-medium text-[#0777be]">
                                                         <span x-html="currQ.options[secondaryLang][idx].option"></span>
                                                     </div>
                                                 </template>
@@ -287,11 +295,11 @@
                             <template x-if="currQ.type_code === 'MMA' || currQ.type_code === 'MMS'">
                                 <div class="space-y-3">
                                     <template x-for="(opt, idx) in currQ.options['en']" :key="idx">
-                                        <div class="relative flex items-start p-4 transition-all border-2 cursor-pointer select-none rounded-xl hover:bg-gray-50"
+                                        <div class="relative flex items-start p-3 transition-all border-2 cursor-pointer select-none md:p-4 rounded-xl hover:bg-gray-50"
                                              :class="isChecked(idx) ? 'border-[#3498db] bg-blue-50' : 'border-gray-200'">
                                             <input type="checkbox" :value="idx" x-model="currQ.selected_option" class="w-5 h-5 mt-1 mr-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
                                             <div class="flex-1">
-                                                <div class="text-base font-medium text-gray-700">
+                                                <div class="text-sm font-medium text-gray-700 md:text-base">
                                                     <template x-if="opt.image"><img :src="opt.image" class="mb-2 max-h-32"></template>
                                                     <span x-html="opt.option"></span>
                                                 </div>
@@ -311,39 +319,39 @@
                                 </div>
                             </template>
 
-                            {{-- TYPE D: MTF (Match The Following) --}}
+                            {{-- TYPE D: MTF (Layout: Radio Button + Pair Text) --}}
                             <template x-if="currQ.type_code === 'MTF'">
-                                <div class="mt-4">
-                                    <div class="p-3 mb-4 text-sm text-blue-800 border border-blue-200 rounded bg-blue-50">
-                                        <strong>Instructions:</strong> Match items from the Left column with the Dropdown on the Right.
+                                <div class="mt-2">
+                                    <div class="p-3 mb-4 text-xs text-blue-800 border border-blue-200 rounded md:text-sm bg-blue-50">
+                                        <strong>Instruction:</strong> Select the row that contains the CORRECT pair.
                                     </div>
-                                    <div class="overflow-hidden border border-gray-200 rounded-lg">
-                                        <table class="w-full text-left border-collapse">
-                                            <thead class="bg-gray-100 border-b border-gray-200">
-                                                <tr>
-                                                    <th class="w-1/2 p-3 font-bold text-gray-700">Column A</th>
-                                                    <th class="w-1/2 p-3 font-bold text-gray-700">Column B (Select Match)</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody class="divide-y divide-gray-200">
-                                                <template x-for="(row, idx) in currQ.options['en']" :key="idx">
-                                                    <tr class="bg-white hover:bg-gray-50">
-                                                        <td class="p-4 border-r border-gray-200">
-                                                            <div x-html="row.option" class="font-medium text-gray-800"></div>
-                                                        </td>
-                                                        <td class="p-4">
-                                                            <select x-model="currQ.selected_option[idx]" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500">
-                                                                <option value="">-- Select Match --</option>
-                                                                {{-- Using Shuffled Options generated in JS --}}
-                                                                <template x-for="pairItem in currQ.shuffledRight" :key="pairItem">
-                                                                    <option :value="pairItem" x-text="pairItem"></option>
-                                                                </template>
-                                                            </select>
-                                                        </td>
-                                                    </tr>
-                                                </template>
-                                            </tbody>
-                                        </table>
+
+                                    {{-- Render as Radio Cards (MSA Style) --}}
+                                    <div class="space-y-3">
+                                        {{-- Loop through the Pre-Calculated Display Pairs --}}
+                                        <template x-for="(pair, idx) in currQ.mtfDisplay" :key="idx">
+                                            <div @click="selectOption(idx)"
+                                                class="relative flex items-center p-3 transition-all border-2 cursor-pointer select-none md:p-4 rounded-xl group"
+                                                :class="currQ.selected_option === idx ? 'border-[#3498db] bg-blue-50 shadow-md' : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'">
+
+                                                {{-- Radio Circle --}}
+                                                <div class="flex items-center justify-center w-6 h-6 mr-4 border-2 rounded-full shrink-0"
+                                                    :class="currQ.selected_option === idx ? 'border-blue-600 bg-blue-600' : 'border-gray-400 group-hover:border-blue-400'">
+                                                    <div class="w-2.5 h-2.5 bg-white rounded-full transition-transform duration-200"
+                                                        :class="currQ.selected_option === idx ? 'scale-100' : 'scale-0'"></div>
+                                                </div>
+
+                                                {{-- The Pair Text --}}
+                                                <div class="flex items-center flex-1 gap-3 text-sm font-medium text-gray-700 md:text-base">
+                                                    <span class="font-bold text-gray-500" x-text="String.fromCharCode(65 + idx) + '.'"></span>
+                                                    <div class="flex flex-wrap items-center gap-2">
+                                                        <span x-html="pair.left"></span>
+                                                        <span class="mx-1 text-gray-400">&rarr;</span>
+                                                        <span x-html="pair.right" class="font-bold text-gray-800"></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </template>
                                     </div>
                                 </div>
                             </template>
@@ -361,22 +369,29 @@
 
             {{-- Footer Buttons --}}
             <div class="flex items-center justify-between p-4 border-t border-gray-300 bg-gray-50">
-                <div class="flex gap-3">
-                    <button @click="markReview()" class="px-5 py-2 text-sm font-bold text-white bg-purple-600 border border-purple-800 rounded shadow-sm hover:bg-purple-700">
-                        Mark for Review & Next
+                <div class="flex gap-2 md:gap-3">
+                    <button @click="markReview()" class="px-3 py-2 text-xs font-bold text-white bg-purple-600 border border-purple-800 rounded shadow-sm md:px-5 md:text-sm hover:bg-purple-700">
+                        Mark & Next
                     </button>
-                    <button @click="clear()" class="px-5 py-2 text-sm font-bold text-gray-700 bg-white border border-gray-300 rounded shadow-sm hover:bg-gray-100">
-                        Clear Response
+                    <button @click="clear()" class="px-3 py-2 text-xs font-bold text-gray-700 bg-white border border-gray-300 rounded shadow-sm md:px-5 md:text-sm hover:bg-gray-100">
+                        Clear
                     </button>
                 </div>
-                <button @click="saveNext()" class="px-8 py-2 bg-[#27AE60] hover:bg-[#219150] text-white text-sm font-bold rounded shadow-md border border-[#219150] transform active:scale-95 transition">
+                <button @click="saveNext()" class="px-5 py-2 md:px-8 bg-[#27AE60] hover:bg-[#219150] text-white text-sm font-bold rounded shadow-md border border-[#219150] transform active:scale-95 transition">
                     Save & Next
                 </button>
             </div>
         </main>
 
-        {{-- RIGHT: Palette & Info --}}
-        <aside class="z-20 flex-col hidden bg-white border-l border-gray-300 md:flex w-80 shrink-0">
+        {{-- RIGHT: Palette & Info (Sidebar) --}}
+        <aside class="fixed inset-0 z-50 flex flex-col w-full h-full transition-transform duration-300 bg-white md:relative md:w-80 md:translate-x-0 shrink-0"
+               :class="showPalette ? 'translate-x-0' : 'translate-x-full md:translate-x-0'">
+
+            {{-- Mobile Close Button --}}
+            <div class="flex justify-end p-2 bg-gray-100 border-b md:hidden">
+                <button @click="showPalette = false" class="p-2 font-bold text-gray-600">Close X</button>
+            </div>
+
             {{-- User Info --}}
             <div class="flex items-center gap-3 p-4 border-b border-gray-200 bg-blue-50">
                 <img src="https://ui-avatars.com/api/?name={{ urlencode($user->first_name) }}&background=0D8ABC&color=fff" class="w-10 h-10 border-2 border-white rounded shadow-sm">
@@ -403,9 +418,9 @@
                     Question Palette
                     <span class="text-blue-600" x-text="sectionsMeta[currSecIdx].name"></span>
                 </h3>
-                <div class="grid grid-cols-4 gap-2">
+                <div class="grid grid-cols-5 gap-2 md:grid-cols-4">
                     <template x-for="(q, idx) in currentSectionQs" :key="q.id">
-                        <div @click="jumpTo(idx)" class="btn-status" :class="getStatusClass(q, idx)">
+                        <div @click="jumpTo(idx); showPalette = false" class="btn-status" :class="getStatusClass(q, idx)">
                             <span x-text="idx + 1"></span>
                         </div>
                     </template>
@@ -434,6 +449,7 @@
                 // State
                 showInstructions: true, agreed: false, isPreparing: false,
                 started: false, loading: false, progress: 0,
+                showPalette: false, // Mobile menu state
                 timeRemaining: duration, timer: null, qStartTime: 0, warnings: 0,
 
                 get currentSectionQs() { return this.loadedSections[this.sectionsMeta[this.currSecIdx].id] || []; },
@@ -489,41 +505,72 @@
                         let res = await fetch(fetchUrl.replace('SECTION_ID', secId));
                         let data = await res.json();
 
-                        // Structure Data: { id, text: {en: "...", hi: "..."}, options: {en: [...], hi: [...]} }
+                        // Process Data
                         let processed = data.questions.map(q => {
-                            // --- FIX: Resume Logic & Answer Initialization ---
                             let initialAns = null;
-                            if(q.type === 'MMA' || q.type === 'MMS') initialAns = []; // Checkbox array
-                            if(q.type === 'MTF') initialAns = {}; // Object for matching
+                            if(q.type === 'MMA' || q.type === 'MMS') initialAns = [];
 
-                            // If Saved Answer exists from DB (Resuming exam)
+                            // Resume Answer Logic
                             if(q.selected_option !== null && q.selected_option !== undefined) {
                                 initialAns = q.selected_option;
                             }
 
-                            // --- FIX: MTF Shuffle Logic ---
-                            let shuffledRight = [];
-                            if(q.type === 'MTF' && q.options) {
-                                // Extract pairs
-                                let rights = q.options.map(o => o.pair).filter(p => p);
-                                // Shuffle values
-                                shuffledRight = rights.sort(() => Math.random() - 0.5);
+                            // --- MTF LOGIC: Generate 1 Correct Pair and 3 Wrong Pairs (FIXED) ---
+                            let mtfDisplay = [];
+                            if (q.type === 'MTF' && q.options) {
 
-                                // Fix if Resume data comes as empty array for Object type
-                                if(Array.isArray(initialAns) && initialAns.length === 0) initialAns = {};
+                                // 1. Right Side key identify karein (pair, match, ya right_option)
+                                // Safety: Agar 'pair' nahi hai to blank string use karega code fatega nahi
+                                let allRights = q.options.map(o => o.pair || o.match || o.right || '');
+
+                                // 2. Randomly ek row select karein jo "Correct" show karegi
+                                let correctRowIdx = Math.floor(Math.random() * q.options.length);
+
+                                // 3. Generate Options
+                                mtfDisplay = q.options.map((opt, i) => {
+
+                                    let currentLeft = opt.option || '';
+                                    let currentRight = opt.pair || opt.match || opt.right || ''; // Right side value fetch karein
+
+                                    if (i === correctRowIdx) {
+                                        // Case A: Correct Pair (Yeh wala sahi jawab hoga)
+                                        return {
+                                            left: currentLeft,
+                                            right: currentRight
+                                        };
+                                    } else {
+                                        // Case B: Distractor Row (Yeh galat pair dikhayega)
+
+                                        // Filter: Current sahi jawab ko list se hata do
+                                        let distractorRights = allRights.filter(r => r !== currentRight && r !== '');
+
+                                        // Agar filter ke baad kuch bacha hi nahi (edge case), to wapis sab le lo
+                                        if(distractorRights.length === 0) distractorRights = allRights;
+
+                                        // Random wrong answer pick karein
+                                        let randomWrong = distractorRights.length > 0
+                                            ? distractorRights[Math.floor(Math.random() * distractorRights.length)]
+                                            : '---';
+
+                                        return {
+                                            left: currentLeft,
+                                            right: randomWrong
+                                        };
+                                    }
+                                });
                             }
 
                             return {
                                 ...q,
-                                type_code: q.type, // Alias for consistent access
+                                type_code: q.type,
                                 text: { en: q.text },
-                                options: { en: q.options }, // options is array of objects {option, image}
+                                options: { en: q.options },
                                 selected_option: initialAns,
-                                shuffledRight: shuffledRight
+                                mtfDisplay: mtfDisplay // New Display Array
                             }
                         });
 
-                        // Parallel Translation using Google GTX
+                        // Parallel Translation
                         if(translate && this.secondaryLang) {
                             await this.translateBatch(processed, this.secondaryLang);
                         }
@@ -541,41 +588,29 @@
                     }
                 },
 
-                // --- GOOGLE GTX API (FAST & UNLIMITED) ---
+                // --- GOOGLE GTX API ---
                 async translateBatch(questions, target) {
                     let promises = questions.map(async (q, index) => {
                         try {
-                            // 1. Translate Question Text
                             let qUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=${target}&dt=t&q=${encodeURIComponent(q.text['en'])}`;
                             let qRes = await fetch(qUrl);
                             let qJson = await qRes.json();
-                            // Combine all segments
                             q.text[target] = qJson[0].map(x => x[0]).join('');
 
-                            // 2. Translate Options (Loop)
                             q.options[target] = [];
                             for(let opt of q.options['en']) {
                                 let oUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=${target}&dt=t&q=${encodeURIComponent(opt.option)}`;
                                 let oRes = await fetch(oUrl);
                                 let oJson = await oRes.json();
                                 let transText = oJson[0].map(x => x[0]).join('');
-
-                                q.options[target].push({
-                                    ...opt, // copy image, etc.
-                                    option: transText
-                                });
+                                q.options[target].push({ ...opt, option: transText });
                             }
-
-                            // Update Progress Bar
                             this.progress = Math.round(((index + 1) / questions.length) * 100);
-
                         } catch(e) {
-                            // Fallback to English if translation fails
                             q.text[target] = q.text['en'];
                             q.options[target] = q.options['en'];
                         }
                     });
-
                     await Promise.all(promises);
                 },
 
@@ -596,18 +631,17 @@
                 // --- LOGIC ---
                 selectOption(idx) { this.currQ.selected_option = idx; },
 
-                // Helper for MMA
                 isChecked(val) {
                     if(!Array.isArray(this.currQ.selected_option)) return false;
                     return this.currQ.selected_option.includes(val);
                 },
 
-                // Check if answered (Handles Arrays/Objects for new types)
                 hasAnswered() {
                     let ans = this.currQ.selected_option;
                     if(ans === null || ans === undefined || ans === '') return false;
-                    if(Array.isArray(ans) && ans.length === 0) return false; // MMA empty
-                    if(typeof ans === 'object' && !Array.isArray(ans) && Object.keys(ans).length === 0) return false; // MTF empty
+                    if(Array.isArray(ans) && ans.length === 0) return false;
+                    // For MTF (Radio), index 0 is falsy in JS checks, so explicitly check null
+                    if(this.currQ.type_code === 'MTF' && ans === null) return false;
                     return true;
                 },
 
@@ -626,9 +660,7 @@
                 },
 
                 clear() {
-                    // Clear based on type
                     if(this.currQ.type_code === 'MMA') this.currQ.selected_option = [];
-                    else if(this.currQ.type_code === 'MTF') this.currQ.selected_option = {};
                     else this.currQ.selected_option = null;
 
                     this.currQ.status = 'not_answered';
@@ -663,7 +695,7 @@
                             section_id: this.sectionsMeta[this.currSecIdx].id,
                             user_answer: q.selected_option,
                             time_taken: time,
-                            total_time_taken: (this.sectionsMeta[0].duration - this.timeRemaining), // approximate
+                            total_time_taken: (this.sectionsMeta[0].duration - this.timeRemaining),
                             status: backStatus
                         })
                     });
@@ -700,16 +732,17 @@
                 },
 
                 doSubmit() {
-                    // Show Loading
                     Swal.fire({ title: 'Submitting...', didOpen: () => Swal.showLoading() });
 
                     fetch(finishUrl, {
                         method: 'POST',
-                        headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content }
+                        headers: {
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                            'Accept': 'application/json' // JSON Fix
+                        }
                     })
                     .then(r => r.json())
                     .then(d => {
-                        // --- FIX: Correct Redirect Handling ---
                         if(d.redirect) window.location.href = d.redirect;
                         else Swal.fire("Error", "Submission failed. No redirect URL.", "error");
                     })

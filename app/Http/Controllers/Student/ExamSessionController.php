@@ -36,17 +36,31 @@ class ExamSessionController extends Controller
             $schedule = ExamSchedule::with(['exam.examSections', 'exam.questions'])->findOrFail($scheduleId);
             $exam = $schedule->exam;
 
-            // A. Check Existing Session (Resume)
+            // --- FIX 1: STALE SESSION HANDLING (Exam Diya Nhi Result Agaya Fix) ---
+            // Pehle check karo koi purana session atka hua to nahi hai
             $existingSession = ExamSession::where('user_id', $user->id)
                 ->where('exam_schedule_id', $schedule->id)
                 ->whereIn('status', ['started', 'paused'])
                 ->first();
 
             if ($existingSession) {
-                if ($existingSession->status === 'paused') {
-                    $existingSession->update(['status' => 'started']);
+                // Agar session mil gaya, check karo ki wo expire to nahi ho gaya?
+                if (now()->gt($existingSession->ends_at)) {
+                    // Agar time khatam ho chuka hai, to use close kar do chupa ke
+                    $existingSession->status = 'completed';
+                    $existingSession->completed_at = now();
+                    // Result calculate kar lo taaki data save rahe
+                    $existingSession->results = $this->repository->sessionResults($existingSession, $exam);
+                    $existingSession->save();
+
+                    // Note: Yaha return nahi kiya, taaki code niche jaye aur NAYA session banaye
+                } else {
+                    // Agar time bacha hai, to purana hi resume karo
+                    if ($existingSession->status === 'paused') {
+                        $existingSession->update(['status' => 'started']);
+                    }
+                    return redirect()->route('student.exam.interface', $existingSession->code);
                 }
-                return redirect()->route('student.exam.interface', $existingSession->code);
             }
 
             // B. Check Attempts
@@ -57,7 +71,7 @@ class ExamSessionController extends Controller
 
             $maxAttempts = $exam->settings['no_of_attempts'] ?? 0;
             if ($maxAttempts > 0 && $attemptsCount >= $maxAttempts) {
-                return redirect()->back()->with('error', __('max_attempts_text'));
+                return redirect()->back()->with('error', __('Maximum attempts reached.'));
             }
 
             // C. Validate Access
@@ -70,7 +84,7 @@ class ExamSessionController extends Controller
             $hasSubscription = $user->hasActiveSubscription($exam->sub_category_id, 'exams');
             if ($exam->is_paid && !$hasSubscription && $exam->can_redeem) {
                 if ($user->balance < $exam->points_required) {
-                    return redirect()->back()->with('error', __('insufficient_points'));
+                    return redirect()->back()->with('error', __('Insufficient points.'));
                 }
                 $user->withdraw($exam->points_required, ['description' => 'Attempt: ' . $exam->title]);
             }
@@ -82,7 +96,7 @@ class ExamSessionController extends Controller
 
         } catch (\Throwable $e) {
             Log::error("Start Exam Error: " . $e->getMessage());
-            return redirect()->back()->with('error', 'Error starting exam.');
+            return redirect()->back()->with('error', 'Error starting exam: ' . $e->getMessage());
         }
     }
 
@@ -108,8 +122,10 @@ class ExamSessionController extends Controller
 
         // Check Timer
         $remainingSeconds = now()->diffInSeconds($session->ends_at, false);
+
+        // Agar time khatam ho gaya hai, to Auto Submit karo
         if ($remainingSeconds <= 0) {
-            return $this->finishExamLogic($session); // Auto Submit
+             return $this->finishExamLogic($session);
         }
 
         $sections = $session->exam->examSections()
@@ -197,7 +213,6 @@ class ExamSessionController extends Controller
     public function saveAnswer(ExamUpdateAnswerRequest $request, $sessionCode)
     {
         try {
-            log::info("save answer working;");
             $session = ExamSession::with('exam')->where('code', $sessionCode)->firstOrFail();
             $question = Question::with('questionType')->find($request->question_id);
             $section = ExamSection::find($request->section_id);
@@ -264,6 +279,7 @@ class ExamSessionController extends Controller
         return $this->finishExamLogic($session);
     }
 
+    // --- FIX 2: HANDLE AJAX VS REDIRECT (Raw JSON Fix) ---
     private function finishExamLogic($session)
     {
         if ($session->status !== 'completed' && $session->status !== 'terminated') {
@@ -275,15 +291,20 @@ class ExamSessionController extends Controller
             $session->save();
         }
 
-        // --- FIX: Always return JSON for the Frontend AJAX call ---
-        return response()->json([
-            'success' => true,
-            'redirect' => route('student.exams.result', $session->id)
-        ]);
+        // Agar JS se request aayi hai to JSON bhejo
+        if (request()->ajax() || request()->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'redirect' => route('student.exams.result', $session->id)
+            ]);
+        }
+
+        // Agar Browser se auto-submit hua hai (Timer End), to normal Redirect karo
+        return redirect()->route('student.exams.result', $session->id);
     }
 
     /**
-     * 7. Show Result Page (Fixes 500 Error)
+     * 7. Show Result Page
      */
     public function showResult($sessionId)
     {
