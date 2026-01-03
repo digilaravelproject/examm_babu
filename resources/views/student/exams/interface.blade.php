@@ -248,38 +248,106 @@
                             </template>
                         </div>
 
-                        {{-- 2. OPTIONS (Dual Lang) --}}
+                        {{-- 2. OPTIONS (Based on Question Type) --}}
                         <div class="space-y-4">
-                            <template x-for="(opt, idx) in currQ.options['en']" :key="idx">
-                                <div @click="selectOption(idx)"
-                                    class="relative flex items-start p-4 transition-all border-2 cursor-pointer select-none rounded-xl group"
-                                    :class="currQ.selected_option === idx ? 'border-[#3498db] bg-blue-50 shadow-md' : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'">
 
-                                    {{-- Radio Circle --}}
-                                    <div class="flex items-center justify-center w-6 h-6 mt-1 mr-4 border-2 rounded-full shrink-0"
-                                         :class="currQ.selected_option === idx ? 'border-blue-600 bg-blue-600' : 'border-gray-400 group-hover:border-blue-400'">
-                                        <div class="w-2.5 h-2.5 bg-white rounded-full transition-transform duration-200"
-                                             :class="currQ.selected_option === idx ? 'scale-100' : 'scale-0'"></div>
-                                    </div>
+                            {{-- TYPE A: MSA / TOF (Radio Buttons - Existing) --}}
+                            <template x-if="currQ.type_code === 'MSA' || currQ.type_code === 'TOF'">
+                                <div class="space-y-3">
+                                    <template x-for="(opt, idx) in currQ.options['en']" :key="idx">
+                                        <div @click="selectOption(idx)"
+                                            class="relative flex items-start p-4 transition-all border-2 cursor-pointer select-none rounded-xl group"
+                                            :class="currQ.selected_option === idx ? 'border-[#3498db] bg-blue-50 shadow-md' : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'">
 
-                                    <div class="flex-1">
-                                        {{-- English Option --}}
-                                        <div class="text-base font-medium text-gray-700">
-                                            <template x-if="opt.image">
-                                                <img :src="opt.image" class="mb-2 border rounded shadow-sm max-h-32">
-                                            </template>
-                                            <span x-html="opt.option"></span>
-                                        </div>
-
-                                        {{-- Secondary Option --}}
-                                        <template x-if="secondaryLang && currQ.options[secondaryLang]">
-                                            <div class="mt-2 pt-2 border-t border-dashed border-gray-300 text-base font-medium text-[#0777be]">
-                                                <span x-html="currQ.options[secondaryLang][idx].option"></span>
+                                            <div class="flex items-center justify-center w-6 h-6 mt-1 mr-4 border-2 rounded-full shrink-0"
+                                                :class="currQ.selected_option === idx ? 'border-blue-600 bg-blue-600' : 'border-gray-400 group-hover:border-blue-400'">
+                                                <div class="w-2.5 h-2.5 bg-white rounded-full transition-transform duration-200"
+                                                    :class="currQ.selected_option === idx ? 'scale-100' : 'scale-0'"></div>
                                             </div>
-                                        </template>
+
+                                            <div class="flex-1">
+                                                <div class="text-base font-medium text-gray-700">
+                                                    <template x-if="opt.image">
+                                                        <img :src="opt.image" class="mb-2 border rounded shadow-sm max-h-32">
+                                                    </template>
+                                                    <span x-html="opt.option"></span>
+                                                </div>
+                                                <template x-if="secondaryLang && currQ.options[secondaryLang]">
+                                                    <div class="mt-2 pt-2 border-t border-dashed border-gray-300 text-base font-medium text-[#0777be]">
+                                                        <span x-html="currQ.options[secondaryLang][idx].option"></span>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+
+                            {{-- TYPE B: MMA (Checkbox - Multiple Select) --}}
+                            <template x-if="currQ.type_code === 'MMA' || currQ.type_code === 'MMS'">
+                                <div class="space-y-3">
+                                    <template x-for="(opt, idx) in currQ.options['en']" :key="idx">
+                                        <div class="relative flex items-start p-4 transition-all border-2 cursor-pointer select-none rounded-xl hover:bg-gray-50"
+                                             :class="isChecked(idx) ? 'border-[#3498db] bg-blue-50' : 'border-gray-200'">
+                                            <input type="checkbox" :value="idx" x-model="currQ.selected_option" class="w-5 h-5 mt-1 mr-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                                            <div class="flex-1">
+                                                <div class="text-base font-medium text-gray-700">
+                                                    <template x-if="opt.image"><img :src="opt.image" class="mb-2 max-h-32"></template>
+                                                    <span x-html="opt.option"></span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+
+                            {{-- TYPE C: FIB / SAQ (Text Input) --}}
+                            <template x-if="currQ.type_code === 'FIB' || currQ.type_code === 'SAQ'">
+                                <div class="mt-4">
+                                    <label class="block mb-2 text-sm font-bold text-gray-700">Type your answer here:</label>
+                                    <textarea x-model="currQ.selected_option" rows="4"
+                                        class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                        placeholder="Enter your answer..."></textarea>
+                                </div>
+                            </template>
+
+                            {{-- TYPE D: MTF (Match The Following) --}}
+                            <template x-if="currQ.type_code === 'MTF'">
+                                <div class="mt-4">
+                                    <div class="p-3 mb-4 text-sm text-blue-800 border border-blue-200 rounded bg-blue-50">
+                                        <strong>Instructions:</strong> Match items from the Left column with the Dropdown on the Right.
+                                    </div>
+                                    <div class="overflow-hidden border border-gray-200 rounded-lg">
+                                        <table class="w-full text-left border-collapse">
+                                            <thead class="bg-gray-100 border-b border-gray-200">
+                                                <tr>
+                                                    <th class="w-1/2 p-3 font-bold text-gray-700">Column A</th>
+                                                    <th class="w-1/2 p-3 font-bold text-gray-700">Column B (Select Match)</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="divide-y divide-gray-200">
+                                                <template x-for="(row, idx) in currQ.options['en']" :key="idx">
+                                                    <tr class="bg-white hover:bg-gray-50">
+                                                        <td class="p-4 border-r border-gray-200">
+                                                            <div x-html="row.option" class="font-medium text-gray-800"></div>
+                                                        </td>
+                                                        <td class="p-4">
+                                                            <select x-model="currQ.selected_option[idx]" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500">
+                                                                <option value="">-- Select Match --</option>
+                                                                {{-- Using Shuffled Options generated in JS --}}
+                                                                <template x-for="pairItem in currQ.shuffledRight" :key="pairItem">
+                                                                    <option :value="pairItem" x-text="pairItem"></option>
+                                                                </template>
+                                                            </select>
+                                                        </td>
+                                                    </tr>
+                                                </template>
+                                            </tbody>
+                                        </table>
                                     </div>
                                 </div>
                             </template>
+
                         </div>
                     </div>
                 </div>
@@ -422,11 +490,38 @@
                         let data = await res.json();
 
                         // Structure Data: { id, text: {en: "...", hi: "..."}, options: {en: [...], hi: [...]} }
-                        let processed = data.questions.map(q => ({
-                            ...q,
-                            text: { en: q.text },
-                            options: { en: q.options } // options is array of objects {option, image}
-                        }));
+                        let processed = data.questions.map(q => {
+                            // --- FIX: Resume Logic & Answer Initialization ---
+                            let initialAns = null;
+                            if(q.type === 'MMA' || q.type === 'MMS') initialAns = []; // Checkbox array
+                            if(q.type === 'MTF') initialAns = {}; // Object for matching
+
+                            // If Saved Answer exists from DB (Resuming exam)
+                            if(q.selected_option !== null && q.selected_option !== undefined) {
+                                initialAns = q.selected_option;
+                            }
+
+                            // --- FIX: MTF Shuffle Logic ---
+                            let shuffledRight = [];
+                            if(q.type === 'MTF' && q.options) {
+                                // Extract pairs
+                                let rights = q.options.map(o => o.pair).filter(p => p);
+                                // Shuffle values
+                                shuffledRight = rights.sort(() => Math.random() - 0.5);
+
+                                // Fix if Resume data comes as empty array for Object type
+                                if(Array.isArray(initialAns) && initialAns.length === 0) initialAns = {};
+                            }
+
+                            return {
+                                ...q,
+                                type_code: q.type, // Alias for consistent access
+                                text: { en: q.text },
+                                options: { en: q.options }, // options is array of objects {option, image}
+                                selected_option: initialAns,
+                                shuffledRight: shuffledRight
+                            }
+                        });
 
                         // Parallel Translation using Google GTX
                         if(translate && this.secondaryLang) {
@@ -501,20 +596,41 @@
                 // --- LOGIC ---
                 selectOption(idx) { this.currQ.selected_option = idx; },
 
+                // Helper for MMA
+                isChecked(val) {
+                    if(!Array.isArray(this.currQ.selected_option)) return false;
+                    return this.currQ.selected_option.includes(val);
+                },
+
+                // Check if answered (Handles Arrays/Objects for new types)
+                hasAnswered() {
+                    let ans = this.currQ.selected_option;
+                    if(ans === null || ans === undefined || ans === '') return false;
+                    if(Array.isArray(ans) && ans.length === 0) return false; // MMA empty
+                    if(typeof ans === 'object' && !Array.isArray(ans) && Object.keys(ans).length === 0) return false; // MTF empty
+                    return true;
+                },
+
                 saveNext() {
-                    this.currQ.status = (this.currQ.selected_option !== null) ? 'answered' : 'not_answered';
+                    let answered = this.hasAnswered();
+                    this.currQ.status = answered ? 'answered' : 'not_answered';
                     this.saveAnswer(this.currQ.status);
                     this.next();
                 },
 
                 markReview() {
-                    this.currQ.status = (this.currQ.selected_option !== null) ? 'ans_marked' : 'marked';
+                    let answered = this.hasAnswered();
+                    this.currQ.status = answered ? 'ans_marked' : 'marked';
                     this.saveAnswer(this.currQ.status);
                     this.next();
                 },
 
                 clear() {
-                    this.currQ.selected_option = null;
+                    // Clear based on type
+                    if(this.currQ.type_code === 'MMA') this.currQ.selected_option = [];
+                    else if(this.currQ.type_code === 'MTF') this.currQ.selected_option = {};
+                    else this.currQ.selected_option = null;
+
                     this.currQ.status = 'not_answered';
                     this.saveAnswer('not_answered');
                 },
@@ -584,10 +700,23 @@
                 },
 
                 doSubmit() {
+                    // Show Loading
+                    Swal.fire({ title: 'Submitting...', didOpen: () => Swal.showLoading() });
+
                     fetch(finishUrl, {
                         method: 'POST',
                         headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content }
-                    }).then(r => r.json()).then(d => window.location.href = d.redirect);
+                    })
+                    .then(r => r.json())
+                    .then(d => {
+                        // --- FIX: Correct Redirect Handling ---
+                        if(d.redirect) window.location.href = d.redirect;
+                        else Swal.fire("Error", "Submission failed. No redirect URL.", "error");
+                    })
+                    .catch(e => {
+                        console.error(e);
+                        Swal.fire("Error", "Submission failed.", "error");
+                    });
                 },
 
                 // --- UTILS ---

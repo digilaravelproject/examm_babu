@@ -260,30 +260,26 @@ class ExamSessionController extends Controller
      */
     public function finishExam($sessionCode)
     {
-        log::info("finish exams working");
         $session = ExamSession::where('code', $sessionCode)->firstOrFail();
         return $this->finishExamLogic($session);
     }
 
     private function finishExamLogic($session)
     {
-          log::info("finish exams logic working");
         if ($session->status !== 'completed' && $session->status !== 'terminated') {
             $session->status = 'completed';
             $session->completed_at = now();
 
             // Calculate and Store Results
-            // This relies on the function I added to your Repository
             $session->results = $this->repository->sessionResults($session, $session->exam);
-
             $session->save();
         }
 
-        if (request()->wantsJson()) {
-            return response()->json(['redirect' => route('student.exams.result', $session->id)]);
-        }
-
-        return redirect()->route('student.exams.result', $session->id);
+        // --- FIX: Always return JSON for the Frontend AJAX call ---
+        return response()->json([
+            'success' => true,
+            'redirect' => route('student.exams.result', $session->id)
+        ]);
     }
 
     /**

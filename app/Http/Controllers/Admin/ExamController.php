@@ -205,7 +205,7 @@ class ExamController extends Controller
         $exam = new Exam();
         $examTypes = ExamType::where('is_active', 1)->get();
         $steps = $this->repository->getSteps(null, 'details');
-        $subCategories = SubCategory::where('is_active', 1)->limit(20)->get();
+        $subCategories = SubCategory::where('is_active', 1)->get();
         $topics = Topic::where('is_active', 1)->get();
 
         // Fetch all active micro categories to pass to the view for dynamic JS filtering
@@ -259,9 +259,11 @@ class ExamController extends Controller
         $exam = Exam::findOrFail($id);
         $examTypes = ExamType::where('is_active', 1)->get();
 
-        $subCategories = SubCategory::where('id', $exam->sub_category_id)
-            ->orWhere('category_id', $exam->subCategory->category_id ?? 0)
-            ->get();
+        // $subCategories = SubCategory::where('id', $exam->sub_category_id)
+        //     ->orWhere('category_id', $exam->subCategory->category_id ?? 0)
+        //     ->get();
+        $subCategories = SubCategory::where('is_active', 1)->get();
+
 
         // Fetch all active micro categories
         $microCategories = MicroCategory::where('is_active', 1)->get(['id', 'name', 'sub_category_id']);
