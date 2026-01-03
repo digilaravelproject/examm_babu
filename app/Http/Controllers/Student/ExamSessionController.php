@@ -197,6 +197,7 @@ class ExamSessionController extends Controller
     public function saveAnswer(ExamUpdateAnswerRequest $request, $sessionCode)
     {
         try {
+            log::info("save answer working;");
             $session = ExamSession::with('exam')->where('code', $sessionCode)->firstOrFail();
             $question = Question::with('questionType')->find($request->question_id);
             $section = ExamSection::find($request->section_id);
@@ -259,12 +260,14 @@ class ExamSessionController extends Controller
      */
     public function finishExam($sessionCode)
     {
+        log::info("finish exams working");
         $session = ExamSession::where('code', $sessionCode)->firstOrFail();
         return $this->finishExamLogic($session);
     }
 
     private function finishExamLogic($session)
     {
+          log::info("finish exams logic working");
         if ($session->status !== 'completed' && $session->status !== 'terminated') {
             $session->status = 'completed';
             $session->completed_at = now();
