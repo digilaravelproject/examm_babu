@@ -2,18 +2,40 @@
     $routePrefix = request()->routeIs('instructor.*') ? 'instructor.' : 'admin.';
 @endphp
 
-<div class="overflow-hidden bg-white border border-gray-200 shadow-sm rounded-xl">
+<div class="relative overflow-hidden bg-white border border-gray-200 shadow-sm rounded-xl">
+
+    {{-- BULK ACTION BAR (Visible when items selected) --}}
+    <div x-show="selectedItems.length > 0" x-transition
+        class="absolute top-0 left-0 z-10 flex items-center justify-between w-full px-4 py-3 bg-blue-50 border-b border-blue-100">
+        <div class="flex items-center gap-2">
+            <span class="flex items-center justify-center w-6 h-6 text-xs font-bold text-white bg-blue-600 rounded-full"
+                x-text="selectedItems.length"></span>
+            <span class="text-sm font-medium text-blue-900">items selected</span>
+        </div>
+        <button @click="bulkDelete()"
+            class="flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors shadow-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                </path>
+            </svg>
+            Delete Selected
+        </button>
+    </div>
+
     <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse">
             <thead class="border-b border-gray-200 bg-gray-50">
                 <tr>
-                    {{-- Compact Code Column --}}
-                    <th class="w-20 px-3 py-3 text-xs font-bold tracking-wider text-gray-500 uppercase">Code</th>
-
-                    {{-- Question needs minimum width --}}
-                    <th class="px-4 py-3 text-xs font-bold tracking-wider text-gray-500 uppercase min-w-[250px]">Question
+                    {{-- Checkbox Header --}}
+                    <th class="w-10 px-4 py-3">
+                        <input type="checkbox" @click="toggleAll()"
+                            class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer">
                     </th>
 
+                    <th class="w-20 px-3 py-3 text-xs font-bold tracking-wider text-gray-500 uppercase">Code</th>
+                    <th class="px-4 py-3 text-xs font-bold tracking-wider text-gray-500 uppercase min-w-[250px]">
+                        Question</th>
                     <th class="px-4 py-3 text-xs font-bold tracking-wider text-gray-500 uppercase">Type</th>
                     <th class="px-4 py-3 text-xs font-bold tracking-wider text-gray-500 uppercase">Section</th>
                     <th class="px-4 py-3 text-xs font-bold tracking-wider text-gray-500 uppercase">Skill</th>
@@ -26,9 +48,16 @@
             </thead>
             <tbody class="divide-y divide-gray-100">
                 @forelse($questions as $q)
-                    <tr class="transition-colors hover:bg-gray-50/80 group">
+                    <tr class="transition-colors hover:bg-gray-50/80 group"
+                        :class="{ 'bg-blue-50/50': selectedItems.includes({{ $q->id }}) }">
 
-                        {{-- Code (Reduced Padding & Font) --}}
+                        {{-- Checkbox Row --}}
+                        <td class="px-4 py-3">
+                            <input type="checkbox" value="{{ $q->id }}" x-model="selectedItems"
+                                class="question-checkbox w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer">
+                        </td>
+
+                        {{-- Code --}}
                         <td class="px-3 py-3">
                             <span
                                 class="px-1.5 py-0.5 font-mono text-[11px] font-medium bg-blue-50 text-[#0777be] rounded whitespace-nowrap">
@@ -63,7 +92,7 @@
                                 class="text-xs font-medium text-gray-900 whitespace-nowrap">{{ $q->skill->name ?? '-' }}</span>
                         </td>
 
-                        {{-- Topic (Added whitespace-nowrap) --}}
+                        {{-- Topic --}}
                         <td class="px-4 py-3">
                             <span class="px-2 py-1 text-xs text-gray-600 bg-gray-100 rounded whitespace-nowrap">
                                 {{ $q->topic->name ?? '-' }}
@@ -87,17 +116,17 @@
 
                         {{-- Actions --}}
                         <td class="px-4 py-3 text-right">
-
                             <div class="flex items-center justify-end gap-2">
-                                {{-- Usage / Link Button --}}
-<a href="{{ route($routePrefix . 'questions.usage', $q->id) }}"
-   class="flex items-center justify-center w-8 h-8 transition-all bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-purple-600 hover:border-purple-600 hover:text-white group/btn"
-   title="Check Usage (Where is this used?)">
-    <svg class="w-4 h-4 text-gray-500 group-hover/btn:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
-    </svg>
-</a>
-                                {{-- Preview --}}
+                                <a href="{{ route($routePrefix . 'questions.usage', $q->id) }}"
+                                    class="flex items-center justify-center w-8 h-8 transition-all bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-purple-600 hover:border-purple-600 hover:text-white group/btn"
+                                    title="Check Usage">
+                                    <svg class="w-4 h-4 text-gray-500 group-hover/btn:text-white" fill="none"
+                                        stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1">
+                                        </path>
+                                    </svg>
+                                </a>
                                 <button @click="openPreview({{ $q->id }})"
                                     class="flex items-center justify-center w-8 h-8 transition-all bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-[#0777be] hover:border-[#0777be] hover:text-white group/btn"
                                     title="Preview">
@@ -109,8 +138,6 @@
                                             d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                     </svg>
                                 </button>
-
-                                {{-- Edit --}}
                                 <a href="{{ route($routePrefix . 'questions.edit', $q->id) }}"
                                     class="flex items-center justify-center w-8 h-8 transition-all bg-white border border-gray-200 rounded-lg shadow-sm hover-edit-btn group/btn"
                                     title="Edit">
@@ -120,8 +147,6 @@
                                             d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                     </svg>
                                 </a>
-
-                                {{-- Delete --}}
                                 <button @click="deleteQuestion({{ $q->id }})"
                                     class="flex items-center justify-center w-8 h-8 transition-all bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-red-500 hover:border-red-500 hover:text-white group/btn"
                                     title="Delete">
@@ -136,7 +161,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="8" class="px-6 py-12 text-center">
+                        <td colspan="9" class="px-6 py-12 text-center">
                             <div class="flex flex-col items-center justify-center">
                                 <svg class="w-12 h-12 mb-3 text-gray-300" fill="none" viewBox="0 0 24 24"
                                     stroke="currentColor">

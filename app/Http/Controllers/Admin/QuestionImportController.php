@@ -10,31 +10,36 @@ use App\Models\DifficultyLevel;
 use App\Models\Skill;
 use App\Models\Topic;
 use App\Exports\QuestionSampleExport;
-use Maatwebsite\Excel\Facades\Excel; // Export ke liye
+use App\Repositories\QuestionRepository; // Repository Import
+use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\IOFactory;
-use PhpOffice\PhpSpreadsheet\Shared\Date;
 
 class QuestionImportController extends Controller
 {
-    public function showImportForm() {
+    private QuestionRepository $repository;
+
+    public function __construct(QuestionRepository $repository)
+    {
+        $this->repository = $repository;
+    }
+
+    public function showImportForm()
+    {
         return view('admin.questions.import');
     }
 
-    public function downloadSample() {
+    public function downloadSample()
+    {
         return Excel::download(new QuestionSampleExport, 'question_import_sample.xlsx');
     }
 
-    /**
-     * STEP 1: UPLOAD & PARSE FILE
-     * Reads Excel/CSV directly to avoid format conversion issues.
-     */
-    public function uploadAndPrepare(Request $request) {
-        // Increase time limit for large uploads
+    public function uploadAndPrepare(Request $request)
+    {
         set_time_limit(0);
         $request->validate(['excel_file' => 'required|mimes:xlsx,csv,xls']);
 
@@ -44,7 +49,6 @@ class QuestionImportController extends Controller
             $path = $file->getRealPath();
             $rows = [];
 
-            // Choose Strategy based on file type
             if ($extension === 'csv') {
                 $rows = $this->readCsvNative($path);
             } else {
@@ -55,11 +59,8 @@ class QuestionImportController extends Controller
                 return response()->json(['success' => false, 'message' => 'File is empty or headers could not be read.'], 422);
             }
 
-            // Store in Temp JSON for Queue Processing
             $batchId = Str::random(20);
             $fileName = "import_batch_{$batchId}.json";
-
-            // JSON Encode with robust flags (Handles Hindi/Math symbols safely)
             Storage::put('temp/' . $fileName, json_encode($rows, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
 
             return response()->json([
@@ -67,54 +68,44 @@ class QuestionImportController extends Controller
                 'batch_id' => $batchId,
                 'total_rows' => count($rows)
             ]);
-
         } catch (\Exception $e) {
             Log::error("Import Upload Error: " . $e->getMessage());
             return response()->json(['success' => false, 'message' => 'Critical Error: ' . $e->getMessage()], 500);
         }
     }
 
-    /**
-     * STEP 2: PROCESS QUEUE CHUNK
-     * Processes questions in small batches to prevent server timeout.
-     */
-    public function processChunk(Request $request) {
+    public function processChunk(Request $request)
+    {
         $batchId = $request->batch_id;
         $offset = $request->offset;
         $limit = $request->limit;
         $fileName = "temp/import_batch_{$batchId}.json";
 
         if (!Storage::exists($fileName)) {
-            return response()->json(['success' => false, 'message' => 'Batch processing file lost. Please upload again.'], 404);
+            return response()->json(['success' => false, 'message' => 'Batch file lost.'], 404);
         }
 
-        // Read Data
         $rows = json_decode(Storage::get($fileName), true);
-
-        // Slice Chunk
         $chunk = array_slice($rows, $offset, $limit);
-
         $processedCount = 0;
         $errors = [];
 
         foreach ($chunk as $index => $row) {
-            $rowNumber = $offset + $index + 2; // +2 because Excel starts at 1 and has Header
-
-            DB::beginTransaction(); // Start Transaction
+            $rowNumber = $offset + $index + 2;
+            DB::beginTransaction();
             try {
                 $this->createQuestion($row);
-                DB::commit(); // Save if successful
+                DB::commit();
                 $processedCount++;
             } catch (\Exception $e) {
-                DB::rollBack(); // Undo if failed
+                DB::rollBack();
                 $errors[] = "Row {$rowNumber}: " . $e->getMessage();
             }
         }
 
-        // Check if finished
         $isFinished = ($offset + $limit) >= count($rows);
         if ($isFinished) {
-            Storage::delete($fileName); // Cleanup
+            Storage::delete($fileName);
         }
 
         return response()->json([
@@ -125,36 +116,20 @@ class QuestionImportController extends Controller
         ]);
     }
 
-    // =========================================================================
-    //  HELPER: READERS (Native & Direct)
-    // =========================================================================
-
-    /**
-     * Native CSV Reader (Fastest & Accurate for Text)
-     */
-    private function readCsvNative($path) {
+    // ... CSV/Excel Readers (Same as your code) ...
+    private function readCsvNative($path)
+    {
         $rows = [];
         $header = null;
-
         if (($handle = fopen($path, "r")) !== FALSE) {
             while (($data = fgetcsv($handle, 2000, ",")) !== FALSE) {
-                // Remove BOM (Byte Order Mark) from first cell if present
                 if (!$header) {
                     $data[0] = preg_replace('/[\x00-\x1F\x80-\xFF]/', '', $data[0]);
                     $header = $this->normalizeKeys($data);
                 } else {
-                    // Safety: Pad row if columns are missing
-                    if (count($data) < count($header)) {
-                        $data = array_pad($data, count($header), null);
-                    }
-
-                    // Map Header -> Value
+                    if (count($data) < count($header)) $data = array_pad($data, count($header), null);
                     $row = array_combine($header, array_slice($data, 0, count($header)));
-
-                    // Filter: Only add if 'question' exists
-                    if ($this->hasData($row)) {
-                        $rows[] = $row;
-                    }
+                    if ($this->hasData($row)) $rows[] = $row;
                 }
             }
             fclose($handle);
@@ -162,15 +137,12 @@ class QuestionImportController extends Controller
         return $rows;
     }
 
-    /**
-     * Direct PhpSpreadsheet Reader (Best for Excel 10% formatting)
-     */
-    private function readExcelDirect($path) {
+    private function readExcelDirect($path)
+    {
         $reader = IOFactory::createReaderForFile($path);
-        $reader->setReadDataOnly(false); // We need formatting!
+        $reader->setReadDataOnly(false);
         $spreadsheet = $reader->load($path);
         $sheet = $spreadsheet->getActiveSheet();
-
         $rows = [];
         $header = [];
         $isFirstRow = true;
@@ -178,161 +150,157 @@ class QuestionImportController extends Controller
         foreach ($sheet->getRowIterator() as $row) {
             $cellIterator = $row->getCellIterator();
             $cellIterator->setIterateOnlyExistingCells(false);
-
             $rowData = [];
-            foreach ($cellIterator as $cell) {
-                // THE GOLDEN KEY: Get what the user sees
-                $val = $cell->getFormattedValue();
-                $rowData[] = (string)$val;
-            }
+            foreach ($cellIterator as $cell) $rowData[] = (string)$cell->getFormattedValue();
 
             if ($isFirstRow) {
                 $header = $this->normalizeKeys($rowData);
                 $isFirstRow = false;
             } else {
-                 if (count($rowData) >= count($header)) {
+                if (count($rowData) >= count($header)) {
                     $mappedRow = [];
-                    foreach($header as $index => $key) {
-                        $mappedRow[$key] = $rowData[$index] ?? null;
-                    }
-
-                    if ($this->hasData($mappedRow)) {
-                        $rows[] = $mappedRow;
-                    }
-                 }
+                    foreach ($header as $index => $key) $mappedRow[$key] = $rowData[$index] ?? null;
+                    if ($this->hasData($mappedRow)) $rows[] = $mappedRow;
+                }
             }
         }
         return $rows;
     }
 
-    // Helper: Normalize Headers (option 1 -> option1)
-    private function normalizeKeys($row) {
-        return array_map(function($key) {
-            // Remove space, underscore, dash, make lowercase
+    private function normalizeKeys($row)
+    {
+        return array_map(function ($key) {
             return str_replace([' ', '_', '-'], '', strtolower(trim($key)));
         }, $row);
     }
 
-    // Helper: Check if row has valid question data
-    private function hasData($row) {
+    private function hasData($row)
+    {
         return !empty(trim($row['question'] ?? ''));
     }
 
     // =========================================================================
-    //  MAIN LOGIC: CREATE QUESTION
+    //  MAIN LOGIC: CREATE QUESTION (UPDATED TO MATCH REPOSITORY STRUCTURE)
     // =========================================================================
 
-    private function createQuestion($row) {
-        // Safe Value Getter
+    private function createQuestion($row)
+    {
         $get = fn($key) => isset($row[$key]) ? trim($row[$key]) : null;
 
-        // 1. Validate Question Text
+        // 1. Text & Type
         $questionText = $get('question');
-        if (empty($questionText)) {
-            throw new \Exception("Question text is missing.");
-        }
+        if (empty($questionText)) throw new \Exception("Question text missing.");
 
-        // 2. Question Type
-        $typeCode = $get('questiontype') ?? $get('type') ?? 'MSA';
+        $typeCode = strtoupper($get('questiontype') ?? $get('type') ?? 'MSA');
         $type = QuestionType::where('code', $typeCode)->first();
-        $typeId = $type ? $type->id : 1;
+        if (!$type) throw new \Exception("Invalid Question Type: $typeCode");
+        $typeId = $type->id;
 
-        // 3. Skill & Topic (Smart DB Lookup)
+        // 2. Skill & Topic
         $skillId = $get('skillid') ?? $get('skill');
         $topicId = $get('topicid') ?? $get('topic');
 
-        // Logic: Agar ID di hai to verify karo, nahi to default first ID lo
         if ($skillId && !Skill::find($skillId)) $skillId = null;
         if ($topicId && !Topic::find($topicId)) $topicId = null;
 
-        if(!$skillId || !$topicId) {
-             $defaultTopic = Topic::first();
-             if (!$defaultTopic) throw new \Exception("No Topics found in database. Please add topics first.");
-
-             $skillId = $skillId ?: $defaultTopic->skill_id;
-             $topicId = $topicId ?: $defaultTopic->id;
+        if (!$skillId || !$topicId) {
+            $defaultTopic = Topic::first();
+            if (!$defaultTopic) throw new \Exception("No Topics found.");
+            $skillId = $skillId ?: $defaultTopic->skill_id;
+            $topicId = $topicId ?: $defaultTopic->id;
         }
 
-        // 4. Options Processing
+        // 3. Options Parsing (Matching Old Structure)
         $options = [];
-        for ($i = 1; $i <= 5; $i++) {
-            $val = $get('option' . $i);
-            // Ignore empty options
-            if ($val !== '' && $val !== null) {
-                $options[] = ['option' => $val, 'image' => null];
+        $rawOptions = [];
+
+        // MTF Special Parsing (Option,Pair)
+        if ($typeCode === 'MTF') {
+            for ($i = 1; $i <= 5; $i++) {
+                $optVal = $get('option' . $i);
+                $pairVal = $get('pair' . $i) ?? $get('option' . $i . 'pair'); // Flexible key check
+
+                if ($optVal !== '' && $optVal !== null) {
+                    $options[] = [
+                        'option' => $optVal,
+                        'pair' => $pairVal ?? '',
+                        'partial_weightage' => 0
+                    ];
+                }
+            }
+        }
+        // Standard Options
+        else {
+            for ($i = 1; $i <= 6; $i++) { // Extended to 6 just in case
+                $val = $get('option' . $i);
+                if ($val !== '' && $val !== null) {
+                    $options[] = [
+                        'option' => $val,
+                        'partial_weightage' => 0 // Consistent with Repo
+                    ];
+                    $rawOptions[] = $val; // For Answer Matching
+                }
             }
         }
 
-        if (empty($options)) {
-            throw new \Exception("No options provided for question.");
-        }
-
-        // 5. Correct Answer Logic
+        // 4. Correct Answer Logic
         $correctAnswerRaw = $get('correctanswer') ?? $get('answer');
         $correctAnswerFinal = null;
 
-        if (empty($correctAnswerRaw)) {
-            // Warn but don't crash, maybe set to 0? Or throw error.
-            // Let's throw error to be safe.
-            throw new \Exception("Correct Answer is missing.");
-        }
-
-        // Multiple Answers (comma separated)
-        if (str_contains($correctAnswerRaw, ',')) {
-            $indicesRaw = explode(',', $correctAnswerRaw);
-            $indices = [];
-            foreach ($indicesRaw as $val) {
-                $idx = (int)trim($val) - 1; // 1-based to 0-based
-                if (isset($options[$idx])) $indices[] = $idx;
+        if ($typeCode === 'FIB') {
+            // FIB: Extract from text ##..##
+            if (function_exists('getBlankItems')) {
+                $correctAnswerFinal = getBlankItems($questionText);
+            } else {
+                preg_match_all('/##(.*?)##/', $questionText, $matches);
+                $correctAnswerFinal = $matches[1] ?? [];
             }
-            $correctAnswerFinal = $indices;
+            // FIB Options are generated dynamically, but we keep structure empty
+            $options = [];
+        } elseif ($typeCode === 'MTF' || $typeCode === 'ORD' || $typeCode === 'SAQ') {
+            $correctAnswerFinal = null; // Stored inside options or calculated
         } else {
-            // Single Answer
-            if (is_numeric($correctAnswerRaw)) {
-                $idx = (int)$correctAnswerRaw - 1;
-                if (isset($options[$idx])) $correctAnswerFinal = $idx;
-            }
+            // MSA, MMA, TOF
+            if (empty($correctAnswerRaw)) throw new \Exception("Correct Answer missing.");
 
-            // Text Match Fallback
-            if ($correctAnswerFinal === null) {
-                 foreach($options as $k => $opt) {
-                     // Strict comparison for accuracy
-                     if(strcasecmp(trim($opt['option']), trim($correctAnswerRaw)) === 0) {
-                         $correctAnswerFinal = $k;
-                         break;
-                     }
-                 }
+            if (str_contains($correctAnswerRaw, ',')) {
+                // Multiple Answers (Indices)
+                $indicesRaw = explode(',', $correctAnswerRaw);
+                $indices = [];
+                foreach ($indicesRaw as $val) {
+                    $idx = (int)trim($val) - 1;
+                    if (isset($rawOptions[$idx])) $indices[] = $idx;
+                }
+                $correctAnswerFinal = $indices;
+            } else {
+                // Single Answer
+                if (is_numeric($correctAnswerRaw)) {
+                    $idx = (int)$correctAnswerRaw - 1;
+                    if (isset($rawOptions[$idx])) $correctAnswerFinal = $idx;
+                } else {
+                    // Text Match
+                    foreach ($options as $k => $opt) {
+                        if (strcasecmp(trim($opt['option']), trim($correctAnswerRaw)) === 0) {
+                            $correctAnswerFinal = $k;
+                            break;
+                        }
+                    }
+                }
             }
         }
 
-        // 6. Solution
-        $solution = $get('solution');
+        // 5. Preferences (Using Repository Logic)
+        $preferences = $this->repository->setDefaultPreferences($typeCode);
 
-        // 7. Column Shift Logic (Smart Detection)
+        // 6. Meta Data
         $rawMarks = $get('defaultmarks') ?? $get('marks') ?? '1';
         $rawTime = $get('defaulttimetosolve') ?? $get('time') ?? '60';
         $rawDiff = $get('difficultylevel') ?? $get('difficulty') ?? 'EASY';
-        $rawHint = $get('hint');
 
-        $finalMarks = 1; $finalTime = 60; $finalDiffName = 'EASY'; $finalHint = null;
-
-        // Agar marks numeric nahi hai, iska matlab column shift hua hai (data idhar udhar hai)
-        if (!is_numeric($rawMarks)) {
-            $finalHint = $rawMarks; // Text found in marks column is actually Hint
-            $finalMarks = is_numeric($rawTime) ? $rawTime : 1;
-            $finalTime = is_numeric($rawDiff) ? $rawDiff : 60;
-            $finalDiffName = $rawHint ?? 'EASY';
-        } else {
-            $finalMarks = $rawMarks;
-            $finalTime = $rawTime;
-            $finalDiffName = $rawDiff;
-            $finalHint = $rawHint;
-        }
-
-        $diffLevel = DifficultyLevel::where('name', trim($finalDiffName))->orWhere('code', trim($finalDiffName))->first();
+        $diffLevel = DifficultyLevel::where('name', trim($rawDiff))->orWhere('code', trim($rawDiff))->first();
         $diffId = $diffLevel ? $diffLevel->id : 1;
 
-        // 8. Final Insert
+        // 7. Store
         Question::create([
             'question_type_id'    => $typeId,
             'skill_id'            => $skillId,
@@ -341,13 +309,14 @@ class QuestionImportController extends Controller
             'question'            => $questionText,
             'options'             => $options,
             'correct_answer'      => $correctAnswerFinal,
-            'solution'            => $solution,
-            'default_marks'       => $finalMarks,
-            'default_time'        => $finalTime,
-            'hint'                => $finalHint,
+            'solution'            => $get('solution'),
+            'default_marks'       => is_numeric($rawMarks) ? $rawMarks : 1,
+            'default_time'        => is_numeric($rawTime) ? $rawTime : 60,
+            'hint'                => $get('hint'),
+            'preferences'         => $preferences, // Ensure shuffle/limits are set
             'created_by'          => Auth::id() ?? 1,
             'is_active'           => true,
-            'code'                => 'que_' . Str::random(10),
+            'code'                => 'IMP_' . Str::random(8),
         ]);
     }
 }

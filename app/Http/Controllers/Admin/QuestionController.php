@@ -10,6 +10,7 @@ use App\Models\Skill;
 use App\Models\Topic;
 use App\Models\DifficultyLevel;
 use App\Models\ComprehensionPassage;
+use App\Repositories\QuestionRepository; // Repository Import
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -19,9 +20,14 @@ use Illuminate\Http\RedirectResponse;
 
 class QuestionController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
+    private QuestionRepository $repository;
+
+    public function __construct(QuestionRepository $repository)
+    {
+        // Repository Injection
+        $this->repository = $repository;
+    }
+
     public function index(QuestionFilters $filters, Request $request): View|string
     {
         $query = Question::filter($filters)
@@ -45,9 +51,6 @@ class QuestionController extends Controller
         return view($viewName, compact('questions', 'types', 'skills'));
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
     public function create(Request $request): View|RedirectResponse
     {
         try {
@@ -59,6 +62,10 @@ class QuestionController extends Controller
             $difficultyLevels = DifficultyLevel::all();
             $passages = ComprehensionPassage::select('id', 'title')->get();
 
+            // Using Repository to get Defaults (Old Logic)
+            $defaultOptions = $this->repository->setDefaultOptions($questionType->code);
+            $defaultPreferences = $this->repository->setDefaultPreferences($questionType->code);
+
             $viewPath = request()->routeIs('instructor.*') ? 'instructor.questions.create' : 'admin.questions.create';
 
             return view($viewPath, compact(
@@ -66,36 +73,34 @@ class QuestionController extends Controller
                 'skills',
                 'topics',
                 'difficultyLevels',
-                'passages'
+                'passages',
+                'defaultOptions',
+                'defaultPreferences'
             ));
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Invalid Question Type');
         }
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request): RedirectResponse
     {
-        // 1. Validation
         $request->validate([
             'question' => 'required',
             'skill_id' => 'required',
-            'default_marks' => 'required|numeric',
+            'question_type_id' => 'required|exists:question_types,id',
+            'default_marks' => 'required|numeric|min:0',
         ]);
 
         DB::beginTransaction();
         try {
-            // FIX: Exclude non-column fields
             $data = $request->except(['_token', 'question_image', 'options', 'attachment_options', 'last_active_tab', 'comprehension_id']);
 
-            // FIX: Handle Empty Strings / Nulls
+            // Handle Nulls
             $data['topic_id'] = $request->topic_id ?: null;
             $data['difficulty_level_id'] = $request->difficulty_level_id ?: null;
             $data['default_time'] = $request->default_time ?: null;
 
-            // 2. Handle Question Image
+            // Handle Image
             if ($request->hasFile('question_image')) {
                 $file = $request->file('question_image');
                 $filename = time() . '_q_' . $file->getClientOriginalName();
@@ -103,28 +108,24 @@ class QuestionController extends Controller
                 $data['question'] = $data['question'] . '<br><img src="' . asset('uploads/questions/' . $filename) . '" class="img-fluid" style="max-height: 300px;">';
             }
 
-            // 3. Logic per Question Type (Options)
+            // --- CORE LOGIC USING HELPER & REPOSITORY ---
             $questionType = QuestionType::findOrFail($request->question_type_id);
             $typeCode = $questionType->code;
-            $options = $request->input('options', []);
 
+            $data['options'] = $request->input('options', []);
+            $data['preferences'] = $request->input('preferences', []);
+
+            // FIB Logic using Helper (Same as Old Code)
             if ($typeCode === 'FIB') {
-                preg_match_all('/##(.*?)##/', $data['question'], $matches);
-                if (!empty($matches[1])) {
-                    $options = array_map(function ($item) {
-                        return ['option' => trim($item), 'is_correct' => true];
-                    }, $matches[1]);
-                    $data['correct_answer'] = $matches[1];
-                }
-            } elseif ($typeCode === 'MMA' || $typeCode === 'MMS') {
-                $data['correct_answer'] = null; // Correctness inside options JSON
+                $data['correct_answer'] = getBlankItems($data['question']);
+            } elseif ($typeCode === 'MMA' || $typeCode === 'MMS' || $typeCode === 'MTF' || $typeCode === 'ORD' || $typeCode === 'SAQ') {
+                $data['correct_answer'] = null; // Stored in options or calculated dynamically
             } else {
-                $options = array_values($options); // Reindex
+                // MSA, TOF
+                $data['correct_answer'] = $request->input('correct_answer');
             }
 
-            $data['options'] = $options;
-
-            // 4. Handle Attachments
+            // Attachment Logic
             if ($request->has_attachment == 1) {
                 if ($request->attachment_type == 'comprehension') {
                     $data['comprehension_passage_id'] = $request->comprehension_id ?: null;
@@ -142,7 +143,6 @@ class QuestionController extends Controller
             if (Auth::check()) $data['created_by'] = Auth::id();
             if (!isset($data['is_active'])) $data['is_active'] = 1;
 
-            // 5. Create
             Question::create($data);
 
             DB::commit();
@@ -155,40 +155,41 @@ class QuestionController extends Controller
         }
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
+
+
     public function edit(Request $request, $id): View|RedirectResponse
     {
-        try {
-            $question = Question::findOrFail($id);
-            $this->authorizeInstructor($question);
+        // try {  <-- COMMENT THIS LINE
+        $question = Question::findOrFail($id);
+        $this->authorizeInstructor($question);
 
-            $questionType = $question->questionType;
-            $skills = Skill::where('is_active', 1)->select('id', 'name')->get();
-            $topics = Topic::select('id', 'name', 'skill_id')->get();
-            $difficultyLevels = DifficultyLevel::all();
-            $passages = ComprehensionPassage::select('id', 'title')->get();
+        $questionType = $question->questionType;
+        $skills = Skill::where('is_active', 1)->select('id', 'name')->get();
+        $topics = Topic::select('id', 'name', 'skill_id')->get();
+        $difficultyLevels = DifficultyLevel::all();
+        $passages = ComprehensionPassage::select('id', 'title')->get();
 
-            $viewPath = request()->routeIs('instructor.*') ? 'instructor.questions.edit' : 'admin.questions.edit';
+        $steps = $this->repository->getSteps($question->id, 'details');
 
-            return view($viewPath, compact(
-                'question',
-                'questionType',
-                'skills',
-                'topics',
-                'difficultyLevels',
-                'passages'
-            ));
-        } catch (\Exception $e) {
-            Log::error('Edit Page Error: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Unable to load edit page.');
-        }
+        $viewPath = request()->routeIs('instructor.*') ? 'instructor.questions.edit' : 'admin.questions.edit';
+
+        return view($viewPath, compact(
+            'question',
+            'questionType',
+            'skills',
+            'topics',
+            'difficultyLevels',
+            'passages',
+            'steps'
+        ));
+
+        // } catch (\Exception $e) {       <-- COMMENT THIS BLOCK
+        //    Log::error('Edit Page Error: ' . $e->getMessage());
+        //    dd($e->getMessage()); // <-- ADD THIS TO SEE ERROR ON SCREEN
+        //    return redirect()->back()->with('error', 'Unable to load edit page.');
+        // }
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(Request $request, $id): RedirectResponse
     {
         $request->validate([
@@ -209,21 +210,17 @@ class QuestionController extends Controller
             $data['default_time'] = $request->default_time ?: null;
 
             $typeCode = $question->questionType->code;
-            $options = $request->input('options', []);
+            $data['options'] = $request->input('options', []);
+            $data['preferences'] = $request->input('preferences', []);
 
+            // FIB Logic using Helper (Same as Old Code)
             if ($typeCode === 'FIB') {
-                preg_match_all('/##(.*?)##/', $data['question'], $matches);
-                if (!empty($matches[1])) {
-                    $options = array_map(function ($item) {
-                        return ['option' => trim($item), 'is_correct' => true];
-                    }, $matches[1]);
-                    $data['correct_answer'] = $matches[1];
-                }
+                $data['correct_answer'] = getBlankItems($data['question']);
+            } elseif ($typeCode === 'MTF' || $typeCode === 'ORD' || $typeCode === 'SAQ' || $typeCode === 'MMA') {
+                $data['correct_answer'] = null;
             } else {
-                $options = array_values($options);
+                $data['correct_answer'] = $request->input('correct_answer');
             }
-
-            $data['options'] = $options;
 
             if ($request->has_attachment == 1) {
                 if ($request->attachment_type == 'comprehension') {
@@ -252,9 +249,6 @@ class QuestionController extends Controller
         }
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
     public function destroy($id)
     {
         DB::beginTransaction();
@@ -279,9 +273,27 @@ class QuestionController extends Controller
         }
     }
 
-    /**
-     * Load Preview Modal Content.
-     */
+    public function bulkDestroy(Request $request)
+    {
+        try {
+            $request->validate([
+                'ids' => 'required|array',
+                'ids.*' => 'exists:questions,id'
+            ]);
+
+            $count = count($request->ids);
+
+            Question::whereIn('id', $request->ids)->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => "{$count} questions deleted successfully."
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Error deleting items.'], 500);
+        }
+    }
+
     public function preview($id): View|string
     {
         try {
@@ -295,9 +307,6 @@ class QuestionController extends Controller
         }
     }
 
-    /**
-     * Approve a specific question (Admin Only).
-     */
     public function approve($id): RedirectResponse
     {
         DB::beginTransaction();
@@ -305,50 +314,37 @@ class QuestionController extends Controller
             if (!Auth::user()->hasRole('admin')) {
                 abort(403, 'Unauthorized action.');
             }
-
             $question = Question::findOrFail($id);
             $question->update(['is_active' => true]);
-
             DB::commit();
-            return redirect()->back()->with('success', 'Question approved and is now live.');
+            return redirect()->back()->with('success', 'Question approved.');
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Question Approval Error: ' . $e->getMessage());
             return redirect()->back()->with('error', 'Unable to approve question.');
         }
     }
 
-    /**
-     * Show Pending Questions (Admin Only).
-     */
     public function pending(): View|RedirectResponse
     {
         try {
             if (!Auth::user()->hasRole('admin')) {
-                abort(403, 'Unauthorized. Only admins can view pending questions.');
+                abort(403, 'Unauthorized.');
             }
-
             $questions = Question::with(['questionType', 'skill', 'topic', 'creator'])
                 ->where('is_active', false)
                 ->latest()
                 ->paginate(10);
-
             return view('admin.questions.pending', compact('questions'));
         } catch (\Exception $e) {
-            Log::error('Pending Questions Error: ' . $e->getMessage());
             return redirect()->route('admin.dashboard')->with('error', 'Unable to load pending questions.');
         }
     }
 
-    /**
-     * Show Question Usage.
-     */
     public function usage($id): View
     {
         try {
             $question = Question::with(['linkedExams', 'skill', 'topic', 'questionType'])->findOrFail($id);
             $this->authorizeInstructor($question);
-
             $viewName = request()->routeIs('instructor.*') ? 'instructor.questions.usage' : 'admin.questions.usage';
             return view($viewName, compact('question'));
         } catch (\Exception $e) {
@@ -356,9 +352,6 @@ class QuestionController extends Controller
         }
     }
 
-    /**
-     * Helper to authorize instructor access.
-     */
     private function authorizeInstructor(Question $question): void
     {
         if (Auth::user()->hasRole('instructor') && $question->created_by != Auth::id()) {

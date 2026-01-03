@@ -71,6 +71,7 @@ return array(
     'App\\Http\\Controllers\\Admin\\MicroCategoryController' => $baseDir . '/app/Http/Controllers/Admin/MicroCategoryController.php',
     'App\\Http\\Controllers\\Admin\\PaymentController' => $baseDir . '/app/Http/Controllers/Admin/PaymentController.php',
     'App\\Http\\Controllers\\Admin\\PlanCrudController' => $baseDir . '/app/Http/Controllers/Admin/PlanCrudController.php',
+    'App\\Http\\Controllers\\Admin\\PracticeSetController' => $baseDir . '/app/Http/Controllers/Admin/PracticeSetController.php',
     'App\\Http\\Controllers\\Admin\\PracticeSetsController' => $baseDir . '/app/Http/Controllers/Admin/PracticeSetsController.php',
     'App\\Http\\Controllers\\Admin\\QuestionController' => $baseDir . '/app/Http/Controllers/Admin/QuestionController.php',
     'App\\Http\\Controllers\\Admin\\QuestionController_old' => $baseDir . '/app/Http/Controllers/Admin/QuestionController_old.php',
