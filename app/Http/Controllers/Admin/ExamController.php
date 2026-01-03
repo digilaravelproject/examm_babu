@@ -6,8 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Exam;
 use App\Models\ExamType;
 use App\Models\Topic;
+use App\Models\Category; // Added
 use App\Models\SubCategory;
-use App\Models\MicroCategory; // Added Model
+use App\Models\MicroCategory; // Added
 use App\Repositories\ExamRepository;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -50,8 +51,8 @@ class ExamController extends Controller
             $query->where('topic_id', $request->topic_id);
         }
 
-        // Added microCategory to eager loading
-        $exams = $query->with(['subCategory', 'examType', 'microCategory', 'topic'])
+        // Added category & microCategory to eager loading
+        $exams = $query->with(['category', 'subCategory', 'examType', 'microCategory', 'topic'])
             ->withCount(['examSections'])
             ->orderBy('id', 'desc')
             ->paginate(10)
@@ -72,9 +73,7 @@ class ExamController extends Controller
         DB::beginTransaction();
 
         try {
-            /* ----------------------------
-            * 1. Generate unique title
-            * ---------------------------- */
+            // 1. Generate unique title
             $baseTitle = $exam->title . '_copy';
             $newTitle  = $baseTitle;
             $counter   = 1;
@@ -83,9 +82,7 @@ class ExamController extends Controller
                 $newTitle = $baseTitle . '_' . $counter++;
             }
 
-            /* ----------------------------
-            * 2. Duplicate Exam
-            * ---------------------------- */
+            // 2. Duplicate Exam
             $newExam = $exam->replicate();
             $newExam->title = $newTitle;
             $newExam->code = 'EX-' . strtoupper(Str::random(8));
@@ -94,17 +91,13 @@ class ExamController extends Controller
             $newExam->updated_at = now();
             $newExam->save();
 
-            /* ----------------------------
-            * 3. Copy Exam Settings
-            * ---------------------------- */
+            // 3. Copy Exam Settings
             if (!empty($exam->settings)) {
                 $newExam->settings = $exam->settings;
                 $newExam->save();
             }
 
-            /* ----------------------------
-            * 4. Duplicate Exam Sections
-            * ---------------------------- */
+            // 4. Duplicate Exam Sections
             $sectionMap = []; // old_section_id => new_section_id
 
             foreach ($exam->examSections as $section) {
@@ -121,9 +114,7 @@ class ExamController extends Controller
                 }
             }
 
-            /* ----------------------------
-            * 5. DUPLICATE exam_questions TABLE
-            * ---------------------------- */
+            // 5. DUPLICATE exam_questions TABLE
             $examQuestions = DB::table('exam_questions')
                 ->where('exam_id', $exam->id)
                 ->get();
@@ -136,9 +127,7 @@ class ExamController extends Controller
                 ]);
             }
 
-            /* ----------------------------
-            * 6. DUPLICATE exam_schedules TABLE
-            * ---------------------------- */
+            // 6. DUPLICATE exam_schedules TABLE
             $examSchedules = DB::table('exam_schedules')
                 ->where('exam_id', $exam->id)
                 ->get();
@@ -164,7 +153,6 @@ class ExamController extends Controller
             return redirect()
                 ->route('admin.exams.index')
                 ->with('success', 'Exam duplicated successfully with questions & schedules.');
-
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Exam Duplicate Failed', [
@@ -205,13 +193,18 @@ class ExamController extends Controller
         $exam = new Exam();
         $examTypes = ExamType::where('is_active', 1)->get();
         $steps = $this->repository->getSteps(null, 'details');
+<<<<<<< Updated upstream
         $subCategories = SubCategory::where('is_active', 1)->get();
+=======
+
+        // Fetch All Active Data for JS Filtering
+        $categories = Category::where('is_active', 1)->get();
+        $subCategories = SubCategory::where('is_active', 1)->get(['id', 'name', 'category_id']);
+        $microCategories = MicroCategory::where('is_active', 1)->get(['id', 'name', 'sub_category_id']);
+>>>>>>> Stashed changes
         $topics = Topic::where('is_active', 1)->get();
 
-        // Fetch all active micro categories to pass to the view for dynamic JS filtering
-        $microCategories = MicroCategory::where('is_active', 1)->get(['id', 'name', 'sub_category_id']);
-
-        return view('admin.exams.create', compact('exam', 'examTypes', 'subCategories', 'steps', 'microCategories', 'topics'));
+        return view('admin.exams.create', compact('exam', 'examTypes', 'categories', 'subCategories', 'steps', 'microCategories', 'topics'));
     }
 
     public function store(Request $request)
@@ -219,9 +212,10 @@ class ExamController extends Controller
         // 1. Validate
         $data = $request->validate([
             'title' => 'required|string|max:255',
+            'category_id' => 'required|exists:categories,id', // Added
             'sub_category_id' => 'required|exists:sub_categories,id',
             'topic_id' => 'nullable|exists:topics,id',
-            'micro_category_id' => 'nullable|exists:micro_categories,id', // Added Nullable Validation
+            'micro_category_id' => 'nullable|exists:micro_categories,id',
             'exam_type_id' => 'required|exists:exam_types,id',
             'description' => 'nullable|string',
             'pricing_type' => 'required|in:free,paid',
@@ -259,6 +253,7 @@ class ExamController extends Controller
         $exam = Exam::findOrFail($id);
         $examTypes = ExamType::where('is_active', 1)->get();
 
+<<<<<<< Updated upstream
         // $subCategories = SubCategory::where('id', $exam->sub_category_id)
         //     ->orWhere('category_id', $exam->subCategory->category_id ?? 0)
         //     ->get();
@@ -266,13 +261,17 @@ class ExamController extends Controller
 
 
         // Fetch all active micro categories
+=======
+        $categories = Category::where('is_active', 1)->get();
+        // Fetch all relevant sub/micro categories for the JS filter to work properly on edit
+        $subCategories = SubCategory::where('is_active', 1)->get(['id', 'name', 'category_id']);
+>>>>>>> Stashed changes
         $microCategories = MicroCategory::where('is_active', 1)->get(['id', 'name', 'sub_category_id']);
 
         $steps = $this->repository->getSteps($exam->id, 'details');
-
         $topics = Topic::where('is_active', 1)->get();
 
-        return view('admin.exams.edit', compact('exam', 'examTypes', 'subCategories', 'steps', 'microCategories', 'topics'));
+        return view('admin.exams.edit', compact('exam', 'examTypes', 'categories', 'subCategories', 'steps', 'microCategories', 'topics'));
     }
 
     public function update(Request $request, $id)
@@ -282,9 +281,10 @@ class ExamController extends Controller
         // 1. Validate
         $data = $request->validate([
             'title' => 'required|string|max:255',
+            'category_id' => 'required|exists:categories,id', // Added
             'sub_category_id' => 'required|exists:sub_categories,id',
             'topic_id' => 'nullable|exists:topics,id',
-            'micro_category_id' => 'nullable|exists:micro_categories,id', // Added Nullable Validation
+            'micro_category_id' => 'nullable|exists:micro_categories,id',
             'exam_type_id' => 'required|exists:exam_types,id',
             'description' => 'nullable|string',
             'pricing_type' => 'required|in:free,paid',
@@ -315,12 +315,14 @@ class ExamController extends Controller
         }
     }
 
-    // --- STEP 3: SETTINGS (No Changes Required) ---
+    // --- STEP 3: SETTINGS ---
+
     public function settings($id)
     {
         $exam = Exam::findOrFail($id);
         $steps = $this->repository->getSteps($exam->id, 'settings');
 
+        // Using ->get() on schemaless attributes ensures default values if keys missing
         $settings = [
             'auto_duration' => $exam->settings->get('auto_duration', true),
             'auto_grading' => $exam->settings->get('auto_grading', true),
@@ -346,29 +348,64 @@ class ExamController extends Controller
     public function updateSettings(Request $request, $id)
     {
         $exam = Exam::with('examSections')->findOrFail($id);
-        // ... (Existing logic remains same) ...
-        $booleanKeys = ['auto_duration', 'auto_grading', 'enable_negative_marking', 'enable_section_cutoff', 'shuffle_questions', 'restrict_attempts', 'disable_section_navigation', 'disable_finish_button', 'disable_question_navigation', 'list_questions', 'hide_solutions', 'show_leaderboard'];
+
+        $booleanKeys = [
+            'auto_duration',
+            'auto_grading',
+            'enable_negative_marking',
+            'enable_section_cutoff',
+            'shuffle_questions',
+            'restrict_attempts',
+            'disable_section_navigation',
+            'disable_finish_button',
+            'disable_question_navigation',
+            'list_questions',
+            'hide_solutions',
+            'show_leaderboard'
+        ];
+
         $valueKeys = ['cutoff', 'no_of_attempts', 'duration_mode', 'marks_mode'];
+
         $newSettings = [];
-        foreach ($booleanKeys as $key) $newSettings[$key] = $request->has($key);
-        foreach ($valueKeys as $key) $newSettings[$key] = $request->input($key);
+
+        // Correctly handle boolean/hidden input values
+        foreach ($booleanKeys as $key) {
+            $newSettings[$key] = $request->input($key) == '1';
+        }
+
+        foreach ($valueKeys as $key) {
+            $newSettings[$key] = $request->input($key);
+        }
 
         DB::beginTransaction();
         try {
-            $exam->settings = $newSettings;
+            // FIX: Convert settings object to array to fix array_merge error
+            $currentSettings = $exam->settings ? $exam->settings->all() : [];
+            $exam->settings = array_merge($currentSettings, $newSettings);
+
             $exam->save();
-            foreach ($exam->examSections as $examSection) if (method_exists($examSection, 'updateMeta')) $examSection->updateMeta();
-            if (method_exists($exam, 'updateMeta')) $exam->updateMeta();
+
+            foreach ($exam->examSections as $examSection) {
+                if (method_exists($examSection, 'updateMeta')) {
+                    $examSection->updateMeta();
+                }
+            }
+
+            if (method_exists($exam, 'updateMeta')) {
+                $exam->updateMeta();
+            }
+
             DB::commit();
             return redirect()->route('admin.exams.sections.index', ['exam' => $exam->id])->with('success', 'Exam Settings Updated.');
         } catch (Exception $e) {
             DB::rollBack();
             Log::error($e);
-            return back()->with('error', 'Failed to save settings.');
+            return back()->with('error', 'Failed to save settings: ' . $e->getMessage());
         }
     }
 
-    // --- STEP 4: DELETE (No Changes Required) ---
+    // --- STEP 4: DELETE ---
+
     public function destroy($id)
     {
         try {
@@ -378,8 +415,12 @@ class ExamController extends Controller
                 if (method_exists($exam, 'sessions')) $exam->sessions()->forceDelete();
                 if (method_exists($exam, 'questions')) $exam->questions()->detach();
                 if (method_exists($exam, 'examSections')) $exam->examSections()->forceDelete();
-                if (method_exists($exam, 'secureDelete')) $exam->secureDelete('examSections', 'sessions', 'examSchedules');
-                else $exam->delete();
+
+                if (method_exists($exam, 'secureDelete')) {
+                    $exam->secureDelete('examSections', 'sessions', 'examSchedules');
+                } else {
+                    $exam->delete();
+                }
             });
         } catch (\Illuminate\Database\QueryException $e) {
             return redirect()->route('admin.exams.index')->with('error', 'Unable to Delete Exam. Remove all associations and try again!');
