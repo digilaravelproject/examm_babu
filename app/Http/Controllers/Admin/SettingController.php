@@ -1,0 +1,199 @@
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Settings\BillingSettings;
+use App\Settings\EmailSettings;
+use App\Settings\PaymentSettings;
+use App\Settings\RazorpaySettings;
+use App\Settings\SiteSettings;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Jackiedo\DotenvEditor\DotenvEditor as JackiedoDotenvEditor;
+use Jackiedo\DotenvEditor\Facades\DotenvEditor;
+
+class SettingController extends Controller
+{
+    /**
+     * General Settings View
+     */
+    public function general(SiteSettings $settings)
+    {
+        return view('admin.settings.general', compact('settings'));
+    }
+
+    public function updateSiteSettings(Request $request, SiteSettings $settings)
+    {
+        $validated = $request->validate([
+            'app_name' => 'required|string|max:160',
+            'tag_line' => 'required|string|max:160',
+            'seo_description' => 'required|string|max:255',
+            'can_register' => 'nullable',
+        ]);
+
+        $settings->app_name = $validated['app_name'];
+        $settings->tag_line = $validated['tag_line'];
+        $settings->seo_description = $validated['seo_description'];
+        $settings->can_register = $request->has('can_register'); // Checkbox logic
+        $settings->save();
+
+        // Update .env
+        try {
+            $env = DotenvEditor::load();
+            $env->setKey('APP_NAME', '"' . $validated['app_name'] . '"');
+            $env->save();
+        } catch (\Exception $e) {
+        }
+
+        return redirect()->back()->with('success', 'General settings updated successfully.');
+    }
+
+    public function updateLogo(Request $request, SiteSettings $settings)
+    {
+        $request->validate([
+            'logo_path' => 'required|image|mimes:jpg,png,jpeg|max:2048',
+        ]);
+
+        if ($request->hasFile('logo_path')) {
+            // Delete old
+            if ($settings->logo_path && Storage::disk('public')->exists($settings->logo_path)) {
+                Storage::disk('public')->delete($settings->logo_path);
+            }
+            // Save new
+            $path = $request->file('logo_path')->store('settings', 'public');
+            $settings->logo_path = $path;
+            $settings->save();
+        }
+
+        return redirect()->back()->with('success', 'Logo updated successfully.');
+    }
+
+    public function updateFavicon(Request $request, SiteSettings $settings)
+    {
+        $request->validate([
+            'favicon_path' => 'required|image|mimes:png,ico|max:1024',
+        ]);
+
+        if ($request->hasFile('favicon_path')) {
+            if ($settings->favicon_path && Storage::disk('public')->exists($settings->favicon_path)) {
+                Storage::disk('public')->delete($settings->favicon_path);
+            }
+            $path = $request->file('favicon_path')->store('settings', 'public');
+            $settings->favicon_path = $path;
+            $settings->save();
+        }
+
+        return redirect()->back()->with('success', 'Favicon updated successfully.');
+    }
+
+    /**
+     * Email Settings View
+     */
+    public function email(EmailSettings $settings)
+    {
+        return view('admin.settings.email', compact('settings'));
+    }
+
+    public function updateEmailSettings(Request $request, EmailSettings $settings)
+    {
+        $validated = $request->validate([
+            'host' => 'required|string',
+            'port' => 'required|numeric',
+            'username' => 'required|string',
+            'password' => 'required|string',
+            'encryption' => 'required|string',
+            'from_address' => 'required|email',
+            'from_name' => 'required|string',
+        ]);
+
+        $settings->fill($validated);
+        $settings->save();
+
+        // Update .env
+        try {
+            $env = DotenvEditor::load();
+            $env->setKey('MAIL_HOST', $validated['host']);
+            $env->setKey('MAIL_PORT', $validated['port']);
+            $env->setKey('MAIL_USERNAME', $validated['username']);
+            $env->setKey('MAIL_PASSWORD', $validated['password']);
+            $env->setKey('MAIL_ENCRYPTION', $validated['encryption']);
+            $env->setKey('MAIL_FROM_ADDRESS', $validated['from_address']);
+            $env->setKey('MAIL_FROM_NAME', '"' . $validated['from_name'] . '"');
+            $env->save();
+        } catch (\Exception $e) {
+        }
+
+        return redirect()->back()->with('success', 'Email settings updated successfully.');
+    }
+
+    /**
+     * Payment Settings View (Razorpay Only)
+     */
+    public function payment(PaymentSettings $payment, RazorpaySettings $razorpay)
+    {
+        return view('admin.settings.payment', compact('payment', 'razorpay'));
+    }
+
+    public function updatePaymentSettings(Request $request, PaymentSettings $settings)
+    {
+        $validated = $request->validate([
+            'default_currency' => 'required|string|max:3',
+            'currency_symbol' => 'required|string|max:10',
+            'currency_symbol_position' => 'required|in:left,right,left_space,right_space',
+        ]);
+
+        $settings->default_currency = $validated['default_currency'];
+        $settings->currency_symbol = $validated['currency_symbol'];
+        $settings->currency_symbol_position = $validated['currency_symbol_position'];
+        $settings->save();
+
+        return redirect()->back()->with('success', 'Currency settings updated.');
+    }
+
+    public function updateRazorpaySettings(Request $request, RazorpaySettings $settings)
+    {
+        $validated = $request->validate([
+            'key_id' => 'required|string',
+            'key_secret' => 'required|string',
+            'webhook_secret' => 'nullable|string',
+        ]);
+
+        $settings->key_id = $validated['key_id'];
+        $settings->key_secret = $validated['key_secret'];
+        $settings->webhook_secret = $validated['webhook_secret'] ?? '';
+        $settings->save();
+
+        return redirect()->back()->with('success', 'Razorpay credentials updated.');
+    }
+
+    /**
+     * Billing Settings View
+     */
+    public function billing(BillingSettings $settings)
+    {
+        return view('admin.settings.billing', compact('settings'));
+    }
+
+    public function updateBillingSettings(Request $request, BillingSettings $settings)
+    {
+        $validated = $request->validate([
+            'vendor_name' => 'required|string',
+            'invoice_prefix' => 'required|string',
+            'address' => 'required|string',
+            'city' => 'required|string',
+            'state' => 'required|string',
+            'zip' => 'required|string',
+            'country' => 'required|string',
+            'phone_number' => 'required|string',
+            'vat_number' => 'nullable|string',
+            'enable_invoicing' => 'nullable',
+        ]);
+
+        $settings->fill($validated);
+        $settings->enable_invoicing = $request->has('enable_invoicing'); // Checkbox logic
+        $settings->save();
+
+        return redirect()->back()->with('success', 'Billing settings updated.');
+    }
+}

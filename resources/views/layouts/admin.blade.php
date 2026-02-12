@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+@inject('siteSettings', 'App\Settings\SiteSettings')
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    {{-- App Name bhi Settings se le rahe hain --}}
+    <title>@yield('title', 'Admin Panel') - {{ $siteSettings->app_name ?? config('app.name', 'Exam Babu') }}</title>
+
+    {{-- DYNAMIC FAVICON LOGIC --}}
+    @if($siteSettings->favicon_path)
+        <link rel="icon" type="image/png" href="{{ \Illuminate\Support\Facades\Storage::url($siteSettings->favicon_path) }}">
+    @else
+        <link rel="icon" type="image/png" href="{{ asset('storage/site_images/logo1dotcom.png') }}">
+    @endif
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <style>
+        :root {
+            --brand-blue: #0777be;
+            --brand-pink: #f062a4;
+            --brand-green: #94c940;
+            --brand-sky: #7fd2ea;
+            --sidebar-bg: #0f172a;
+        }
+
+        [x-cloak] {
+            display: none !important;
+        }
+
+        .custom-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .custom-scroll::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 10px;
+        }
+
+        .nav-link-active {
+            background-color: var(--brand-blue) !important;
+            color: white !important;
+            border-left: 4px solid var(--brand-green);
+        }
+
+        .sub-link-active {
+            color: #7fd2ea !important;
+            font-weight: 700;
+        }
+
+        /* Chrome, Safari, Edge, Opera */
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        /* Firefox */
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+    </style>
+</head>
+
+<body class="font-sans antialiased text-gray-600 bg-gray-50">
+
+    @php
+        $activeMenu = '';
+
+        if (request()->routeIs('admin.exam*', 'admin.exam-types*', 'admin.quizzes*')) {
+            $activeMenu = 'engagement';
+        // } elseif (request()->routeIs('admin.practice-sets.*', 'admin.lessons.*', 'admin.videos.*')) {
+        //     $activeMenu = 'learning';
+        } elseif (request()->routeIs('admin.questions.*', 'admin.questions.import', 'admin.comprehensions.*', 'admin.question-types.*','admin.ai-import.*')) {
+            $activeMenu = 'library';
+        } elseif (
+            request()->routeIs(
+                'admin.categories.*',
+                'admin.sub-categories.*',
+                'admin.micro-categories.*',
+                'admin.tags.*',
+            )
+        ) {
+            $activeMenu = 'master';
+        } elseif (request()->routeIs('admin.sections.*', 'admin.skills.*', 'admin.topics.*')) {
+            $activeMenu = 'subjects';
+        } elseif (request()->routeIs('admin.plans.*', 'admin.subscriptions.*', 'admin.payments.*')) {
+            $activeMenu = 'config';
+        } elseif (request()->routeIs('admin.users.*', 'admin.user-groups.*')) {
+            $activeMenu = 'users';
+        }
+        elseif (request()->routeIs('admin.settings.referral*', 'admin.referrals.*')) {
+            $activeMenu = 'referral';
+        }
+    @endphp
+
+    <div class="flex h-screen overflow-hidden" x-data="{ sidebarOpen: false, fileManagerOpen: false }">
+
+        <aside
+            class="fixed inset-y-0 left-0 z-30 flex flex-col w-64 h-full transition-all duration-300 transform border-r bg-slate-900 border-slate-800 md:static md:translate-x-0"
+            :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'">
+            <div class="flex items-center h-16 gap-3 px-6 border-b border-slate-800"
+                style="background-color: var(--sidebar-bg);">
+
+                {{-- DYNAMIC LOGO LOGIC --}}
+                @if($siteSettings->logo_path)
+                    <img src="{{ \Illuminate\Support\Facades\Storage::url($siteSettings->logo_path) }}" alt="{{ $siteSettings->app_name }}"
+                    class="object-cover w-10 h-10 border rounded-full shadow-sm border-slate-700">
+                @else
+                    <img src="{{ asset('storage/site_images/logo1dotcom.png') }}" alt="ExamBabu"
+                    class="object-cover w-10 h-10 border rounded-full shadow-sm border-slate-700">
+                @endif
+
+                <span class="text-xl font-bold tracking-wide text-white">
+                    Exam<span style="color: var(--brand-blue);">Babu</span>
+                </span>
+            </div>
+
+            {{-- Main Navigation Wrapper --}}
+            <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto custom-scroll" x-data="{ activeDropdown: '{{ $activeMenu }}' }">
+
+                <a href="{{ Route::has('admin.dashboard') ? route('admin.dashboard') : '#' }}"
+                    class="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-all {{ request()->routeIs('admin.dashboard*') ? 'nav-link-active' : 'text-slate-400 hover:bg-slate-800 hover:text-white' }}">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6">
+                        </path>
+                    </svg>
+                    Dashboard
+                </a>
+
+                {{-- ENGAGEMENT --}}
+                <div class="pt-4 pb-1 pl-4 uppercase text-[10px] font-bold tracking-widest text-slate-600">Engagement
+                </div>
+                <div>
+                    <button
+                        @click="activeDropdown === 'engagement' ? activeDropdown = null : activeDropdown = 'engagement'"
+                        class="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium rounded-lg transition-all"
+                        :class="activeDropdown === 'engagement' ? 'bg-slate-800 text-white' :
+                            'text-slate-400 hover:bg-slate-800 hover:text-white'">
+                        <div class="flex items-center">
+                            <svg class="w-5 h-5 mr-3"
+                                :class="activeDropdown === 'engagement' ? 'text-brand-sky' : 'text-slate-500'"
+                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01">
+                                </path>
+                            </svg>
+                            Manage Tests
+                        </div>
+                        <svg :class="activeDropdown === 'engagement' ? 'rotate-180 text-brand-green' : ''"
+                            class="w-4 h-4 transition-transform" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7">
+                            </path>
+                        </svg>
+                    </button>
+
+                    <div x-show="activeDropdown === 'engagement'" x-cloak x-collapse
+                        class="mx-2 mt-1 space-y-1 rounded-lg bg-slate-800/30">
+                        <a href="{{ Route::has('admin.exam.index') ? route('admin.exam.index') : '#' }}"
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.exam.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">
+                            Exams
+                        </a>
+                        <a href="{{ Route::has('admin.exam-types.index') ? route('admin.exam-types.index') : '#' }}"
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.exam-types*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">
+                            Exam Types
+                        </a>
+                    </div>
+                </div>
+
+                {{-- LEARNING --}}
+                {{-- <div class="pt-4 pb-1 pl-4 uppercase text-[10px] font-bold tracking-widest text-slate-600">Learning</div> --}}
+                {{-- <div>
+                    <button @click="activeDropdown === 'learning' ? activeDropdown = null : activeDropdown = 'learning'"
+                        class="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium rounded-lg transition-all"
+                        :class="activeDropdown === 'learning' ? 'bg-slate-800 text-white' :
+                            'text-slate-400 hover:bg-slate-800 hover:text-white'">
+                        <div class="flex items-center">
+                            <svg class="w-5 h-5 mr-3"
+                                :class="activeDropdown === 'learning' ? 'text-brand-sky' : 'text-slate-500'"
+                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253">
+                                </path>
+                            </svg>
+                            Manage Learning
+                        </div>
+                        <svg :class="activeDropdown === 'learning' ? 'rotate-180 text-brand-green' : ''"
+                            class="w-4 h-4 transition-transform" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7">
+                            </path>
+                        </svg>
+                    </button>
+
+                    <div x-show="activeDropdown === 'learning'" x-cloak x-collapse
+                        class="mx-2 mt-1 space-y-1 rounded-lg bg-slate-800/30">
+                        <a href="{{ route('admin.practice-sets.index') }}"
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.practice-sets.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">
+                            Practice Sets
+                        </a>
+
+                    </div>
+                </div> --}}
+
+                {{-- LIBRARY --}}
+                <div class="pt-4 pb-1 pl-4 uppercase text-[10px] font-bold tracking-widest text-slate-600">Library</div>
+                <div>
+                    <button @click="activeDropdown === 'library' ? activeDropdown = null : activeDropdown = 'library'"
+                        class="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium rounded-lg transition-all"
+                        :class="activeDropdown === 'library' ? 'bg-slate-800 text-white' :
+                            'text-slate-400 hover:bg-slate-800 hover:text-white'">
+                        <div class="flex items-center">
+                            <svg class="w-5 h-5 mr-3"
+                                :class="activeDropdown === 'library' ? 'text-brand-sky' : 'text-slate-500'"
+                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
+                                </path>
+                            </svg>
+                            Question Bank
+                        </div>
+                        <svg :class="activeDropdown === 'library' ? 'rotate-180 text-brand-green' : ''"
+                            class="w-4 h-4 transition-transform" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7">
+                            </path>
+                        </svg>
+                    </button>
+                    <div x-show="activeDropdown === 'library'" x-cloak x-collapse
+                        class="mx-2 mt-1 space-y-1 rounded-lg bg-slate-800/30">
+                        <a href="{{ Route::has('admin.questions.index') ? route('admin.questions.index') : '#' }}"
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.questions.index') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Questions</a>
+                        <a href="{{ Route::has('admin.questions.import') ? route('admin.questions.import') : '#' }}"
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.questions.import') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Import
+                            Questions</a>
+                        <a href="{{ Route::has('admin.ai-import.index') ? route('admin.ai-import.index') : '#' }}"
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.ai-import.index') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Ai Import
+                            Questions</a>
+                        <a href="{{ Route::has('admin.comprehensions.index') ? route('admin.comprehensions.index') : '#' }}"
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.comprehensions.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Comprehensions</a>
+                        <a href="{{ Route::has('admin.question-types.index') ? route('admin.question-types.index') : '#' }}"
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.question-types.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Question
+                            Types</a>
+                    </div>
+                </div>
+
+                {{-- MASTER DATA --}}
+                <div class="pt-4 pb-1 pl-4 uppercase text-[10px] font-bold tracking-widest text-slate-600">Master Data
+                </div>
+                <div>
+                    <button @click="activeDropdown === 'master' ? activeDropdown = null : activeDropdown = 'master'"
+                        class="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium rounded-lg transition-all"
+                        :class="activeDropdown === 'master' ? 'bg-slate-800 text-white' :
+                            'text-slate-400 hover:bg-slate-800 hover:text-white'">
+                        <div class="flex items-center">
+                            <svg class="w-5 h-5 mr-3"
+                                :class="activeDropdown === 'master' ? 'text-brand-sky' : 'text-slate-500'"
+                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z">
+                                </path>
+                            </svg>
+                            Manage Categories
+                        </div>
+                        <svg :class="activeDropdown === 'master' ? 'rotate-180 text-brand-green' : ''"
+                            class="w-4 h-4 transition-transform" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7">
+                            </path>
+                        </svg>
+                    </button>
+                    <div x-show="activeDropdown === 'master'" x-cloak x-collapse
+                        class="mx-2 mt-1 space-y-1 rounded-lg bg-slate-800/30">
+                        <a href="{{ Route::has('admin.categories.index') ? route('admin.categories.index') : '#' }}"
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.categories.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Categories</a>
+                        <a href="{{ Route::has('admin.sub-categories.index') ? route('admin.sub-categories.index') : '#' }}"
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.sub-categories.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Sub
+                            Categories</a>
+                        <a href="{{ Route::has('admin.micro-categories.index') ? route('admin.micro-categories.index') : '#' }}"
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.micro-categories.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Micro
+                            Categories</a>
+                        <a href="{{ Route::has('admin.tags.index') ? route('admin.tags.index') : '#' }}"
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.tags.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Tags</a>
+                    </div>
+                </div>
+
+                {{-- SUBJECTS / SECTIONS --}}
+                <div class="pt-4 pb-1 pl-4 uppercase text-[10px] font-bold tracking-widest text-slate-600">Subjects
+                </div>
+                <div>
+                    <button
+                        @click="activeDropdown === 'subjects' ? activeDropdown = null : activeDropdown = 'subjects'"
+                        class="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium rounded-lg transition-all"
+                        :class="activeDropdown === 'subjects' ? 'bg-slate-800 text-white' :
+                            'text-slate-400 hover:bg-slate-800 hover:text-white'">
+                        <div class="flex items-center">
+                            <svg class="w-5 h-5 mr-3"
+                                :class="activeDropdown === 'subjects' ? 'text-brand-sky' : 'text-slate-500'"
+                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253">
+                                </path>
+                            </svg>
+                            Manage Subjects
+                        </div>
+                        <svg :class="activeDropdown === 'subjects' ? 'rotate-180 text-brand-green' : ''"
+                            class="w-4 h-4 transition-transform" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7">
+                            </path>
+                        </svg>
+                    </button>
+                    <div x-show="activeDropdown === 'subjects'" x-cloak x-collapse
+                        class="mx-2 mt-1 space-y-1 rounded-lg bg-slate-800/30">
+                        <a href="{{ Route::has('admin.sections.index') ? route('admin.sections.index') : '#' }}"
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.sections.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Sections</a>
+                        <a href="{{ Route::has('admin.skills.index') ? route('admin.skills.index') : '#' }}"
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.skills.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Skills</a>
+                        <a href="{{ Route::has('admin.topics.index') ? route('admin.topics.index') : '#' }}"
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.topics.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Topics</a>
+                    </div>
+                </div>
+
+                {{-- CONFIGURATION --}}
+                <div class="pt-4 pb-1 pl-4 uppercase text-[10px] font-bold tracking-widest text-slate-600">
+                    Configuration</div>
+                <div>
+                    <button @click="activeDropdown === 'config' ? activeDropdown = null : activeDropdown = 'config'"
+                        class="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium rounded-lg transition-all"
+                        :class="activeDropdown === 'config' ? 'bg-slate-800 text-white' :
+                            'text-slate-400 hover:bg-slate-800 hover:text-white'">
+                        <div class="flex items-center">
+                            <svg class="w-5 h-5 mr-3"
+                                :class="activeDropdown === 'config' ? 'text-brand-sky' : 'text-slate-500'"
+                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z">
+                                </path>
+                            </svg>
+                            Monetization
+                        </div>
+                        <svg :class="activeDropdown === 'config' ? 'rotate-180 text-brand-green' : ''"
+                            class="w-4 h-4 transition-transform" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7">
+                            </path>
+                        </svg>
+                    </button>
+                    <div x-show="activeDropdown === 'config'" x-cloak x-collapse
+                        class="mx-2 mt-1 space-y-1 rounded-lg bg-slate-800/30">
+                        <a href="{{ Route::has('admin.plans.index') ? route('admin.plans.index') : '#' }}"
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.plans.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Plans</a>
+                        <a href="{{ Route::has('admin.subscriptions.index') ? route('admin.subscriptions.index') : '#' }}"
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.subscriptions.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Subscription</a>
+                        <a href="{{ Route::has('admin.payments.index') ? route('admin.payments.index') : '#' }}"
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.payments.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Payments</a>
+                    </div>
+                </div>
+
+                {{-- SYSTEM --}}
+                <div class="pt-4 pb-1 pl-4 uppercase text-[10px] font-bold tracking-widest text-slate-600">System</div>
+
+                <a href="{{ Route::has('admin.roles_permissions.index') ? route('admin.roles_permissions.index') : '#' }}"
+                    class="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all {{ request()->routeIs('admin.roles_permissions.*') ? 'nav-link-active' : '' }}">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
+                        </path>
+                    </svg>
+                    Roles & Permissions
+                </a>
+
+                {{-- MANAGE USERS DROPDOWN --}}
+                <div>
+                    <button @click="activeDropdown === 'users' ? activeDropdown = null : activeDropdown = 'users'"
+                        class="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium rounded-lg transition-all"
+                        :class="activeDropdown === 'users' ? 'bg-slate-800 text-white' :
+                            'text-slate-400 hover:bg-slate-800 hover:text-white'">
+                        <div class="flex items-center">
+                            <svg class="w-5 h-5 mr-3"
+                                :class="activeDropdown === 'users' ? 'text-brand-sky' : 'text-slate-500'"
+                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z">
+                                </path>
+                            </svg>
+                            Manage Users
+                        </div>
+                        <svg :class="activeDropdown === 'users' ? 'rotate-180 text-brand-green' : ''"
+                            class="w-4 h-4 transition-transform" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7">
+                            </path>
+                        </svg>
+                    </button>
+                    <div x-show="activeDropdown === 'users'" x-cloak x-collapse
+                        class="mx-2 mt-1 space-y-1 rounded-lg bg-slate-800/30">
+                        <a href="{{ Route::has('admin.users.index') ? route('admin.users.index') : '#' }}"
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.users.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">
+                            Users
+                        </a>
+                        <a href="{{ Route::has('admin.user-groups.index') ? route('admin.user-groups.index') : '#' }}"
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.user-groups.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">
+                            User Groups
+                        </a>
+                    </div>
+                </div>
+
+
+{{-- SETTINGS DROPDOWN --}}
+                <div class="pt-4 pb-1 pl-4 uppercase text-[10px] font-bold tracking-widest text-slate-600">Settings
+                </div>
+                <div>
+                    <button @click="activeDropdown === 'settings' ? activeDropdown = null : activeDropdown = 'settings'"
+                        class="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium rounded-lg transition-all"
+                        :class="activeDropdown === 'settings' ? 'bg-slate-800 text-white' :
+                            'text-slate-400 hover:bg-slate-800 hover:text-white'">
+                        <div class="flex items-center">
+                            {{-- Gear Icon --}}
+                            <svg class="w-5 h-5 mr-3"
+                                :class="activeDropdown === 'settings' ? 'text-brand-sky' : 'text-slate-500'"
+                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
+                                </path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            </svg>
+                            Settings
+                        </div>
+                        <svg :class="activeDropdown === 'settings' ? 'rotate-180 text-brand-green' : ''"
+                            class="w-4 h-4 transition-transform" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7">
+                            </path>
+                        </svg>
+                    </button>
+                    <div x-show="activeDropdown === 'settings'" x-cloak x-collapse
+                        class="mx-2 mt-1 space-y-1 rounded-lg bg-slate-800/30">
+                        <a href="{{ Route::has('admin.settings.general') ? route('admin.settings.general') : '#' }}"
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.settings.general') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">General</a>
+                        <a href="{{ Route::has('admin.settings.email') ? route('admin.settings.email') : '#' }}"
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.settings.email') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Email
+                            (SMTP)</a>
+                        <a href="{{ Route::has('admin.settings.payment') ? route('admin.settings.payment') : '#' }}"
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.settings.payment') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Payment</a>
+                        <a href="{{ Route::has('admin.settings.billing') ? route('admin.settings.billing') : '#' }}"
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.settings.billing') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Billing</a>
+                    </div>
+                </div>
+
+
+                {{-- REFERRAL SYSTEM --}}
+<div class="pt-4 pb-1 pl-4 uppercase text-[10px] font-bold tracking-widest text-slate-600">
+    Referral System
+</div>
+<div>
+    <button @click="activeDropdown === 'referral' ? activeDropdown = null : activeDropdown = 'referral'"
+        class="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium rounded-lg transition-all"
+        :class="activeDropdown === 'referral' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'">
+        <div class="flex items-center">
+            {{-- Icon: Currency / Share --}}
+            <svg class="w-5 h-5 mr-3"
+                :class="activeDropdown === 'referral' ? 'text-brand-sky' : 'text-slate-500'"
+                fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Referrals & Payouts
+        </div>
+        <svg :class="activeDropdown === 'referral' ? 'rotate-180 text-brand-green' : ''"
+            class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7">
+            </path>
+        </svg>
+    </button>
+
+    <div x-show="activeDropdown === 'referral'" x-cloak x-collapse
+        class="mx-2 mt-1 space-y-1 rounded-lg bg-slate-800/30">
+
+        {{-- 1. Commission History --}}
+        <a href="{{ Route::has('admin.referrals.history') ? route('admin.referrals.history') : '#' }}"
+            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.referrals.history') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">
+            Referral History
+        </a>
+
+        {{-- 2. Withdrawal Requests --}}
+        <a href="{{ Route::has('admin.referrals.withdrawals') ? route('admin.referrals.withdrawals') : '#' }}"
+            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.referrals.withdrawals*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">
+            Payout Requests
+        </a>
+
+        {{-- 3. Settings --}}
+        <a href="{{ Route::has('admin.settings.referral') ? route('admin.settings.referral') : '#' }}"
+            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.settings.referral*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">
+            Settings (Rates)
+        </a>
+         {{-- 4. Settings --}}
+        <a href="{{ Route::has('admin.referral.users') ? route('admin.referral.users') : '#' }}"
+            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.referral.users*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">
+            User Rates
+        </a>
+    </div>
+</div>
+
+
+{{-- GROUP: HOME PAGE SETTINGS --}}
+                <div class="pt-4 pb-1 pl-4 uppercase text-[10px] font-bold tracking-widest text-slate-600">
+                    Home Page Settings
+                </div>
+
+                <div>
+                    {{-- 1. Main Trigger Button --}}
+                    <button @click="activeDropdown === 'home' ? activeDropdown = null : activeDropdown = 'home'"
+                        class="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium rounded-lg transition-all"
+                        :class="activeDropdown === 'home' ? 'bg-slate-800 text-white' :
+                            'text-slate-400 hover:bg-slate-800 hover:text-white'">
+
+                        <div class="flex items-center">
+                            {{-- Icon: Home (SVG match karne ke liye) --}}
+                            <svg class="w-5 h-5 mr-3"
+                                :class="activeDropdown === 'home' ? 'text-brand-sky' : 'text-slate-500'"
+                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                            </svg>
+                            <span>Home Page</span>
+                        </div>
+
+                        {{-- Arrow Icon --}}
+                        <svg :class="activeDropdown === 'home' ? 'rotate-180 text-brand-green' : ''"
+                            class="w-4 h-4 transition-transform" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+
+                    {{-- 2. Dropdown Content --}}
+                    <div x-show="activeDropdown === 'home'" x-cloak x-collapse
+                        class="mx-2 mt-1 space-y-1 rounded-lg bg-slate-800/30">
+
+                        {{-- Hero Slider Link --}}
+                        <a href="{{ Route::has('admin.hero-slides.index') ? route('admin.hero-slides.index') : '#' }}"
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.hero-slides.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">
+                            Hero Slider
+                        </a>
+                        {{-- Under Home Page Dropdown --}}
+                        <a href="{{ Route::has('admin.home-stats.index') ? route('admin.home-stats.index') : '#' }}"
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.home-stats.*') ? 'sub-link-active text-white font-medium' : 'text-slate-400 hover:text-white' }}">
+                            Stats Counter
+                        </a>
+                        <a href="{{ Route::has('admin.home-features.index') ? route('admin.home-features.index') : '#' }}"
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.home-features.*') ? 'sub-link-active text-white font-medium' : 'text-slate-400 hover:text-white' }}">
+                            Features / Why Choose
+                        </a>
+
+                    </div>
+                </div>
+
+            </nav>
+
+            <div class="p-4 border-t bg-slate-950/50 border-slate-800">
+                <div class="flex items-center p-2 border rounded-xl bg-slate-900/50 border-slate-800">
+                    <div class="flex-shrink-0">
+                        <div
+                            class="flex items-center justify-center text-sm font-bold text-white rounded-lg shadow-lg w-9 h-9 bg-gradient-to-tr from-blue-600 to-pink-500 shadow-blue-900/20">
+                            {{ substr(Auth::user()->fullname, 0, 1) }}
+                        </div>
+                    </div>
+                    <div class="flex-1 ml-3 overflow-hidden">
+                        <p class="text-[11px] font-bold text-white truncate">{{ Auth::user()->fullname }}</p>
+                        <p class="text-[9px] text-slate-500 truncate">{{ Auth::user()->email }}</p>
+                    </div>
+                    <form method="POST" action="{{ route('logout') }}" class="ml-1">
+                        @csrf
+                        <button type="submit" class="p-1.5 text-slate-500 hover:text-red-500 transition-colors">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                            </svg>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </aside>
+
+        <div class="flex flex-col flex-1 h-full overflow-hidden">
+            <header class="flex items-center justify-between h-16 px-8 bg-white border-b border-gray-200 shadow-sm">
+                <div class="flex items-center gap-4">
+                    <button @click="sidebarOpen = !sidebarOpen" class="text-gray-500 md:hidden"><svg class="w-6 h-6"
+                            fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 6h16M4 12h16M4 18h16" />
+                        </svg></button>
+                    <h2 class="text-lg font-bold text-gray-800">@yield('header', 'Admin Panel')</h2>
+                </div>
+            </header>
+
+            <main class="flex-1 p-6 overflow-y-auto bg-gray-50 custom-scroll">
+                @yield('content')
+            </main>
+        </div>
+
+        <div x-show="fileManagerOpen" x-cloak class="fixed inset-0 z-[100] overflow-hidden">
+            <div class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm" @click="fileManagerOpen = false"></div>
+            <div class="flex items-center justify-center min-h-screen p-4">
+                <div
+                    class="relative bg-white rounded-2xl shadow-2xl w-full max-w-6xl h-[85vh] flex flex-col border border-gray-200">
+                    <div class="flex items-center justify-between px-6 py-4 border-b">
+                        <h3 class="font-bold text-gray-900">File Manager</h3>
+                        <button @click="fileManagerOpen = false" class="text-gray-400 hover:text-red-500"><svg
+                                class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12" />
+                            </svg></button>
+                    </div>
+                    <div class="flex-1 bg-gray-50">
+                        <iframe src="{{ route('admin.fm.index') }}" class="w-full h-full border-none"></iframe>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    @stack('scripts')
+</body>
+
+</html>
