@@ -46,7 +46,7 @@
                     </div>
                     <div>
                         <span class="px-2 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded">
-                            {{ $question->skill->name ?? 'No Skill' }} / {{ $question->topic->name ?? 'No Topic' }}
+                            {{ $question->skill->name ?? 'No Subject' }} / {{ $question->topic->name ?? 'No Topic' }}
                         </span>
                     </div>
                 </div>

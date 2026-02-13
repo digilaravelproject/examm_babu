@@ -86,45 +86,54 @@ class Section extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    // DEPRECATED: These relationships are commented out because Skills are now mapped to MicroCategories instead of Sections
+    // If you need these relationships, update the migration to add section_id back or create new relationships
+
     /**
      * Direct relationship with Skills.
+     * @deprecated Skills are now mapped to MicroCategories, not Sections
      */
-    public function skills(): HasMany
-    {
-        return $this->hasMany(Skill::class);
-    }
+    // public function skills(): HasMany
+    // {
+    //     return $this->hasMany(Skill::class);
+    // }
 
     /**
      * Get all topics through Skills.
+     * @deprecated Skills are now mapped to MicroCategories, not Sections
      */
-    public function topics(): HasManyThrough
-    {
-        return $this->hasManyThrough(Topic::class, Skill::class);
-    }
+    // public function topics(): HasManyThrough
+    // {
+    //     return $this->hasManyThrough(Topic::class, Skill::class);
+    // }
 
     /**
      * Get all questions through Skills.
+     * @deprecated Skills are now mapped to MicroCategories, not Sections
      */
-    public function questions(): HasManyThrough
-    {
-        return $this->hasManyThrough(Question::class, Skill::class);
-    }
+    // public function questions(): HasManyThrough
+    // {
+    //     return $this->hasManyThrough(Question::class, Skill::class);
+    // }
 
     /**
      * Get all practice sets through Skills.
+     * @deprecated Skills are now mapped to MicroCategories, not Sections
      */
-    public function practiceSets(): HasManyThrough
-    {
-        return $this->hasManyThrough(PracticeSet::class, Skill::class);
-    }
+    // public function practiceSets(): HasManyThrough
+    // {
+    //     return $this->hasManyThrough(PracticeSet::class, Skill::class);
+    // }
 
     /**
      * SubCategories that this section belongs to.
      */
+    /**
+     * @deprecated Sections are being phased out in favor of MicroCategories
+     */
     public function subCategories(): BelongsToMany
     {
-        return $this->belongsToMany(SubCategory::class, 'sub_category_sections', 'section_id', 'sub_category_id')
-            ->withTimestamps();
+        return $this->belongsToMany(SubCategory::class, 'sub_category_sections', 'section_id', 'sub_category_id');
     }
 
     /**

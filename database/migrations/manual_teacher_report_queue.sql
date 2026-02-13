@@ -1,0 +1,21 @@
+CREATE TABLE `teacher_report_queues` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `teacher_email` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `student_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `student_email` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `exam_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `user_id` bigint(20) unsigned NOT NULL,
+  `exam_session_id` bigint(20) unsigned NOT NULL,
+  `score` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `total_marks` double(8,2) NOT NULL DEFAULT 0.00,
+  `result_url` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` enum('pending','sent','failed') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `teacher_report_queues_teacher_email_index` (`teacher_email`),
+  KEY `teacher_report_queues_user_id_foreign` (`user_id`),
+  KEY `teacher_report_queues_exam_session_id_foreign` (`exam_session_id`),
+  CONSTRAINT `teacher_report_queues_exam_session_id_foreign` FOREIGN KEY (`exam_session_id`) REFERENCES `exam_sessions` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `teacher_report_queues_user_id_foreign` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

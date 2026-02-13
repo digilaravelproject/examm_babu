@@ -78,7 +78,18 @@ class Exam extends Model
     public function updateMeta(): void
     {
         $this->total_questions = $this->questions()->count();
-        $this->total_duration = $this->examSections()->sum('total_duration');
+
+        // Calculate Total Duration
+        // 1. Sum up all section durations
+        $sectionDurationSum = $this->examSections()->sum('total_duration');
+
+        // 2. If sum is 0 (Auto Mode), sum up all question default times
+        if ($sectionDurationSum == 0) {
+            $this->total_duration = $this->questions()->sum('default_time');
+        } else {
+            $this->total_duration = $sectionDurationSum;
+        }
+
         $this->total_marks = $this->examSections()->sum('total_marks');
         $this->save();
     }

@@ -178,7 +178,7 @@
         $isLimitReached = ($maxAttempts > 0 && $attemptsTaken >= $maxAttempts);
     @endphp
 
-    @if(!$schedule->exam->is_paid || in_array($schedule->exam->sub_category_id, $subscribedCategoryIds))
+    @if(!$schedule->exam->is_paid || in_array($schedule->exam->micro_category_id, $subscribedCategoryIds))
 
         @if($isLimitReached)
             {{-- 🛑 CONDITION 1: LIMIT REACHED --}}
@@ -248,7 +248,7 @@
         </div>
     @endif
 
-    {{-- Browse More Categories --}}
+    {{-- Browse More Categories (Commented Out) --}}
     {{-- <div class="pt-10 mt-10 border-t border-slate-200">
         <h3 class="mb-5 text-sm font-bold tracking-wide uppercase text-slate-500">Explore Categories</h3>
         <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6">

@@ -75,7 +75,7 @@ class QuestionController extends Controller
     public function index(QuestionFilters $filters, Request $request): View|string
     {
         $query = Question::filter($filters)
-            ->with(['questionType', 'skill', 'topic', 'difficultyLevel', 'section','creator'])
+            ->with(['questionType', 'skill', 'topic.skill.microCategory.subCategory', 'difficultyLevel', 'creator'])
             ->latest();
 
         if (Auth::user()->hasRole('instructor')) {
@@ -111,6 +111,13 @@ class QuestionController extends Controller
             $defaultOptions = $this->repository->setDefaultOptions($questionType->code);
             $defaultPreferences = $this->repository->setDefaultPreferences($questionType->code);
 
+            // --- PRE-FILL LOGIC (For Bulk Creation) ---
+            $prefill = [
+                'skill_id' => $request->get('skill_id'),
+                'topic_id' => $request->get('topic_id'),
+                'comprehension_passage_id' => $request->get('comprehension_passage_id'),
+            ];
+
             return view('admin.questions.create', compact(
                 'questionType',
                 'skills',
@@ -118,7 +125,8 @@ class QuestionController extends Controller
                 'difficultyLevels',
                 'passages',
                 'defaultOptions',
-                'defaultPreferences'
+                'defaultPreferences',
+                'prefill' // Pass prefill data
             ));
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Invalid Question Type');
@@ -151,7 +159,7 @@ class QuestionController extends Controller
 
         DB::beginTransaction();
         try {
-            $data = $request->except(['_token', 'question_image', 'options', 'attachment_options', 'last_active_tab', 'comprehension_id']);
+            $data = $request->except(['_token', 'question_image', 'options', 'attachment_options', 'last_active_tab', 'comprehension_id', 'submit_action']);
 
             $data['topic_id'] = $request->topic_id ?: null;
             $data['difficulty_level_id'] = $request->difficulty_level_id ?: null;
@@ -167,7 +175,22 @@ class QuestionController extends Controller
                 $data['question'] = $request->question . '<br><img src="' . $imageUrl . '" class="img-fluid rounded mt-2" style="max-height: 300px;">';
             }
 
+
             $options = $request->input('options', []);
+
+            // OPTION IMAGE UPLOAD HANDLING
+            foreach ($options as $index => $option) {
+                // Check if this option has an uploaded image file
+                $imageFieldName = "options.{$index}.image";
+                if ($request->hasFile($imageFieldName)) {
+                    $file = $request->file($imageFieldName);
+                    $filename = time() . '_opt_' . $index . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+                    $file->move(public_path('uploads/questions/options'), $filename);
+                    // Store the relative path in the options array
+                    $options[$index]['image'] = 'uploads/questions/options/' . $filename;
+                }
+            }
+
             $data['options'] = $options;
             $data['preferences'] = $request->input('preferences', []);
 
@@ -208,6 +231,19 @@ class QuestionController extends Controller
 
             Question::create($data);
             DB::commit();
+
+            // --- REDIRECT LOGIC ---
+            if ($request->submit_action === 'save_and_add') {
+                $params = $this->getRouteParams();
+                $params['type'] = $typeCode;
+                // Preserve Context
+                $params['skill_id'] = $request->skill_id;
+                $params['topic_id'] = $request->topic_id;
+                $params['comprehension_passage_id'] = $request->comprehension_id;
+
+                return redirect()->route($this->getRoutePrefix() . 'questions.create', $params)
+                                 ->with('success', 'Question saved! Ready for next one.');
+            }
 
             return redirect()->route($this->getRoutePrefix() . 'questions.index', $this->getRouteParams())
                              ->with('success', 'Question created successfully.');
@@ -272,8 +308,27 @@ class QuestionController extends Controller
                 $data['question'] = $request->question . '<br><img src="' . asset('uploads/questions/' . $filename) . '" class="img-fluid rounded">';
             }
 
+
             $typeCode = $question->questionType->code;
             $options = $request->input('options', []);
+
+            // OPTION IMAGE UPLOAD HANDLING
+            foreach ($options as $index => $option) {
+                // Check if this option has an uploaded image file
+                $imageFieldName = "options.{$index}.image";
+                if ($request->hasFile($imageFieldName)) {
+                    $file = $request->file($imageFieldName);
+                    $filename = time() . '_opt_' . $index . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+                    $file->move(public_path('uploads/questions/options'), $filename);
+                    // Store the relative path in the options array
+                    $options[$index]['image'] = 'uploads/questions/options/' . $filename;
+                }
+                // If no new image uploaded, preserve existing image path if it exists
+                elseif (isset($question->options[$index]['image']) && !empty($question->options[$index]['image'])) {
+                    $options[$index]['image'] = $question->options[$index]['image'];
+                }
+            }
+
             $data['options'] = $options;
             $data['preferences'] = $request->input('preferences', []);
 
@@ -309,6 +364,20 @@ class QuestionController extends Controller
 
             $question->update($data);
             DB::commit();
+
+            // Handle "Save & Add Another" from Edit Screen
+            if ($request->input('submit_action') == 'save_and_add') {
+                $params = $this->getRouteParams();
+                // Persist Context
+                $params['skill_id'] = $question->skill_id;
+                $params['topic_id'] = $question->topic_id;
+                if ($question->comprehension_passage_id) {
+                    $params['comprehension_passage_id'] = $question->comprehension_passage_id;
+                }
+
+                return redirect()->route($this->getRoutePrefix() . 'questions.create', $params)
+                                 ->with('success', 'Question updated. detailed preserved for next question.');
+            }
 
             return redirect()->route($this->getRoutePrefix() . 'questions.index', $this->getRouteParams())
                              ->with('success', 'Question updated successfully.');
@@ -355,9 +424,9 @@ class QuestionController extends Controller
             // Check if question is linked to any exams
             if ($question->exams()->exists()) {
                 // Get list of exam names (Assuming column name is 'title')
-                $linkedExams = $question->exams->pluck('title')->take(5)->toArray(); 
+                $linkedExams = $question->exams->pluck('title')->take(5)->toArray();
                 $totalLinked = $question->exams->count();
-                
+
                 if ($totalLinked > 5) {
                     $linkedExams[] = '...and ' . ($totalLinked - 5) . ' more';
                 }
@@ -392,7 +461,7 @@ class QuestionController extends Controller
             return back()->with('error', 'Error deleting question.');
         }
     }
-    
+
     public function destroy_old(Request $request)
     {
         $id = $request->route('question');
@@ -436,11 +505,11 @@ class QuestionController extends Controller
 
             // 1. Get Questions (Security check included)
             $query = Question::whereIn('id', $request->ids)->with('exams'); // Eager load exams
-            
+
             if (Auth::user()->hasRole('instructor')) {
                 $query->where('created_by', Auth::id());
             }
-            
+
             $questions = $query->get();
 
             $deletedCount = 0;
@@ -455,7 +524,7 @@ class QuestionController extends Controller
                     if ($q->exams->count() > 3) {
                         $examNames[] = '...';
                     }
-                    
+
                     $failedItems[] = [
                         'code' => $q->code, // Question Code
                         'exams' => implode(', ', $examNames)
@@ -513,7 +582,7 @@ class QuestionController extends Controller
     {
         $id = $request->route('question');
         try {
-            $question = Question::with(['questionType', 'skill', 'topic', 'difficultyLevel', 'section', 'creator'])
+            $question = Question::with(['questionType', 'skill', 'topic', 'difficultyLevel', 'creator']) // Removed 'section' - deprecated relationship
                                 ->findOrFail($id);
             $this->authorizeInstructor($question);
             return view('admin.questions.partials.preview', compact('question'));

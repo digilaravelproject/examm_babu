@@ -15,8 +15,13 @@ class TopicController extends Controller
 {
     public function index(Request $request)
     {
-        // Load relationships including creator
-        $query = Topic::with(['skill:id,name', 'creator']);
+        // Load relationships including creator and nested category hierarchy
+        $query = Topic::with([
+            'skill:id,name,micro_category_id',
+            'skill.microCategory:id,name,sub_category_id',
+            'skill.microCategory.subCategory:id,name',
+            'creator'
+        ]);
 
         if ($request->filled('search')) {
             $search = $request->search;

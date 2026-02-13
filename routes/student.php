@@ -54,9 +54,6 @@ Route::middleware(['auth', 'verified', 'role:student'])->prefix('student')->name
         Route::get('/payments/invoice/{paymentId}', 'previewInvoice')->name('payments.invoice.preview');
         Route::get('/payments/invoice/{paymentId}/download', 'downloadInvoice')->name('payments.invoice.download');
     });
-
-    // ✅ SHARE REPORT (Sending Email requires Auth)
-    Route::post('/exam/share/send/{sessionCode}', [ShareReportController::class, 'sendShareLink'])->name('exam.share.send');
 });
 
 // --- GROUP 2: Exam Interface Engine (Student & Admin) ---
@@ -75,6 +72,9 @@ Route::middleware(['auth', 'verified', 'role:student|admin'])->prefix('student')
         Route::post('/exam/terminate/{sessionCode}', 'terminateExam')->name('exam.terminate');
         Route::post('/exam/finish/{sessionCode}', 'finishExam')->name('exam.finish');
         Route::get('/exam/result/{sessionId}', 'showResult')->name('exams.result');
+
+        // ✅ SHARE REPORT (Sending Email requires Auth) - Moved here for Admin Access too
+        Route::post('/exam/share/send/{sessionCode}', [ShareReportController::class, 'sendShareLink'])->name('exam.share.send');
     });
 
     // Demo Interface

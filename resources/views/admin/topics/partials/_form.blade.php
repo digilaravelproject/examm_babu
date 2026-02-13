@@ -26,15 +26,15 @@
         @endif
 
         <div class="p-6 space-y-6">
-            {{-- ROW 1: Skill & Name --}}
+            {{-- ROW 1: Subject & Name --}}
             <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-                {{-- Skill --}}
+                {{-- Subject --}}
                 <div class="space-y-1.5">
                     <label class="block text-xs font-bold tracking-wide text-gray-600 uppercase">
-                        Parent Skill <span class="text-red-500">*</span>
+                        Parent Subject <span class="text-red-500">*</span>
                     </label>
                     <select name="skill_id" required class="w-full border-gray-300 rounded-lg p-2.5 text-sm focus:border-[#0777be] focus:ring-1 focus:ring-[#0777be] transition shadow-sm font-medium">
-                        <option value="">Select Skill</option>
+                        <option value="">Select Subject</option>
                         @foreach($skills as $sk)
                             <option value="{{ $sk->id }}" {{ old('skill_id', $topic->skill_id ?? '') == $sk->id ? 'selected' : '' }}>
                                 {{ $sk->name }}

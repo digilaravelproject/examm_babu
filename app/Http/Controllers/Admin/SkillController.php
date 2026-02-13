@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Section;
+use App\Models\MicroCategory;
 use App\Models\Skill;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +17,7 @@ class SkillController extends Controller
     public function index(Request $request)
     {
         // Load relationships including creator for the table view
-        $query = Skill::with(['section:id,name', 'creator']);
+        $query = Skill::with(['microCategory:id,name', 'creator']);
 
         if ($request->filled('search')) {
             $search = $request->search;
@@ -26,8 +27,8 @@ class SkillController extends Controller
             });
         }
 
-        if ($request->filled('section_id')) {
-            $query->where('section_id', $request->section_id);
+        if ($request->filled('micro_category_id')) {
+            $query->where('micro_category_id', $request->micro_category_id);
         }
 
         if ($request->filled('status')) {
@@ -35,25 +36,25 @@ class SkillController extends Controller
         }
 
         $skills = $query->orderBy('name')->paginate(10)->withQueryString();
-        $sections = Section::active()->get(['id', 'name']);
+        $microCategories = MicroCategory::active()->get(['id', 'name']);
 
         if ($request->ajax()) {
             return view('admin.skills.partials.table', compact('skills'))->render();
         }
 
-        return view('admin.skills.index', compact('skills', 'sections'));
+        return view('admin.skills.index', compact('skills', 'microCategories'));
     }
 
     public function create()
     {
-        $sections = Section::active()->get(['id', 'name']);
-        return view('admin.skills.create', compact('sections'));
+        $microCategories = MicroCategory::active()->get(['id', 'name']);
+        return view('admin.skills.create', compact('microCategories'));
     }
 
     public function store(Request $request)
     {
         $data = $request->validate([
-            'section_id'        => 'required|exists:sections,id',
+            'micro_category_id' => 'required|exists:micro_categories,id',
             'name'              => 'required|string|max:255',
             'short_description' => 'nullable|string',
             'is_active'         => 'boolean'
@@ -98,8 +99,8 @@ class SkillController extends Controller
             abort(403, 'Unauthorized action. You can only edit skills you created.');
         }
 
-        $sections = Section::active()->get(['id', 'name']);
-        return view('admin.skills.edit', compact('skill', 'sections'));
+        $microCategories = MicroCategory::active()->get(['id', 'name']);
+        return view('admin.skills.edit', compact('skill', 'microCategories'));
     }
 
     // --- FIXED UPDATE METHOD ---

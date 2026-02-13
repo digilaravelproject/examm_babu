@@ -99,7 +99,7 @@ class ExamController extends Controller
                 'subCategory',
                 'examType',
                 'microCategory',
-                'topic',
+                'topic.skill.microCategory.subCategory',
                 'creator.roles'
             ])
             ->withCount(['examSections'])
@@ -274,9 +274,9 @@ class ExamController extends Controller
         $data = $request->validate([
             'title' => 'required|string|max:255',
             'category_id' => 'required|exists:categories,id',
-            'sub_category_id' => 'required|exists:sub_categories,id',
+            'sub_category_id' => 'nullable|exists:sub_categories,id',
             'topic_id' => 'nullable|exists:topics,id',
-            'micro_category_id' => 'nullable|exists:micro_categories,id',
+            'micro_category_id' => 'required|exists:micro_categories,id',
             'exam_type_id' => 'required|exists:exam_types,id',
             'description' => 'nullable|string',
             'pricing_type' => 'required|in:free,paid',
@@ -358,9 +358,9 @@ class ExamController extends Controller
         $data = $request->validate([
             'title' => 'required|string|max:255',
             'category_id' => 'required|exists:categories,id',
-            'sub_category_id' => 'required|exists:sub_categories,id',
+            'sub_category_id' => 'nullable|exists:sub_categories,id',
             'topic_id' => 'nullable|exists:topics,id',
-            'micro_category_id' => 'nullable|exists:micro_categories,id',
+            'micro_category_id' => 'required|exists:micro_categories,id',
             'exam_type_id' => 'required|exists:exam_types,id',
             'description' => 'nullable|string',
             'pricing_type' => 'required|in:free,paid',
@@ -476,12 +476,19 @@ class ExamController extends Controller
 
         DB::beginTransaction();
         try {
-            if (is_object($exam->settings) && method_exists($exam->settings, 'all')) {
-                $currentSettings = $exam->settings->all();
-            } elseif (is_array($exam->settings)) {
-                $currentSettings = $exam->settings;
-            } else {
-                $currentSettings = [];
+            $rawSettings = $exam->settings;
+            $currentSettings = [];
+
+            if (is_array($rawSettings)) {
+                $currentSettings = $rawSettings;
+            } elseif (is_object($rawSettings)) {
+                if (is_callable([$rawSettings, 'all'])) {
+                    $currentSettings = $rawSettings->all();
+                } elseif (is_callable([$rawSettings, 'toArray'])) {
+                    $currentSettings = $rawSettings->toArray();
+                } else {
+                    $currentSettings = (array) $rawSettings;
+                }
             }
 
             $exam->settings = array_merge($currentSettings, $newSettings);
@@ -553,16 +560,35 @@ class ExamController extends Controller
 
         // --- STEP 1: Shuffle Setting Check Karna ---
         // Hum wahi logic use karenge jo aapke settings() method mein hai
-        $settings = $exam->settings instanceof \Illuminate\Support\Collection 
-            ? $exam->settings 
+        $settings = $exam->settings instanceof \Illuminate\Support\Collection
+            ? $exam->settings
             : collect($exam->settings ?? []);
-            
+
         // Default false (0) rakha hai agar setting na mile
-        $shouldShuffle = $settings->get('shuffle_questions', false); 
+        $shouldShuffle = $settings->get('shuffle_questions', false);
 
         DB::beginTransaction();
         try {
             $sessionCode = 'PREVIEW-' . Str::upper(Str::random(10));
+
+            // 0. Calculate Actual Duration (Robust Logic)
+            // Priority 1: Stored Total Duration
+            $totalDuration = $exam->total_duration;
+
+            // Priority 2: Dynamic Section Sum
+            if ($totalDuration == 0) {
+                 $totalDuration = $exam->examSections()->sum('total_duration');
+            }
+
+            // Priority 3: Dynamic Question Sum (Auto Mode)
+            if ($totalDuration == 0) {
+                 $totalDuration = $exam->questions()->sum('default_time');
+            }
+
+            // Priority 4: Fallback
+            if ($totalDuration == 0) {
+                 $totalDuration = 86400; // 24 Hours
+            }
 
             $session = ExamSession::create([
                 'code' => $sessionCode,
@@ -571,7 +597,7 @@ class ExamController extends Controller
                 'exam_schedule_id' => null,
                 'status' => 'started',
                 'starts_at' => now(),
-                'ends_at' => now()->addHours(24),
+                'ends_at' => now()->addSeconds($totalDuration),
             ]);
 
             $sections = $exam->examSections()->orderBy('section_order', 'asc')->get();
@@ -791,7 +817,7 @@ class ExamController extends Controller
 
         return redirect()->back()->with('success', $msg);
     }
-    
+
         public function quickPublish(Request $request)
     {
         $id = $request->route('exam');

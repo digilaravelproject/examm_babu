@@ -26,10 +26,10 @@ class PlanTransformer extends TransformerAbstract
         return [
             'id'       => $plan->id,
             'name'     => $plan->name,
-            'category' => $plan->category?->name ?? __('N/A'), // Null-safe operator
+            'category' => $plan->microCategory?->name ?? __('N/A'), // Null-safe operator
             'price'    => formatPrice(
-                $plan->price, 
-                $this->paymentSettings->currency_symbol, 
+                $plan->price,
+                $this->paymentSettings->currency_symbol,
                 $this->paymentSettings->currency_symbol_position
             ),
             'code'     => $plan->code,

@@ -21,14 +21,17 @@ class ExamDashboardController extends Controller
      */
     private function getSubscribedCategories($user)
     {
-        // 1. Fetch from Subscriptions
+        // 1. Fetch MicroCategory IDs from active plan subscriptions
         $categoryIds = $user->subscriptions()
             ->where('status', 'active')
             ->where('ends_at', '>', now())
-            ->pluck('category_id')
+            ->with('plan')
+            ->get()
+            ->pluck('plan.category_id') // Get MicroCategory ID from Plan
+            ->filter() // Remove nulls
             ->toArray();
 
-        // 2. Add Current Selected Syllabus to list
+        // 2. Add Current Selected Syllabus to list (if syllabus also uses MicroCategory)
         $currentSyllabus = $user->selectedSyllabus();
         if ($currentSyllabus) {
             $categoryIds[] = $currentSyllabus->id;
@@ -47,18 +50,17 @@ class ExamDashboardController extends Controller
 
             // --- STEP 1: Get Active Subscriptions ---
             $activeSubscriptions = $user->subscriptions()
-                ->with(['plan.category'])
+                ->with(['plan.microCategory'])
                 ->where('status', 'active')
                 ->where('ends_at', '>', now())
                 ->get();
 
-            $organizedExams = [];
-
             // --- STEP 2: Loop through subscriptions and find exams ---
+            $organizedExams = [];
             foreach ($activeSubscriptions as $subscription) {
                 $schedules = ExamSchedule::query()
                     ->whereHas('exam', function (Builder $query) use ($subscription) {
-                        $query->where('sub_category_id', $subscription->category_id)
+                        $query->where('micro_category_id', $subscription->category_id)
                             ->where('is_active', true);
                     })
                     ->with(['exam.subCategory:id,name', 'exam.examType:id,name'])
@@ -70,11 +72,12 @@ class ExamDashboardController extends Controller
                 if ($schedules->isNotEmpty()) {
                     $organizedExams[] = [
                         'plan_name' => $subscription->plan->name ?? 'General',
-                        'category_name' => $subscription->plan->category->name ?? 'Exams',
+                        'category_name' => $subscription->plan->microCategory->name ?? 'Exams',
                         'schedules' => $schedules
                     ];
                 }
             }
+
             $attemptCounts = \App\Models\ExamSession::where('user_id', $user->id)
                 ->whereIn('status', ['completed', 'submitted']) // Status check karein
                 ->select('exam_schedule_id', \Illuminate\Support\Facades\DB::raw('count(*) as total'))
@@ -114,7 +117,7 @@ class ExamDashboardController extends Controller
             // 2. Fetch Schedules where Exam has a Topic ID
             $schedules = ExamSchedule::query()
                 ->whereHas('exam', function (Builder $query) use ($subscribedCategoryIds) {
-                    $query->whereIn('sub_category_id', $subscribedCategoryIds)
+                    $query->whereIn('micro_category_id', $subscribedCategoryIds)
                           ->where('is_active', true)
                           ->whereNotNull('topic_id'); // CRITICAL: Only exams with topics
                 })
@@ -173,7 +176,7 @@ class ExamDashboardController extends Controller
             // Fetch Exams
             $schedules = ExamSchedule::query()
                 ->whereHas('exam', function (Builder $query) use ($visibleCategoryIds) {
-                    $query->whereIn('sub_category_id', $visibleCategoryIds)
+                    $query->whereIn('micro_category_id', $visibleCategoryIds)
                         ->where('is_active', true);
                 })
                 ->with(['exam.subCategory', 'exam.examType'])
@@ -206,7 +209,7 @@ class ExamDashboardController extends Controller
 
             $schedules = ExamSchedule::query()
                 ->whereHas('exam', function (Builder $query) use ($visibleCategoryIds) {
-                    $query->whereIn('sub_category_id', $visibleCategoryIds)
+                    $query->whereIn('micro_category_id', $visibleCategoryIds)
                         ->where('is_active', true);
                 })
                 ->with(['exam.subCategory', 'exam.examType'])
@@ -241,7 +244,7 @@ class ExamDashboardController extends Controller
 
             $exams = $type->exams()
                 ->has('questions')
-                ->whereIn('sub_category_id', $visibleCategoryIds)
+                ->whereIn('micro_category_id', $visibleCategoryIds)
                 ->isPublic()
                 ->published()
                 ->with(['subCategory', 'examType'])
@@ -274,7 +277,7 @@ class ExamDashboardController extends Controller
 
             $exams = $type->exams()
                 ->has('questions')
-                ->whereIn('sub_category_id', $visibleCategoryIds)
+                ->whereIn('micro_category_id', $visibleCategoryIds)
                 ->isPublic()
                 ->published()
                 ->with(['subCategory', 'examType'])

@@ -34,6 +34,23 @@ class MicroCategory extends Model
     {
         return $this->belongsTo(User::class, 'created_by');
     }
+
+    /**
+     * Relationship: MicroCategory has many Plans
+     * Plans link to MicroCategory via category_id
+     */
+    public function plans()
+    {
+        return $this->hasMany(Plan::class, 'category_id');
+    }
+
+    /**
+     * Relationship: MicroCategory has many Skills (Subjects in UI)
+     */
+    public function skills()
+    {
+        return $this->hasMany(Skill::class);
+    }
     /**
      * Scope: Sirf Active records fetch karne ke liye
      * Use: MicroCategory::active()->get();

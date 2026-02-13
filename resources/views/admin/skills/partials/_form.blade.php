@@ -9,7 +9,7 @@
         <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/80 backdrop-blur">
             <h3 class="flex items-center gap-2 text-base font-extrabold tracking-wide text-gray-800 uppercase">
                 <span class="text-xl">🎯</span>
-                {{ $method === 'PUT' ? 'Update Skill' : 'Skill Configuration' }}
+                {{ $method === 'PUT' ? 'Update Subject' : 'Subject Configuration' }}
             </h3>
         </div>
 
@@ -31,13 +31,13 @@
                 {{-- Section --}}
                 <div class="space-y-1.5">
                     <label class="block text-xs font-bold tracking-wide text-gray-600 uppercase">
-                        Parent Section <span class="text-red-500">*</span>
+                        Micro Category <span class="text-red-500">*</span>
                     </label>
-                    <select name="section_id" required class="w-full border-gray-300 rounded-lg p-2.5 text-sm focus:border-[#0777be] focus:ring-1 focus:ring-[#0777be] transition shadow-sm font-medium">
-                        <option value="">Select Section</option>
-                        @foreach($sections as $sec)
-                            <option value="{{ $sec->id }}" {{ old('section_id', $skill->section_id ?? '') == $sec->id ? 'selected' : '' }}>
-                                {{ $sec->name }}
+                    <select name="micro_category_id" required class="w-full border-gray-300 rounded-lg p-2.5 text-sm focus:border-[#0777be] focus:ring-1 focus:ring-[#0777be] transition shadow-sm font-medium">
+                        <option value="">Select Micro Category</option>
+                        @foreach($microCategories as $microCategory)
+                            <option value="{{ $microCategory->id }}" {{ old('micro_category_id', $skill->micro_category_id ?? '') == $microCategory->id ? 'selected' : '' }}>
+                                {{ $microCategory->name }}
                             </option>
                         @endforeach
                     </select>
@@ -46,7 +46,7 @@
                 {{-- Name --}}
                 <div class="space-y-1.5">
                     <label class="block text-xs font-bold tracking-wide text-gray-600 uppercase">
-                        Skill Name <span class="text-red-500">*</span>
+                        Subject Name <span class="text-red-500">*</span>
                     </label>
                     <input type="text" name="name" value="{{ old('name', $skill->name) }}" required
                         class="w-full border-gray-300 rounded-lg p-2.5 text-sm focus:border-[#0777be] focus:ring-1 focus:ring-[#0777be] transition shadow-sm font-medium">
@@ -90,7 +90,7 @@
             <a href="{{ url()->previous() }}" class="px-4 py-2 text-xs font-bold tracking-wide text-gray-500 uppercase hover:text-gray-700">Cancel</a>
             <button type="submit"
                 class="px-8 py-2.5 bg-[#0777be] text-white rounded-lg shadow hover:bg-[#0666a3] font-bold text-xs uppercase tracking-wide transition-all">
-                {{ $method === 'PUT' ? 'Update' : 'Save' }} Skill
+                {{ $method === 'PUT' ? 'Update' : 'Save' }} Subject
             </button>
         </div>
     </form>

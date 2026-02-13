@@ -7,7 +7,7 @@
                     <th class="px-6 py-3 text-xs font-bold tracking-wider text-left text-gray-500 uppercase">Name</th>
                     <th class="px-6 py-3 text-xs font-bold tracking-wider text-left text-gray-500 uppercase">Duration</th>
                     <th class="px-6 py-3 text-xs font-bold tracking-wider text-left text-gray-500 uppercase">Price/Month</th>
-                    <th class="px-6 py-3 text-xs font-bold tracking-wider text-left text-gray-500 uppercase">Category</th>
+                    <th class="px-6 py-3 text-xs font-bold tracking-wider text-left text-gray-500 uppercase">Micro Category</th>
                     <th class="px-6 py-3 text-xs font-bold tracking-wider text-left text-gray-500 uppercase">Status</th>
                     <th class="px-6 py-3 text-xs font-bold tracking-wider text-right text-gray-500 uppercase">Actions</th>
                 </tr>

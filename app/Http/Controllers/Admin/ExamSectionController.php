@@ -57,31 +57,35 @@ class ExamSectionController extends Controller
 
     // --- METHODS ---
 
+    // --- METHODS ---
+
     public function index(Request $request)
     {
         $examId = $request->route('exam');
         $exam = Exam::with(['examSections' => function ($query) {
-            $query->with('section:id,name')
+            $query->with(['section:id,name', 'microCategory:id,name']) // Eager load microCategory
                 ->withCount('questions')
                 ->orderBy('section_order');
         }])->findOrFail($examId);
 
         $this->authorizeInstructor($exam);
 
-        $availableSections = Section::where('is_active', 1)
+        // Fetch MicroCategories with nested Skills (now Subjects) and Topics
+        // User requested: Select MicroCategory -> Show linked Skills -> Show linked Topics
+        $microCategories = \App\Models\MicroCategory::where('is_active', 1)
             ->with(['skills' => function ($q) {
                 $q->where('is_active', 1)
-                    ->select('id', 'name', 'section_id')
-                    ->with(['topics' => function ($subQ) {
-                        $subQ->where('is_active', 1)->select('id', 'name', 'skill_id');
-                    }]);
+                  ->select('id', 'name', 'micro_category_id')
+                  ->with(['topics' => function($qq) {
+                      $qq->select('id', 'name', 'skill_id')->where('is_active', 1);
+                  }]);
             }])
             ->select('id', 'name')
             ->get();
 
         $steps = $this->repository->getSteps($exam->id, 'sections');
 
-        return view('admin.exams.sections.index', compact('exam', 'availableSections', 'steps'));
+        return view('admin.exams.sections.index', compact('exam', 'microCategories', 'steps'));
     }
 
     public function store(Request $request)
@@ -93,7 +97,7 @@ class ExamSectionController extends Controller
 
         $request->validate([
             'name' => 'required|string|max:255',
-            'section_id' => 'required|exists:sections,id',
+            'micro_category_id' => 'required|exists:micro_categories,id', // Changed from section_id
             'section_order' => 'required|integer',
             'correct_marks' => 'required|numeric|min:0',
             'negative_marks' => 'nullable|numeric|min:0',
@@ -103,7 +107,6 @@ class ExamSectionController extends Controller
             'selected_topics' => 'nullable|array',
             'selected_topics.*' => 'exists:topics,id',
             'allow_translation' => 'nullable|boolean',
-            // Translation validation
             'translation_language' => 'nullable|required_if:allow_translation,1|in:hi,mr',
         ]);
 
@@ -111,7 +114,8 @@ class ExamSectionController extends Controller
         try {
             $examSection = new ExamSection();
             $examSection->exam_id = $exam->id;
-            $examSection->section_id = $request->section_id;
+            $examSection->section_id = null; // Deprecated or optional
+            $examSection->micro_category_id = $request->micro_category_id; // New field
             $examSection->name = $request->name;
             $examSection->section_order = $request->section_order;
 
@@ -126,11 +130,17 @@ class ExamSectionController extends Controller
             $examSection->translation_language = $examSection->allow_translation ? $request->translation_language : null;
 
             // Duration
+            $rawSettings = $exam->settings;
             $autoDuration = true;
-            if (is_array($exam->settings)) {
-                $autoDuration = $exam->settings['auto_duration'] ?? true;
-            } elseif (is_object($exam->settings) && method_exists($exam->settings, 'get')) {
-                $autoDuration = $exam->settings->get('auto_duration', true);
+
+            if (is_array($rawSettings)) {
+                $autoDuration = $rawSettings['auto_duration'] ?? true;
+            } elseif (is_object($rawSettings)) {
+                if (is_callable([$rawSettings, 'get'])) {
+                    $autoDuration = $rawSettings->get('auto_duration', true);
+                } else {
+                    $autoDuration = $rawSettings->auto_duration ?? true;
+                }
             }
 
             if ($autoDuration) {
@@ -144,7 +154,7 @@ class ExamSectionController extends Controller
 
             if ($request->has('import_questions') && $request->import_questions == 1) {
                 $topicIds = $request->selected_topics ?? [];
-                $this->syncQuestionsByTopics($exam->id, $examSection->id, $request->section_id, $topicIds, true);
+                $this->syncQuestionsByTopics($exam->id, $examSection->id, $examSection->micro_category_id, $topicIds, true);
             }
 
             $this->recalculateSectionTotals($exam, $examSection);
@@ -170,7 +180,7 @@ class ExamSectionController extends Controller
         $realSectionId = $sectionId ? $sectionId : $examId;
 
         try {
-            $section = ExamSection::with(['section:id,name', 'exam'])->findOrFail($realSectionId);
+            $section = ExamSection::with(['section:id,name', 'microCategory:id,name', 'exam'])->findOrFail($realSectionId);
             $this->authorizeInstructor($section->exam);
 
             $importedData = DB::table('exam_questions')
@@ -187,14 +197,15 @@ class ExamSectionController extends Controller
             return response()->json([
                 'id' => $section->id,
                 'name' => $section->name,
-                'section_id' => $section->section_id,
+                'section_id' => $section->section_id, // Might be null now
+                'micro_category_id' => $section->micro_category_id, // Start using this
                 'section_order' => $section->section_order,
                 'correct_marks' => $section->correct_marks,
                 'negative_marks' => $section->negative_marks,
                 'negative_marking_type' => $section->negative_marking_type,
                 'section_cutoff' => $section->section_cutoff,
                 'allow_translation' => $section->allow_translation,
-                'translation_language' => $section->translation_language, // Added this
+                'translation_language' => $section->translation_language,
                 'total_duration' => $section->total_duration,
                 'duration_minutes' => $duration_minutes,
                 'imported_skill_ids' => $importedSkillIds,
@@ -213,11 +224,10 @@ class ExamSectionController extends Controller
 
         $request->validate([
             'name' => 'required|string|max:255',
-            'section_id' => 'required|exists:sections,id',
+            'micro_category_id' => 'required|exists:micro_categories,id', // Required now
             'section_order' => 'required|integer',
             'correct_marks' => 'required|numeric|min:0',
             'selected_topics' => 'nullable|array',
-            // Translation validation
             'translation_language' => 'nullable|required_if:allow_translation,1|in:hi,mr',
         ]);
 
@@ -230,13 +240,18 @@ class ExamSectionController extends Controller
 
             $examSection->fill($request->only([
                 'name',
-                'section_id',
                 'section_order',
                 'correct_marks',
                 'negative_marking_type',
                 'negative_marks',
                 'section_cutoff'
             ]));
+
+            // Explicitly set micro_category_id
+            $examSection->micro_category_id = $request->micro_category_id;
+
+            // Ideally we should start nullifying section_id if we want to move away from it fully
+            // $examSection->section_id = null;
 
             // Translation Logic
             $examSection->allow_translation = $request->has('allow_translation') ? 1 : 0;
@@ -247,7 +262,7 @@ class ExamSectionController extends Controller
             $shouldImport = $request->has('import_questions') && $request->import_questions == 1;
             $topicIds = $request->selected_topics ?? [];
 
-            $this->syncQuestionsByTopics($exam->id, $examSection->id, $request->section_id, $topicIds, $shouldImport);
+            $this->syncQuestionsByTopics($exam->id, $examSection->id, $examSection->micro_category_id, $topicIds, $shouldImport);
             $this->recalculateSectionTotals($exam, $examSection);
 
             if (method_exists($examSection, 'updateMeta')) {
@@ -309,15 +324,16 @@ class ExamSectionController extends Controller
 
     // --- Private Methods ---
 
-    private function syncQuestionsByTopics($examId, $examSectionId, $masterSectionId, $selectedTopicIds, $shouldImport)
+    private function syncQuestionsByTopics($examId, $examSectionId, $microCategoryId, $selectedTopicIds, $shouldImport)
     {
         $query = Question::query();
 
         if (!empty($selectedTopicIds)) {
             $query->whereIn('topic_id', $selectedTopicIds);
         } else {
-            $query->whereHas('skill', function ($q) use ($masterSectionId) {
-                $q->where('section_id', $masterSectionId);
+            // Updated filtering logic to use micro_category_id
+            $query->whereHas('skill', function ($q) use ($microCategoryId) {
+                $q->where('micro_category_id', $microCategoryId);
             });
         }
 

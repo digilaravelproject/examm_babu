@@ -34,128 +34,134 @@
                 <div x-show="currentTab === {{ $category->id }}" x-cloak
                     class="grid w-full grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
 
-                    @if ($category->subCategories->flatMap->plans->count() > 0)
+                    @php
+                        // Get all plans from all microcategories under all subcategories of this category
+                        $allPlans = $category->subCategories->flatMap(function($subCategory) {
+                            return $subCategory->microCategories->flatMap->plans;
+                        })->where('is_active', true);
+                    @endphp
+
+                    @if ($allPlans->count() > 0)
                         @foreach ($category->subCategories as $subCategory)
-                            @if ($subCategory->plans->isNotEmpty())
-                                @foreach ($subCategory->plans as $plan)
-                                    @php
-                                        // Price Calculation Logic
-                                        $originalPrice = (float) $plan->price;
-                                        $discountPercent = (int) $plan->discount_percentage;
-                                        $hasDiscount = $plan->has_discount && $discountPercent > 0;
+                            @foreach ($subCategory->microCategories as $microCategory)
+                                @if ($microCategory->plans->where('is_active', true)->isNotEmpty())
+                                    @foreach ($microCategory->plans->where('is_active', true) as $plan)
+                                        @php
+                                            // Price Calculation Logic
+                                            $originalPrice = (float) $plan->price;
+                                            $discountPercent = (int) $plan->discount_percentage;
+                                            $hasDiscount = $plan->has_discount && $discountPercent > 0;
 
-                                        $sellingPrice = $originalPrice;
-                                        $savings = 0;
+                                            $sellingPrice = $originalPrice;
+                                            $savings = 0;
 
-                                        if ($hasDiscount) {
-                                            $savings = ($originalPrice * $discountPercent) / 100;
-                                            $sellingPrice = $originalPrice - $savings;
-                                        }
+                                            if ($hasDiscount) {
+                                                $savings = ($originalPrice * $discountPercent) / 100;
+                                                $sellingPrice = $originalPrice - $savings;
+                                            }
 
-                                        $sellingPrice = round($sellingPrice);
-                                        $savings = round($savings);
-                                    @endphp
+                                            $sellingPrice = round($sellingPrice);
+                                            $savings = round($savings);
+                                        @endphp
 
-                                    {{-- PLAN CARD --}}
-                                    <div
-                                        class="relative flex flex-col overflow-hidden transition-all duration-300 bg-white border shadow-sm group rounded-2xl border-slate-100 hover:shadow-xl hover:-translate-y-1 animate-fade-in-up">
-
-                                        {{-- ========================================================= --}}
-                                        {{-- FIXED LINK: USING IDs INSTEAD OF SLUGS --}}
-                                        {{-- ========================================================= --}}
-                                        <a href="{{ route('exam_details.microcategory', ['subCategory' => $subCategory->id, 'microCategory' => $plan->id]) }}"
-                                            class="absolute inset-0 z-10" title="View Details">
-                                        </a>
-
-
-                                        {{-- Card Body --}}
-                                        <div class="relative flex-1 p-6 pointer-events-none">
-
-                                            {{-- ICON --}}
-                                            <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20">
-                                                <svg class="w-16 h-16 text-blue-600" fill="currentColor"
-                                                    viewBox="0 0 24 24">
-                                                    <path d="M12 2L2 7l10 5 10-5-10-5z" />
-                                                </svg>
-                                            </div>
-
-                                            {{-- BADGES --}}
-                                            <div class="flex flex-wrap items-center gap-2 mb-3 relative z-20">
-                                                <span
-                                                    class="px-2 py-1 text-xs font-bold text-blue-700 uppercase rounded-md bg-blue-50">
-                                                    {{ $subCategory->name }}
-                                                </span>
-
-                                                @if ($hasDiscount)
-                                                    <span
-                                                        class="px-2 py-1 text-xs font-bold text-white uppercase bg-green-600 rounded-md animate-pulse">
-                                                        FLAT {{ $discountPercent }}% OFF
-                                                    </span>
-                                                @endif
-                                            </div>
-
-                                            {{-- TITLE --}}
-                                            <h3
-                                                class="mb-2 text-xl font-bold text-slate-800 group-hover:text-blue-600 line-clamp-2">
-                                                {{ $plan->name }}
-                                            </h3>
-
-                                            {{-- DESCRIPTION --}}
-                                            <p class="mb-4 text-sm text-slate-500 line-clamp-1">
-                                                {{ $plan->description ?? 'Comprehensive Test Series' }}
-                                            </p>
-
-                                            {{-- STATS --}}
-                                            <div class="flex items-center gap-4 text-xs font-semibold text-slate-400">
-                                                <span>⏱ {{ $plan->duration ?? 30 }} Days</span>
-                                                <span>👥 {{ rand(100, 2000) }}+ Users</span>
-                                            </div>
-                                        </div>
-
-                                        {{-- FOOTER --}}
+                                        {{-- PLAN CARD --}}
                                         <div
-                                            class="flex items-center justify-between p-4 border-t bg-slate-50/50 relative z-20">
+                                            class="relative flex flex-col overflow-hidden transition-all duration-300 bg-white border shadow-sm group rounded-2xl border-slate-100 hover:shadow-xl hover:-translate-y-1 animate-fade-in-up">
 
-                                            {{-- Price --}}
-                                            <div class="pointer-events-none">
-                                                @if ($originalPrice > 0)
-                                                    <div class="flex items-center gap-2">
-                                                        <span class="text-xl font-extrabold text-slate-900">
-                                                            ₹{{ $sellingPrice }}
-                                                        </span>
-                                                        @if ($hasDiscount)
-                                                            <span class="text-sm line-through text-slate-400">
-                                                                ₹{{ $originalPrice }}
-                                                            </span>
-                                                        @endif
-                                                    </div>
+                                            {{-- FIXED LINK: Using correct SubCategory ID and MicroCategory ID --}}
+                                            <a href="{{ route('exam_details.microcategory', ['subCategory' => $subCategory->id, 'microCategory' => $microCategory->id]) }}"
+                                                class="absolute inset-0 z-10" title="View Details">
+                                            </a>
+
+                                            {{-- Card Body --}}
+                                            <div class="relative flex-1 p-6 pointer-events-none">
+
+                                                {{-- ICON --}}
+                                                <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20">
+                                                    <svg class="w-16 h-16 text-blue-600" fill="currentColor"
+                                                        viewBox="0 0 24 24">
+                                                        <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                                                    </svg>
+                                                </div>
+
+                                                {{-- BADGES --}}
+                                                <div class="flex flex-wrap items-center gap-2 mb-3 relative z-20">
+                                                    <span
+                                                        class="px-2 py-1 text-xs font-bold text-blue-700 uppercase rounded-md bg-blue-50">
+                                                        {{ $microCategory->name }}
+                                                    </span>
+
                                                     @if ($hasDiscount)
-                                                        <span class="text-[10px] font-bold text-green-600">
-                                                            SAVE ₹{{ $savings }}
+                                                        <span
+                                                            class="px-2 py-1 text-xs font-bold text-white uppercase bg-green-600 rounded-md animate-pulse">
+                                                            FLAT {{ $discountPercent }}% OFF
                                                         </span>
                                                     @endif
+                                                </div>
+
+                                                {{-- TITLE --}}
+                                                <h3
+                                                    class="mb-2 text-xl font-bold text-slate-800 group-hover:text-blue-600 line-clamp-2">
+                                                    {{ $plan->name }}
+                                                </h3>
+
+                                                {{-- DESCRIPTION --}}
+                                                <p class="mb-4 text-sm text-slate-500 line-clamp-1">
+                                                    {{ $plan->description ?? 'Comprehensive Test Series' }}
+                                                </p>
+
+                                                {{-- STATS --}}
+                                                <div class="flex items-center gap-4 text-xs font-semibold text-slate-400">
+                                                    <span>⏱ {{ $plan->duration ?? 30 }} Days</span>
+                                                    <span>👥 {{ rand(100, 2000) }}+ Users</span>
+                                                </div>
+                                            </div>
+
+                                            {{-- FOOTER --}}
+                                            <div
+                                                class="flex items-center justify-between p-4 border-t bg-slate-50/50 relative z-20">
+
+                                                {{-- Price --}}
+                                                <div class="pointer-events-none">
+                                                    @if ($originalPrice > 0)
+                                                        <div class="flex items-center gap-2">
+                                                            <span class="text-xl font-extrabold text-slate-900">
+                                                                ₹{{ $sellingPrice }}
+                                                            </span>
+                                                            @if ($hasDiscount)
+                                                                <span class="text-sm line-through text-slate-400">
+                                                                    ₹{{ $originalPrice }}
+                                                                </span>
+                                                            @endif
+                                                        </div>
+                                                        @if ($hasDiscount)
+                                                            <span class="text-[10px] font-bold text-green-600">
+                                                                SAVE ₹{{ $savings }}
+                                                            </span>
+                                                        @endif
+                                                    @else
+                                                        <span class="text-xl font-bold text-green-600">Free</span>
+                                                    @endif
+                                                </div>
+
+                                                {{-- Attempt Button --}}
+                                                @if (auth()->check() && auth()->user()->hasRole('admin'))
+                                                    <button disabled
+                                                        class="px-5 py-2.5 text-sm font-bold text-gray-400 bg-gray-100 border rounded-lg cursor-not-allowed">
+                                                        Admin View
+                                                    </button>
                                                 @else
-                                                    <span class="text-xl font-bold text-green-600">Free</span>
+                                                    <a href="{{ route('checkout', $plan->code) }}"
+                                                        class="relative z-30 px-5 py-2.5 text-sm font-bold text-white rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5">
+                                                        Attempt Now
+                                                    </a>
                                                 @endif
                                             </div>
 
-                                            {{-- Attempt Button --}}
-                                            @if (auth()->check() && auth()->user()->hasRole('admin'))
-                                                <button disabled
-                                                    class="px-5 py-2.5 text-sm font-bold text-gray-400 bg-gray-100 border rounded-lg cursor-not-allowed">
-                                                    Admin View
-                                                </button>
-                                            @else
-                                                <a href="{{ route('checkout', $plan->code) }}"
-                                                    class="relative z-30 px-5 py-2.5 text-sm font-bold text-white rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5">
-                                                    Attempt Now
-                                                </a>
-                                            @endif
                                         </div>
-
-                                    </div>
-                                @endforeach
-                            @endif
+                                    @endforeach
+                                @endif
+                            @endforeach
                         @endforeach
                     @else
                         <div class="text-center col-span-full text-slate-500 py-12">

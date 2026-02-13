@@ -1,6 +1,6 @@
 @extends(auth()->user()->hasRole('instructor') ? 'layouts.instructor' : 'layouts.admin')
 
-@section('title', 'Edit Skill')
+@section('title', 'Edit Subject')
 
 @php
     $isAdmin = request()->routeIs('admin.*');
@@ -17,7 +17,7 @@
     <div class="flex items-center justify-between px-4 sm:px-0">
         <div>
             <h1 class="flex items-center gap-2 text-2xl font-bold text-gray-900">
-                Edit Skill
+                Edit Subject
                 @if($skill->is_active)
                     <span class="px-2 py-0.5 text-[10px] bg-[#94c940] text-white rounded-full uppercase tracking-wider">Active</span>
                 @else
@@ -34,7 +34,7 @@
 
     @include('admin.skills.partials._form', [
         'skill' => $skill,
-        'sections' => $sections,
+        'microCategories' => $microCategories,
         'action' => route($routePrefix . 'skills.update', $updateParams),
         'method' => 'PUT'
     ])

@@ -23,8 +23,9 @@ class ShareReportController extends Controller
     {
         // 1. Cleaner Validation using 'required_without_all'
         $validated = $request->validate([
-            'parent_email'     => 'required_without_all:instructor_email,self_copy|nullable|email',
+            'parent_email'     => 'required_without_all:instructor_email,teacher_email,self_copy|nullable|email',
             'instructor_email' => 'nullable|email',
+            'teacher_email'    => 'nullable|email', // New Field
             'self_copy'        => 'boolean'
         ], [
             'parent_email.required_without_all' => 'Please select at least one recipient.'
@@ -42,7 +43,23 @@ class ShareReportController extends Controller
 
             $this->configureMailer();
 
-            // 3. Build Recipient List
+            // 3. QUEUE TEACHER REPORT (If provided)
+            if ($request->teacher_email) {
+                \App\Models\TeacherReportQueue::create([
+                    'teacher_email' => $request->teacher_email,
+                    'student_name'  => $session->user->full_name, // Using accessor
+                    'student_email' => $session->user->email,
+                    'exam_name'     => $session->exam->title,
+                    'user_id'       => $session->user->id,
+                    'exam_session_id' => $session->id,
+                    'score'         => $session->results['score'] ?? 0,
+                    'total_marks'   => $session->exam->total_marks,
+                    'result_url'    => $signedUrl,
+                    'status'        => 'pending'
+                ]);
+            }
+
+            // 4. Build Recipient List (Instant Emails)
             $recipients = collect([
                 $request->parent_email,
                 $request->instructor_email,

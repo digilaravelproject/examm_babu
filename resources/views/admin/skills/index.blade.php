@@ -1,7 +1,7 @@
 @extends(auth()->user()->hasRole('instructor') ? 'layouts.instructor' : 'layouts.admin')
 
-@section('title', 'Manage Skills')
-@section('header', 'Manage Skills')
+@section('title', 'Manage Subjects')
+@section('header', 'Manage Subjects')
 
 @php
     $isAdmin = request()->routeIs('admin.*');
@@ -28,15 +28,15 @@
         {{-- Header --}}
         <div class="flex flex-col justify-between gap-4 md:flex-row md:items-center">
             <div>
-                <h1 class="text-2xl font-bold tracking-tight text-gray-900">Skills</h1>
-                <p class="mt-1 text-sm text-gray-500">Manage specific skills linked to parent sections.</p>
+                <h1 class="text-2xl font-bold tracking-tight text-gray-900">Subjects</h1>
+                <p class="mt-1 text-sm text-gray-500">Manage subjects linked to micro categories.</p>
             </div>
             <a href="{{ $urlCreate }}"
                 class="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-[#0777be] rounded-lg shadow-md hover:bg-[#0666a3] transition-all">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path d="M12 4v16m8-8H4" stroke-width="2" stroke-linecap="round" />
                 </svg>
-                Add Skill
+                Add Subject
             </a>
         </div>
 
@@ -46,18 +46,18 @@
             <div class="relative flex-1">
                 <input type="text" x-model="search" @input.debounce.500ms="applyFilter()"
                     class="w-full py-2.5 pl-10 pr-3 text-sm bg-gray-50 border-0 rounded-lg focus:ring-2 focus:ring-[#0777be]/20 placeholder-gray-400"
-                    placeholder="Search skill name or code...">
+                    placeholder="Search subject name or code...">
                 <svg class="w-5 h-5 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-width="2" />
                 </svg>
             </div>
 
             {{-- Section Filter --}}
-            <select x-model="section_id" @change="applyFilter()"
+            <select x-model="micro_category_id" @change="applyFilter()"
                 class="py-2.5 text-sm bg-gray-50 border-0 rounded-lg md:w-48 cursor-pointer hover:bg-gray-100">
-                <option value="">All Sections</option>
-                @foreach($sections as $sec)
-                    <option value="{{ $sec->id }}">{{ $sec->name }}</option>
+                <option value="">All Micro Categories</option>
+                @foreach($microCategories as $microCategory)
+                    <option value="{{ $microCategory->id }}">{{ $microCategory->name }}</option>
                 @endforeach
             </select>
 
@@ -98,7 +98,7 @@
             return {
                 search: '',
                 status: '',
-                section_id: '',
+                micro_category_id: '',
                 loading: false,
                 baseUrl: baseUrl,
 
@@ -112,7 +112,7 @@
                     params.append('page', page);
                     if(this.search) params.append('search', this.search);
                     if(this.status) params.append('status', this.status);
-                    if(this.section_id) params.append('section_id', this.section_id);
+                    if(this.micro_category_id) params.append('micro_category_id', this.micro_category_id);
 
                     fetch(`${this.baseUrl}?${params.toString()}`, {
                         headers: { 'X-Requested-With': 'XMLHttpRequest' }

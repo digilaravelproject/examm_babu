@@ -14,7 +14,7 @@ class StorePlanRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'category_id' => 'required|exists:sub_categories,id',
+            'category_id' => 'required|exists:micro_categories,id',
             'name' => 'required|string|max:100',
             'duration' => 'required|integer|min:1',
             'price' => 'required|numeric|min:0',
@@ -39,10 +39,10 @@ class StorePlanRequest extends FormRequest
     {
         // 1. Checkbox Values Clean Karein
         $hasDiscount = $this->boolean('has_discount') ? 1 : 0;
-        
+
         // $this->boolean() automatically handles "on", "1", "0", null, etc. correctly
         $featureRestrictions = $this->boolean('feature_restrictions') ? 1 : 0;
-        
+
         $this->merge([
             'has_discount' => $hasDiscount,
             'feature_restrictions' => $featureRestrictions,

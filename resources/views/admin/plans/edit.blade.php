@@ -24,17 +24,17 @@
                 @csrf
                 @method('PUT') {{-- Update ke liye zaroori hai --}}
 
-                {{-- 1. Category --}}
+                {{-- 1. Micro Category --}}
                 <div>
-                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Category <span
+                    <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Micro Category <span
                             class="text-red-500">*</span></label>
                     <select name="category_id" required
                         class="w-full text-sm border-gray-300 rounded-lg focus:ring-[#10b981] focus:border-[#10b981]">
-                        <option value="">Choose Category</option>
-                        @foreach ($subCategories as $cat)
-                            <option value="{{ $cat->id }}"
-                                {{ old('category_id', $plan->category_id) == $cat->id ? 'selected' : '' }}>
-                                {{ $cat->name }}
+                        <option value="">Choose Micro Category</option>
+                        @foreach ($microCategories as $microCat)
+                            <option value="{{ $microCat->id }}"
+                                {{ old('category_id', $plan->category_id) == $microCat->id ? 'selected' : '' }}>
+                                {{ $microCat->name }}
                             </option>
                         @endforeach
                     </select>
@@ -59,7 +59,7 @@
                             class="w-full text-sm border-gray-300 rounded-lg focus:ring-[#10b981] focus:border-[#10b981]">
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Monthly Price <span
+                        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Price <span
                                 class="text-red-500">*</span></label>
                         <input type="number" name="price" value="{{ old('price', $plan->price) }}" step="0.01"
                             min="0" required

@@ -46,9 +46,8 @@
                     <th class="px-4 py-3 text-xs font-bold tracking-wider text-gray-500 uppercase min-w-[250px]">
                         Question</th>
                     <th class="px-4 py-3 text-xs font-bold tracking-wider text-gray-500 uppercase">Type</th>
-                    <th class="px-4 py-3 text-xs font-bold tracking-wider text-gray-500 uppercase">Section</th>
-                    <th class="px-4 py-3 text-xs font-bold tracking-wider text-gray-500 uppercase">Skill</th>
-                    <th class="px-4 py-3 text-xs font-bold tracking-wider text-gray-500 uppercase">Topic</th>
+                    <th class="px-4 py-3 text-xs font-bold tracking-wider text-gray-500 uppercase">Subject</th>
+                    <th class="px-4 py-3 text-xs font-bold tracking-wider text-gray-500 uppercase min-w-[200px]">Topic</th>
                     @if (auth()->user()->hasRole('admin'))
                         <th class="px-4 py-3 text-xs font-bold tracking-wider text-gray-500 uppercase">Created By</th>
                     @endif
@@ -123,22 +122,31 @@
                             </span>
                         </td>
 
-                        {{-- Section --}}
-                        <td class="px-4 py-3">
-                            <span class="text-xs text-gray-600 whitespace-nowrap">{{ $q->section->name ?? '-' }}</span>
-                        </td>
-
-                        {{-- Skill --}}
+                        {{-- Subject (formerly Skill) --}}
                         <td class="px-4 py-3">
                             <span
                                 class="text-xs font-medium text-gray-900 whitespace-nowrap">{{ $q->skill->name ?? '-' }}</span>
                         </td>
 
-                        {{-- Topic --}}
+                        {{-- Topic with Category Hierarchy --}}
                         <td class="px-4 py-3">
-                            <span class="px-2 py-1 text-xs text-gray-600 bg-gray-100 rounded whitespace-nowrap">
-                                {{ $q->topic->name ?? '-' }}
-                            </span>
+                            <div class="flex flex-col gap-1">
+                                <span class="px-2 py-1 text-xs font-medium text-gray-900 bg-gray-100 rounded">
+                                    {{ $q->topic->name ?? '-' }}
+                                </span>
+                                @if($q->topic && $q->topic->skill && $q->topic->skill->microCategory)
+                                    <div class="flex items-center gap-1 text-[10px] text-gray-400">
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+                                        </svg>
+                                        <span class="font-medium">{{ $q->topic->skill->microCategory->name }}</span>
+                                        @if($q->topic->skill->microCategory->subCategory)
+                                            <span class="text-gray-300">›</span>
+                                            <span>{{ $q->topic->skill->microCategory->subCategory->name }}</span>
+                                        @endif
+                                    </div>
+                                @endif
+                            </div>
                         </td>
                         @if (auth()->user()->hasRole('admin'))
                             <td class="px-4 py-3">

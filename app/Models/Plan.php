@@ -32,10 +32,10 @@ class Plan extends Model
         });
     }
 
-    public function category(): BelongsTo
+    public function microCategory(): BelongsTo
     {
-        // Database column: category_id
-        return $this->belongsTo(SubCategory::class, 'category_id');
+        // Database column: category_id (stores MicroCategory ID)
+        return $this->belongsTo(MicroCategory::class, 'category_id');
     }
 
     public function features(): BelongsToMany

@@ -64,8 +64,8 @@
         // Convert object to array if needed
         $opt = (array) $opt;
 
-        // Image Preview Logic
-        $opt['previewUrl'] = isset($opt['image']) && $opt['image'] ? asset('storage/' . $opt['image']) : null;
+        // Image Preview Logic - use asset() for uploads directory
+        $opt['previewUrl'] = isset($opt['image']) && $opt['image'] ? asset($opt['image']) : null;
 
         // MMA Checkbox Logic
         $opt['is_correct'] =
@@ -297,9 +297,11 @@
     activeTab: '{{ $initialTab }}',
     skills: {{ $skills }},
     allTopics: {{ $topics }},
-    selectedSkill: '{{ old('skill_id', $question->skill_id) }}',
+    selectedSkill: '{{ old('skill_id', $question->skill_id ?? request('skill_id')) }}',
     hasAttachment: {{ old('has_attachment', $question->has_attachment ?? 0) ? 'true' : 'false' }},
     attachmentType: '{{ old('attachment_type', $question->attachment_type ?? 'comprehension') }}',
+    selectedPassageId: '{{ old('comprehension_id', $question->comprehension_passage_id ?? '') }}',
+    prefillPassageId: '{{ $prefill['comprehension_passage_id'] ?? request('comprehension_passage_id') ?? '' }}',
     solutionHasVideo: {{ !empty($question->solution_video) ? 'true' : 'false' }},
     questionImagePreview: '{{ $existingQImage }}'
 })" class="bg-white border border-gray-200 shadow-xl rounded-xl overflow-hidden font-sans">
@@ -436,15 +438,15 @@
                                                                         {{-- Option Image Upload UI --}}
                                     <div class="mt-3 flex items-center gap-3 border-t pt-3">
                                        <div class="relative">
-    <input type="file" 
+    <input type="file"
            :name="'options[' + index + '][image]'"
-           :id="'opt_img_' + index" 
-           class="hidden" 
+           :id="'opt_img_' + index"
+           class="hidden"
            accept="image/*"
            @change="handleImageSelection($event, index)">
-           
+
     <button type="button"
-            @click="$el.previousElementSibling.click()" 
+            @click="$el.previousElementSibling.click()"
             class="flex items-center gap-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-md text-xs font-bold text-gray-700 transition">
         <span>📷</span> Add Image
     </button>
@@ -650,10 +652,10 @@
                 x-transition:enter="transition ease-out duration-200">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div>
-                        <label class="form-label">Skill Category <span class="text-red-500">*</span></label>
+                        <label class="form-label">Subject <span class="text-red-500">*</span></label>
                         <select name="skill_id" x-model="selectedSkill" @change="filterTopics()"
                             class="custom-select" :class="{ 'border-red-500': errors.settings }">
-                            <option value="">-- Select Skill --</option>
+                            <option value="">-- Select Subject --</option>
                             <template x-for="skill in skills" :key="skill.id">
                                 <option :value="skill.id" x-text="skill.name"
                                     :selected="skill.id == selectedSkill"></option>
@@ -664,12 +666,12 @@
                         @enderror
                     </div>
                     <div>
-                        <label class="form-label">Topic / Sub-Skill</label>
+                        <label class="form-label">Topic</label>
                         <select name="topic_id" class="custom-select">
                             <option value="">-- Select Topic --</option>
                             <template x-for="topic in availableTopics" :key="topic.id">
                                 <option :value="topic.id" x-text="topic.name"
-                                    :selected="topic.id == '{{ $question->topic_id }}'"></option>
+                                    :selected="topic.id == '{{ old('topic_id', $question->topic_id ?? request('topic_id')) }}'"></option>
                             </template>
                         </select>
                     </div>
@@ -810,14 +812,21 @@
 
                     <div x-show="attachmentType === 'comprehension'" class="space-y-3">
                         <label class="form-label">Select Passage</label>
-                        <select name="comprehension_id" class="custom-select">
-                            <option value="">-- Choose a Passage --</option>
-                            @foreach ($passages as $p)
-                                <option value="{{ $p->id }}"
-                                    {{ old('comprehension_passage_id', $question->comprehension_passage_id) == $p->id ? 'selected' : '' }}>
-                                    {{ $p->title }}</option>
-                            @endforeach
-                        </select>
+                        <div class="flex gap-2">
+                             <select name="comprehension_id" id="passage_select" class="custom-select" x-model="selectedPassageId">
+                                <option value="">-- Choose a Passage --</option>
+                                @foreach ($passages as $p)
+                                    <option value="{{ $p->id }}"
+                                        {{ old('comprehension_id', $question->comprehension_passage_id ?? $prefill['comprehension_passage_id'] ?? '') == $p->id ? 'selected' : '' }}>
+                                        {{ $p->title }}</option>
+                                @endforeach
+                            </select>
+                            <button type="button" @click="openPassageModal()"
+                                class="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow"
+                                title="Create New Passage">
+                                +
+                            </button>
+                        </div>
                         <p class="text-xs text-gray-500">Don't see the passage? Create it in the Comprehension module
                             first.</p>
                     </div>
@@ -832,8 +841,15 @@
 
                 <div class="flex justify-between border-t border-gray-100 pt-6">
                     <button type="button" @click="activeTab = 'solution'" class="btn-secondary">&larr; Back</button>
-                    <button type="submit"
-                        class="btn-submit btn px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-lg shadow-green-200 transition duration-200 ease-in-out">{{ $isEdit ? 'UPDATE QUESTION' : 'SAVE & UPLOAD QUESTION' }}</button>
+
+                    <div class="flex gap-2">
+                        <button type="submit" name="submit_action" value="save_and_add"
+                            class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow transition">
+                            {{ $isEdit ? 'UPDATE & ADD ANOTHER' : 'SAVE & ADD ANOTHER' }}
+                        </button>
+                        <button type="submit" name="submit_action" value="save"
+                            class="btn-submit btn px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-lg shadow-green-200 transition duration-200 ease-in-out">{{ $isEdit ? 'UPDATE QUESTION' : 'SAVE & EXIT' }}</button>
+                    </div>
 
                 </div>
             </div>
@@ -898,19 +914,58 @@
         </div>
     </div>
 
+    {{-- 3. CREATE PASSAGE MODAL --}}
+    <div x-show="showPassageModal" style="display: none;" class="modal-backdrop" x-transition.opacity>
+        <div class="modal-content max-w-4xl" @click.outside="closePassageModal()">
+            <div class="modal-header bg-indigo-600">
+                <h3 class="text-lg font-bold">Create New Passage</h3>
+                <button @click="closePassageModal()" class="text-white/80 hover:text-white text-2xl">&times;</button>
+            </div>
+            <div class="p-6 bg-white space-y-4 max-h-[70vh] overflow-y-auto">
+                <div>
+                    <label class="form-label">Passage Title <span class="text-red-500">*</span></label>
+                    <input type="text" x-model="newPassage.title" class="custom-input" placeholder="Enter passage title...">
+                </div>
+                <div>
+                    <label class="form-label">Passage Content <span class="text-red-500">*</span></label>
+                    <textarea id="editor_new_passage" class="w-full h-64"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer bg-gray-50">
+                <button type="button" @click="closePassageModal()" class="btn-secondary">Cancel</button>
+                <button type="button" @click="submitPassage()" class="btn-primary" :disabled="isCreatingPassage">
+                    <span x-show="isCreatingPassage">Creating...</span>
+                    <span x-show="!isCreatingPassage">Create Passage</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 {{-- =======================================================================
      SCRIPTS
      ======================================================================= --}}
-<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script>
+    window.MathJax = {
+        tex: {
+            inlineMath: [['\\(', '\\)'], ['$', '$']]
+        },
+        svg: {
+            fontCache: 'global'
+        }
+    };
+</script>
+{{-- MathJax 3 (ES5) --}}
 <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/7.1.0/tinymce.min.js" referrerpolicy="origin"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 
+</script>
 <script>
     // TinyMCE Configuration (Height increased to 250px)
     const getTinyConfig = (h = 250) => ({
+        license_key: 'gpl',  // Using GPL license for open source
         height: h,
         menubar: false,
         plugins: 'lists link image charmap preview anchor emoticons code table searchreplace visualblocks',
@@ -933,8 +988,13 @@
             allTopics: config.allTopics,
             availableTopics: [],
             selectedSkill: config.selectedSkill,
+
+            // Attachment & Prefill
             hasAttachment: config.hasAttachment,
             attachmentType: config.attachmentType,
+            prefillPassageId: config.prefillPassageId, // New Prefill Param
+            selectedPassageId: config.selectedPassageId || '',
+
             solutionHasVideo: config.solutionHasVideo,
             videoUrl: '',
 
@@ -947,6 +1007,11 @@
             mathInput: '',
             activeMathContext: null,
             questionImagePreview: config.questionImagePreview,
+
+            // New Passage Modal
+            showPassageModal: false,
+            newPassage: { title: '', body: '' },
+            isCreatingPassage: false,
 
             // Tabs
             tabs: [{
@@ -977,6 +1042,14 @@
             // --- INIT ---
             init() {
                 this.filterTopics();
+
+                // Prefill Logic (If returning from 'Save & Add Another')
+                if (this.prefillPassageId) {
+                    this.hasAttachment = true;
+                    this.attachmentType = 'comprehension';
+                    this.selectedPassageId = this.prefillPassageId;
+                }
+
                 this.$nextTick(() => {
                     // Initialize Static Editors
                     tinymce.init({
@@ -990,6 +1063,17 @@
                     tinymce.init({
                         selector: '#editor_hint',
                         ...getTinyConfig(200)
+                    });
+
+                    // Inline Passage Editor
+                    tinymce.init({
+                         selector: '#editor_new_passage',
+                         ...getTinyConfig(300),
+                         setup: (editor) => {
+                             editor.on('change keyup', () => {
+                                 this.newPassage.body = editor.getContent();
+                             });
+                         }
                     });
 
                     // Initialize Dynamic Editors
@@ -1189,6 +1273,77 @@
                     alert('Editor not found. Please click inside the editor first.');
                 }
                 this.closeMathModal();
+            },
+
+            renderAllMath() {
+                // Re-render all TinyMCE math formulas
+                if (window.MathJax) {
+                    this.$nextTick(() => {
+                        MathJax.typesetClear();
+                        MathJax.typesetPromise().catch((err) => console.error('Math rendering failed:', err));
+                    });
+                }
+            },
+
+            // --- Inline Passage Creation ---
+            openPassageModal() {
+                 this.newPassage = { title: '', body: '' };
+                 if(tinymce.get('editor_new_passage')) tinymce.get('editor_new_passage').setContent('');
+                 this.showPassageModal = true;
+            },
+
+            closePassageModal() {
+                this.showPassageModal = false;
+            },
+
+            async submitPassage() {
+                if(!this.newPassage.title || !this.newPassage.body) {
+                    alert('Please fill all fields');
+                    return;
+                }
+
+                this.isCreatingPassage = true;
+
+                try {
+                    // Determine Prefix
+                    const isAdmin = {{ $isAdmin ? 'true' : 'false' }};
+                    const prefix = isAdmin ? '/admin' : '/expert'; // Adjust route prefix as needed
+
+                    const response = await fetch(`${prefix}/comprehensions/store-ajax`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                        },
+                        body: JSON.stringify(this.newPassage)
+                    });
+
+                    const result = await response.json();
+
+                    if(result.success) {
+                        // Add to dropdown
+                        const select = document.getElementById('passage_select');
+                        const option = new Option(result.passage.title, result.passage.id, true, true);
+                        select.add(option);
+
+                        // Select it
+                        this.selectedPassageId = result.passage.id;
+
+                        this.closePassageModal();
+
+                        // Show success toast (using Swal if available)
+                        if(typeof Swal !== 'undefined') {
+                            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Passage Created', showConfirmButton: false, timer: 1500 });
+                        }
+                    } else {
+                        alert('Error: ' + result.message);
+                    }
+                } catch(e) {
+                    console.error(e);
+                    alert('Failed to create passage.');
+                } finally {
+                    this.isCreatingPassage = false;
+                }
             }
         }));
     });

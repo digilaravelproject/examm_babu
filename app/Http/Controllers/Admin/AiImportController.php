@@ -17,6 +17,7 @@ use App\Models\Skill;
 use App\Models\DifficultyLevel;
 use App\Repositories\QuestionRepository;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Class AiImportController
@@ -158,21 +159,20 @@ class AiImportController extends Controller
 
         try {
             // 2. TIMEOUT FIX: Increased to 240 seconds
-
-            /** * @var \Illuminate\Http\Client\Response $response
-             * Explicit type hinting to fix Intelephense/IDE "undefined method status()" errors.
-             */
+            /** @var \Illuminate\Http\Client\Response $response */
             $response = Http::timeout(240)
                 ->withHeaders([
                     'Authorization' => 'Bearer ' . env('OPENROUTER_API_KEY'),
                     'Content-Type' => 'application/json',
                     'HTTP-Referer' => url('/'),
+                    'X-Title' => env('APP_NAME', 'Exam Babu'),
                 ])->post('https://openrouter.ai/api/v1/chat/completions', [
                     'model' => 'deepseek/deepseek-chat',
                     'messages' => [
                         ['role' => 'system', 'content' => 'You are an SME. Extract questions, SOLVE them (find correct answer), output JSON.'],
                         ['role' => 'user', 'content' => $this->getPrompt($textSegment)]
                     ],
+                    'max_tokens' => 2500, // Limit output to reduce credit reservation
                     'temperature' => 0.1
                 ]);
 
@@ -188,16 +188,34 @@ class AiImportController extends Controller
             }
 
             $jsonResponse = $response->json();
+
+            // DEBUG: Log the raw response to understand why it's empty
+            if (!isset($jsonResponse['choices'][0]['message']['content'])) {
+                 Log::error('AI Import Error - Raw Response:', ['body' => $response->body(), 'status' => $response->status()]);
+            }
+
             $aiContent = $jsonResponse['choices'][0]['message']['content'] ?? null;
 
-            if (!$aiContent) throw new \Exception("Empty Response from AI");
+            if (!$aiContent) throw new \Exception("Empty Response from AI - Check Logs");
 
-            // Clean Markdown code blocks if present
-            $cleanedJson = preg_replace('/```json|```/', '', $aiContent);
+            // Robust JSON Extraction
+            // Find the first '[' and last ']' to isolate the JSON array
+            $firstBracket = strpos($aiContent, '[');
+            $lastBracket = strrpos($aiContent, ']');
+
+            if ($firstBracket !== false && $lastBracket !== false && $lastBracket > $firstBracket) {
+                $cleanedJson = substr($aiContent, $firstBracket, $lastBracket - $firstBracket + 1);
+            } else {
+                // Fallback: Try to clean markdown code blocks
+                 $cleanedJson = preg_replace('/```json|```/', '', $aiContent);
+            }
+
             $questionsArray = json_decode($cleanedJson, true);
 
             if (json_last_error() !== JSON_ERROR_NONE) {
-                 return response()->json(['success' => true, 'processed_count' => 0, 'warning' => 'Invalid JSON skipped']);
+                  // Log the failed JSON for debugging if needed
+                 Log::error("AI Import JSON Error: " . json_last_error_msg() . " Content: " . substr($cleanedJson, 0, 500));
+                 return response()->json(['success' => true, 'processed_count' => 0, 'warning' => 'Invalid JSON Structure from AI.']);
             }
 
             $count = $this->insertQuestionsToDB($questionsArray, $topicId, $creatorId);
@@ -242,10 +260,34 @@ class AiImportController extends Controller
      */
     private function getPrompt($text) {
         return <<<EOT
-        Analyze text. Extract MSA Questions. Solve them.
-        Rules: Return ONLY raw JSON array.
-        Format: [{"question":"...","options":["A","B","C","D"],"correct_option_index":0,"solution":"..."}]
-        TEXT: $text
+        You are an expert academic assistant used to digitize exam questions from PDF text.
+
+        YOUR TASK:
+        1. Analyze the provided text and extract multiple-choice questions (MSA).
+        2. Extract the Question Stem and Options (A, B, C, D).
+        3. ACCURACY IS CRITICAL. If options are jumbled, use logic to separate them.
+        4. FIND THE CORRECT ANSWER.
+           - If the answer key is present in the text, use it.
+           - If NO answer key is found, you MUST SOLVE the question yourself and provide the correct option index (0-3).
+        5. GENERATE A HINT/EXPLANATION.
+           - Provide a short "hint" or "solution" explanation for the student.
+
+        OUTPUT FORMAT:
+        Return ONLY a raw JSON array. Do not output markdown code blocks (```json).
+
+        JSON STRUCTURE:
+        [
+            {
+                "question": "The question text here...",
+                "options": ["Option A", "Option B", "Option C", "Option D"],
+                "correct_option_index": 0,  // Integer: 0 for A, 1 for B, 2 for C, 3 for D
+                "solution": "Detailed explanation of why this option is correct.",
+                "hint": "A short clue to help the student."
+            }
+        ]
+
+        RAW TEXT TO ANALYZE:
+        $text
         EOT;
     }
 
@@ -268,6 +310,11 @@ class AiImportController extends Controller
         $rowNum = rand(100, 999);
 
         foreach ($questionsData as $qData) {
+            // Basic Validation
+            if (empty($qData['question']) || empty($qData['options']) || !is_array($qData['options'])) {
+                continue;
+            }
+
             // Duplicate Check
             $exists = Question::where('topic_id', $topic->id)
                 ->where('question', 'LIKE', substr($qData['question'], 0, 100).'%')
@@ -285,6 +332,10 @@ class AiImportController extends Controller
                 // Generate Code: que_ai_{TIMESTAMP}_{SKILL_ID}_{ROW_NUM}
                 $code = 'que_ai_' . now()->setTimezone('Asia/Kolkata')->format('Ymd_His') . '_' . $skill->id . '_' . $rowNum;
 
+                // Determine Correct Answer (1-based index for DB)
+                $correctIndex = isset($qData['correct_option_index']) ? (int)$qData['correct_option_index'] : 0;
+                $correctAnswer = $correctIndex + 1; // Convert 0-based to 1-based
+
                 Question::create([
                     'question_type_id' => $defaultType->id,
                     'skill_id' => $skill->id,
@@ -292,8 +343,9 @@ class AiImportController extends Controller
                     'difficulty_level_id' => $defaultDiff->id,
                     'question' => $qData['question'],
                     'options' => $formattedOptions,
-                    'correct_answer' => (int)$qData['correct_option_index'] + 1,
+                    'correct_answer' => $correctAnswer,
                     'solution' => $qData['solution'] ?? '',
+                    'hint' => $qData['hint'] ?? '', // Added Hint mapping
                     'default_marks' => 1,
                     'default_time' => 60,
                     'preferences' => $this->repository->setDefaultPreferences('MSA'),
@@ -307,6 +359,7 @@ class AiImportController extends Controller
                 $rowNum++;
             } catch (\Exception $e) {
                 DB::rollBack();
+                // Log error if needed, but continue processing matches
                 continue;
             }
         }

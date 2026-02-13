@@ -211,7 +211,7 @@
         {{-- Metadata Footer --}}
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 pt-6 border-t border-gray-100 text-xs text-gray-500">
             <div>
-                <span class="block font-bold text-gray-400 uppercase tracking-wider mb-1">Skill Category</span>
+                <span class="block font-bold text-gray-400 uppercase tracking-wider mb-1">Subject</span>
                 <span class="font-semibold text-gray-700 bg-gray-100 px-2 py-1 rounded">{{ $question->skill->name ?? 'Uncategorized' }}</span>
             </div>
             <div>

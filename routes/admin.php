@@ -133,6 +133,10 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('ad
     });
 
     Route::resource('questions', QuestionController::class);
+
+    // Comprehension Routes
+    Route::get('comprehensions/{comprehension}/usage', [ComprehensionController::class, 'usage'])->name('comprehensions.usage');
+    Route::post('comprehensions/store-ajax', [ComprehensionController::class, 'storeAjax'])->name('comprehensions.store_ajax');
     Route::resource('comprehensions', ComprehensionController::class);
     Route::get('question-types', [QuestionTypeController::class, 'index'])->name('question-types.index');
 

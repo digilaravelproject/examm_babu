@@ -109,7 +109,7 @@
     {{-- 4. Micro Category - Custom Dropdown (DEPENDENT on Sub Category) --}}
     <div class="space-y-2" x-data="{ open: false }">
         <label class="text-[11px] font-black text-gray-500 uppercase tracking-[0.1em]">Micro Category <span
-                class="text-xs text-gray-400 normal-case">(Optional)</span></label>
+                class="text-[var(--brand-pink)]">*</span></label>
         <div class="relative">
             <input type="hidden" name="micro_category_id" :value="microCategoryId">
             <button type="button" @click="if(subCategoryId) open = !open" @click.away="open = false"
@@ -193,39 +193,11 @@
     {{-- Toggle Buttons Section --}}
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2 md:col-span-2">
 
-        {{-- Toggle 1: Pricing Model --}}
-        <div x-data="{ isPaid: {{ old('pricing_type', $exam->is_paid ? 'true' : 'false') }} }"
-            class="flex items-center justify-between p-4 transition-all border border-gray-100 bg-gray-50/80 rounded-2xl hover:bg-gray-50">
-            <div>
-                <label class="text-[11px] font-black text-gray-500 uppercase tracking-widest">Pricing Model</label>
-                <p class="text-[10px] font-bold" :class="isPaid ? 'text-[var(--brand-blue)]' : 'text-green-600'"
-                    x-text="isPaid ? 'PAID EXAM' : 'FREE EXAM'"></p>
-                <input type="hidden" name="pricing_type" :value="isPaid ? 'paid' : 'free'">
-            </div>
-            <button type="button" @click="isPaid = !isPaid"
-                :class="isPaid ? 'bg-[var(--brand-blue)]' : 'bg-gray-300'"
-                class="relative inline-flex h-6 transition-colors rounded-full w-11 focus:outline-none">
-                <span :class="isPaid ? 'translate-x-5' : 'translate-x-0'"
-                    class="inline-block h-5 w-5 mt-0.5 ml-0.5 transform rounded-full bg-white transition duration-200 shadow-sm"></span>
-            </button>
-        </div>
+        {{-- HIDDEN: Pricing Model (Default: FREE) --}}
+        <input type="hidden" name="pricing_type" value="paid">
 
-        {{-- Toggle 2: Points Access --}}
-        <div x-data="{ canRedeem: {{ old('can_redeem', $exam->can_redeem ? 'true' : 'false') }} }"
-            class="flex items-center justify-between p-4 transition-all border border-gray-100 bg-gray-50/80 rounded-2xl hover:bg-gray-50">
-            <div>
-                <label class="text-[11px] font-black text-gray-500 uppercase tracking-widest">Points Redeem</label>
-                <p class="text-[10px] font-bold" :class="canRedeem ? 'text-[var(--brand-blue)]' : 'text-gray-400'"
-                    x-text="canRedeem ? 'POINTS REQUIRED' : 'NO POINTS NEEDED'"></p>
-                <input type="hidden" name="can_redeem" :value="canRedeem ? '1' : '0'">
-            </div>
-            <button type="button" @click="canRedeem = !canRedeem"
-                :class="canRedeem ? 'bg-[var(--brand-blue)]' : 'bg-gray-300'"
-                class="relative inline-flex h-6 transition-colors rounded-full w-11 focus:outline-none">
-                <span :class="canRedeem ? 'translate-x-5' : 'translate-x-0'"
-                    class="inline-block h-5 w-5 mt-0.5 ml-0.5 transform rounded-full bg-white transition duration-200 shadow-sm"></span>
-            </button>
-        </div>
+        {{-- HIDDEN: Points Access (Default: NO POINTS NEEDED) --}}
+        <input type="hidden" name="can_redeem" value="0">
 
         {{-- Toggle 3: Visibility --}}
         <div x-data="{ isPrivate: {{ old('visibility', $exam->is_private ? 'true' : 'false') }} }"

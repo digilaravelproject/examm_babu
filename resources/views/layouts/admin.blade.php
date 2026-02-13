@@ -16,6 +16,9 @@
     @endif
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
+    {{-- Alpine Plugins --}}
+    <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
+    {{-- Alpine Core --}}
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
@@ -322,10 +325,12 @@
                     </button>
                     <div x-show="activeDropdown === 'subjects'" x-cloak x-collapse
                         class="mx-2 mt-1 space-y-1 rounded-lg bg-slate-800/30">
+                        {{-- HIDDEN: Section functionality disabled
                         <a href="{{ Route::has('admin.sections.index') ? route('admin.sections.index') : '#' }}"
                             class="block px-8 py-2 text-sm {{ request()->routeIs('admin.sections.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Sections</a>
+                        --}}
                         <a href="{{ Route::has('admin.skills.index') ? route('admin.skills.index') : '#' }}"
-                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.skills.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Skills</a>
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.skills.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Subjects</a>
                         <a href="{{ Route::has('admin.topics.index') ? route('admin.topics.index') : '#' }}"
                             class="block px-8 py-2 text-sm {{ request()->routeIs('admin.topics.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Topics</a>
                     </div>

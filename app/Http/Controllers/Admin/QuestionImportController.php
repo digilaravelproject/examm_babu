@@ -31,7 +31,10 @@ class QuestionImportController extends Controller
     public function showImportForm()
     {
         // Dropdown ke liye Topics bhejna zaroori hai
-        $topics = Topic::orderBy('name')->select('id', 'name')->get();
+        // Eager load relationships to prevent N+1 and get hierarchy data
+        $topics = Topic::with(['skill.microCategory.subCategory'])
+            ->orderBy('name')
+            ->get();
         return view('admin.questions.import', compact('topics'));
     }
 
@@ -354,7 +357,7 @@ class QuestionImportController extends Controller
                     foreach ($correctAnswerFinal as $idx) {
                         if (isset($options[$idx])) $options[$idx]['is_correct'] = true;
                     }
-                    $correctAnswerFinal = $correctAnswerFinal;
+                    // $correctAnswerFinal remains as array of indices
                 }
             } else {
                 $idx = $this->resolveOptionIndex($correctAnswerRaw, $rawOptions);

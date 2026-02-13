@@ -78,7 +78,7 @@ class ExamSessionController extends Controller
 
             $hasSubscription = \App\Models\Subscription::query()
                 ->where('user_id', $user->id)
-                ->where('category_id', $exam->sub_category_id)
+                ->where('category_id', $exam->micro_category_id)
                 ->where('status', 'active')
                 ->where('ends_at', '>', now())
                 ->exists();
@@ -123,6 +123,22 @@ class ExamSessionController extends Controller
             return redirect()->route('student.exams.result', $session->id);
         }
 
+        // --- FIX: Self-Healing for PREVIEW Sessions ---
+        // If it's a preview session, ensure the duration is correct (calculating from sections)
+        // This fixes existing previews that were created with the old 24-hour logic
+        if (str_starts_with($session->code, 'PREVIEW-')) {
+            $totalDuration = $session->exam->examSections()->sum('total_duration');
+            if ($totalDuration > 0) {
+                $expectedEndsAt = \Carbon\Carbon::parse($session->starts_at)->addSeconds($totalDuration);
+
+                // If the current ends_at is significantly different (e.g., > 1 minute diff), fix it
+                if ($session->ends_at->diffInMinutes($expectedEndsAt) > 1) {
+                    $session->ends_at = $expectedEndsAt;
+                    $session->save();
+                }
+            }
+        }
+
         $remainingSeconds = now()->diffInSeconds($session->ends_at, false);
 
         if ($remainingSeconds <= 0) {
@@ -133,6 +149,7 @@ class ExamSessionController extends Controller
             ->orderBy('section_order')
             ->get(['id', 'name', 'total_questions', 'allow_translation', 'translation_language']);
 
+        // Return View
         return view('student.exams.interface', [
             'session' => $session,
             'exam' => $session->exam,

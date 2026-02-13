@@ -78,7 +78,7 @@ class ExamQuestionController extends Controller
         $examSections = $exam->examSections()->orderBy('section_order')->get();
         $questionTypes = QuestionType::where('is_active', 1)->get();
         $difficultyLevels = DifficultyLevel::where('is_active', 1)->get();
-        
+
         $topics = Topic::where('is_active', 1)->select('id', 'name', 'skill_id')->limit(200)->get();
         $skills = \App\Models\Skill::where('is_active', 1)->select('id', 'name')->orderBy('name')->get();
 
@@ -104,14 +104,19 @@ class ExamQuestionController extends Controller
             ->join('questions', 'exam_questions.question_id', '=', 'questions.id')
             ->leftJoin('question_types', 'questions.question_type_id', '=', 'question_types.id')
             ->leftJoin('difficulty_levels', 'questions.difficulty_level_id', '=', 'difficulty_levels.id')
+            ->leftJoin('topics', 'questions.topic_id', '=', 'topics.id')
             ->where('exam_questions.exam_section_id', $sectionId)
             ->select(
                 'questions.id',
                 'questions.question',
                 'questions.default_marks',
+                'questions.has_attachment',
+                'questions.attachment_type',
                 'question_types.code as type_code',
-                'difficulty_levels.name as difficulty'
-            );
+                'difficulty_levels.name as difficulty',
+                'topics.name as topic_name'
+            )
+            ->whereNull('questions.deleted_at');
 
         if ($request->search) {
             $query->where('questions.question', 'like', '%' . $request->search . '%');
@@ -186,6 +191,12 @@ class ExamQuestionController extends Controller
         if ($request->filled('difficulty')) $query->where('difficulty_level_id', $request->difficulty);
         if ($request->filled('topic')) $query->where('topic_id', $request->topic);
         if ($request->filled('skill')) $query->where('skill_id', $request->skill);
+
+        // 🔥 FILTER: Comprehension
+        if ($request->filled('is_comprehension') && $request->is_comprehension == 1) {
+            $query->where('has_attachment', 1)
+                  ->where('attachment_type', 'comprehension');
+        }
 
         $questions = $query->orderBy('id', 'desc')->paginate($perPage);
 

@@ -30,6 +30,7 @@ class UpdateExamRequest extends FormRequest
             'exam_type_id'    => ['required', 'exists:exam_types,id'],
             'exam_mode'       => ['required', 'string', 'in:online,offline'],
             'sub_category_id' => ['required', 'exists:sub_categories,id'],
+            'micro_category_id' => ['required', 'exists:micro_categories,id'],
 
             // Boolean handling for Laravel 12 / Blade
             'is_paid'         => ['required', 'boolean'],
@@ -73,6 +74,8 @@ class UpdateExamRequest extends FormRequest
         return [
             'points_required.required_if' => 'Redeem points are mandatory when redemption is enabled.',
             'exam_type_id.exists'         => 'The selected exam type is no longer available.',
+            'micro_category_id.exists'    => 'The selected micro category is invalid.',
+            'micro_category_id.required'  => 'Micro category is required for all exams.',
         ];
     }
 }

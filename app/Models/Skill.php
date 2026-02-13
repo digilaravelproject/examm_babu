@@ -86,9 +86,9 @@ class Skill extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
-    public function section(): BelongsTo
+    public function microCategory(): BelongsTo
     {
-        return $this->belongsTo(Section::class);
+        return $this->belongsTo(MicroCategory::class);
     }
 
     public function topics(): HasMany
@@ -155,7 +155,7 @@ class Skill extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['name', 'section_id', 'is_active', 'code'])
+            ->logOnly(['name', 'micro_category_id', 'is_active', 'code'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
             ->setDescriptionForEvent(fn(string $eventName) => "Skill has been {$eventName}");

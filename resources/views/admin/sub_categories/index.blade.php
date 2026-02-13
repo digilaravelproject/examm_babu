@@ -75,32 +75,7 @@
         </div>
 
         {{-- MAPPING MODAL (Unchanged) --}}
-        <div x-show="showMappingModal" style="display: none;" class="fixed inset-0 z-50 overflow-y-auto"
-            aria-labelledby="modal-title" role="dialog" aria-modal="true">
-            <div class="flex items-end justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-                <div x-show="showMappingModal" x-transition.opacity
-                    class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" @click="closeModal()"></div>
-                <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-                <div x-show="showMappingModal" x-transition.scale
-                    class="inline-block w-full overflow-hidden text-left align-bottom transition-all transform bg-white rounded-lg shadow-xl sm:my-8 sm:align-middle sm:max-w-lg">
-                    <div class="px-4 pt-5 pb-4 bg-white sm:p-6 sm:pb-4">
-                        <div class="sm:flex sm:items-start">
-                            <div class="w-full mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-                                <h3 class="text-lg font-medium leading-6 text-gray-900" id="modal-title">Map Sections</h3>
-                                <div class="mt-4" id="mapping-content"></div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="px-4 py-3 bg-gray-50 sm:px-6 sm:flex sm:flex-row-reverse">
-                        <button type="button" @click="submitMappingForm()"
-                            class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-[#0777be] text-base font-medium text-white hover:bg-[#0666a3] focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">Save
-                            Changes</button>
-                        <button type="button" @click="closeModal()"
-                            class="inline-flex justify-center w-full px-4 py-2 mt-3 text-base font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">Cancel</button>
-                    </div>
-                </div>
-            </div>
-        </div>
+
     </div>
 @endsection
 
@@ -111,64 +86,10 @@
                 search: '',
                 category_id: '',
                 loading: false,
-                showMappingModal: false,
-                baseUrl: baseUrl,
-
-                applyFilter() {
-                    this.fetchData();
-                },
-
-                fetchData(page = 1) {
-                    this.loading = true;
-                    let url = `${indexUrl}?page=${page}&search=${this.search}&category_id=${this.category_id}`;
-                    fetch(url, {
-                            headers: {
-                                'X-Requested-With': 'XMLHttpRequest'
-                            }
-                        })
-                        .then(r => r.text()).then(html => {
-                            document.getElementById('table-container').innerHTML = html;
-                            this.loading = false;
-                        });
-                },
-
-                openMappingModal(subCatId) {
-                    this.showMappingModal = true;
-                    document.getElementById('mapping-content').innerHTML =
-                        '<div class="flex justify-center py-10"><svg class="w-8 h-8 text-[#0777be] animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg></div>';
-
-                    let url = `${this.baseUrl}/${subCatId}/sections`;
-                    fetch(url)
-                        .then(response => response.text())
-                        .then(html => {
-                            document.getElementById('mapping-content').innerHTML = html;
-                        })
-                        .catch(err => {
-                            document.getElementById('mapping-content').innerHTML =
-                                '<p class="text-red-500">Error loading data.</p>';
-                        });
-                },
-
-                closeModal() {
-                    this.showMappingModal = false;
-                },
-
-                submitMappingForm() {
-                    const form = document.getElementById('section-mapping-form');
-                    if (form) form.submit();
-                },
-
-                init() {
-                    document.getElementById('table-container').addEventListener('click', (e) => {
                         let link = e.target.closest('.pagination-wrapper a');
                         if (link) {
                             e.preventDefault();
                             this.fetchData(new URL(link.href).searchParams.get('page'));
-                        }
-
-                        let mapBtn = e.target.closest('.map-sections-btn');
-                        if (mapBtn) {
-                            this.openMappingModal(mapBtn.dataset.id);
                         }
                     });
                 }

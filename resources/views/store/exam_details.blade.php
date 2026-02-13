@@ -125,8 +125,8 @@
                 <div class="lg:col-span-1">
                     <div class="sticky top-24 space-y-6">
 
-                        @if ($subCategory->plans->isNotEmpty())
-                            @foreach ($subCategory->plans as $plan)
+                        @if ($microCategory && $microCategory->plans->isNotEmpty())
+                            @foreach ($microCategory->plans as $plan)
                                 @php
                                     $originalPrice = (float) $plan->price;
                                     $discountPercent = (int) $plan->discount_percentage;

@@ -81,7 +81,13 @@ class MicroCategoryController extends Controller
                 $file->move(public_path($path), $filename);
                 $data['image_path'] = $path . '/' . $filename;
             }
-            MicroCategory::create($data);
+
+            $microCategory = MicroCategory::create($data);
+
+            // AUTO-CREATE RELATED ENTITIES (UserGroup, ExamType, Plan)
+            $service = app(\App\Services\MicroCategoryService::class);
+            $service->createRelatedEntities($microCategory);
+
             DB::commit();
 
             // Dynamic Redirect based on Role
@@ -89,12 +95,12 @@ class MicroCategoryController extends Controller
             $params = Auth::user()->hasRole('admin') ? [] : ['role' => 'instructor'];
 
             return redirect()->route($routePrefix . 'micro-categories.index', $params)
-                ->with('success', 'Micro-Category created successfully.');
+                ->with('success', 'Micro-Category and related entities created successfully.');
 
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('MicroCat Store Error: ' . $e->getMessage());
-            return back()->with('error', 'Error creating micro-category.')->withInput();
+            return back()->with('error', 'Error creating micro-category: ' . $e->getMessage())->withInput();
         }
     }
 
@@ -127,6 +133,9 @@ class MicroCategoryController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
+        // Store old name BEFORE validation
+        $oldName = $microCategory->name;
+
         $data = $request->validate([
             'sub_category_id' => 'required|exists:sub_categories,id',
             'name'            => 'required|string|max:255',
@@ -152,6 +161,13 @@ class MicroCategoryController extends Controller
             }
 
             $microCategory->update($data);
+
+            // SYNC RELATED ENTITY NAMES IF NAME CHANGED
+            if ($oldName !== $data['name']) {
+                $service = app(\App\Services\MicroCategoryService::class);
+                $service->syncRelatedEntityNames($microCategory, $oldName);
+            }
+
             DB::commit();
 
             $routePrefix = Auth::user()->hasRole('admin') ? 'admin.' : 'panel.';
@@ -163,7 +179,7 @@ class MicroCategoryController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('MicroCat Update Error: ' . $e->getMessage());
-            return back()->with('error', 'Update failed.');
+            return back()->with('error', 'Update failed: ' . $e->getMessage());
         }
     }
 

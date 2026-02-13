@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreSubCategoryRequest;
 use App\Http\Requests\Admin\UpdateSubCategoryRequest;
 use App\Models\Category;
-use App\Models\Section;
+
 use App\Models\SubCategory;
 use App\Models\SubCategoryType;
 use Illuminate\Http\Request;
@@ -183,25 +183,5 @@ class SubCategoryController extends Controller
         }
     }
 
-    // --- SECTIONS MAPPING ---
-    public function fetchSections($p1, $p2 = null)
-    {
-        $id = $p2 ?? $p1;
-        $subCategory = SubCategory::with('sections')->findOrFail($id);
-        $allSections = Section::where('is_active', 1)->get(['id', 'name', 'code']);
-        return view('admin.sub_categories.partials.mapping', compact('subCategory', 'allSections'))->render();
-    }
 
-    public function updateSections(Request $request, $p1, $p2 = null)
-    {
-        $id = $p2 ?? $p1;
-        $subCategory = SubCategory::findOrFail($id);
-
-        if (!Auth::user()->hasRole('admin') && $subCategory->created_by !== Auth::id()) {
-            abort(403, 'Unauthorized action.');
-        }
-
-        $subCategory->sections()->sync($request->sections ?? []);
-        return back()->with('success', 'Sections mapped successfully!');
-    }
 }

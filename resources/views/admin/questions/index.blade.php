@@ -110,7 +110,7 @@
                     </select>
                     <select x-model="skill" @change="applyFilter()"
                         class="w-full md:w-36 py-2.5 text-sm bg-gray-50 border-0 rounded-lg focus:ring-2 focus:ring-[#0777be]/20">
-                        <option value="">Skill</option>
+                        <option value="">Subject</option>
                         @foreach ($skills as $skill)
                             <option value="{{ $skill->id }}">{{ $skill->name }}</option>
                         @endforeach
@@ -279,13 +279,13 @@
                             .then(r => r.json())
                             .then(data => {
                                 this.loading = false;
-                                
+
                                 if (data.success) {
                                     // Case 1: Agar kuch items fail huye (Linked they)
                                     if (data.failed_items.length > 0) {
-                                        
+
                                         // HTML List banana
-                                        let listHtml = data.failed_items.map(item => 
+                                        let listHtml = data.failed_items.map(item =>
                                             `<li class="flex flex-col pb-2 mb-2 border-b border-gray-200 last:border-0">
                                                 <span class="font-bold text-gray-800 text-xs">${item.code}</span>
                                                 <span class="text-xs text-red-500 italic">Linked in: ${item.exams}</span>
@@ -298,7 +298,7 @@
                                                 <div class="text-left">
                                                     <p class="text-green-600 font-bold mb-2">✅ Deleted: ${data.deleted_count} questions</p>
                                                     <p class="text-red-600 font-bold mb-2">❌ Skipped: ${data.failed_items.length} questions (Linked)</p>
-                                                    
+
                                                     <div class="mt-3 bg-gray-50 p-3 rounded-lg border border-gray-200 max-h-[200px] overflow-y-auto">
                                                         <ul class="list-none m-0 p-0">
                                                             ${listHtml}
@@ -309,7 +309,7 @@
                                             icon: 'info', // Info icon better fit karega
                                             confirmButtonText: 'Okay'
                                         });
-                                    } 
+                                    }
                                     // Case 2: Sab kuch delete ho gaya
                                     else {
                                         Toast.fire({
@@ -317,7 +317,7 @@
                                             title: `${data.deleted_count} questions deleted successfully.`
                                         });
                                     }
-                                    
+
                                     // Table Refresh
                                     this.fetchQuestions(this.currentPage);
                                     this.selectedItems = []; // Selection clear
@@ -415,12 +415,12 @@
                                     'Accept': 'application/json'
                                 }
                             }).then(r => r.json()).then(d => {
-                                
+
                                 // --- NEW CODE START: Handle Linked Logic ---
                                 if (d.status === 'linked') {
                                     // Generate List HTML
                                     let examList = d.exams.map(e => `<li class="mb-1">${e}</li>`).join('');
-                                    
+
                                     Swal.fire({
                                         title: '<span class="text-red-600">Cannot Delete!</span>',
                                         html: `

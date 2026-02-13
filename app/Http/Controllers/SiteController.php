@@ -231,7 +231,7 @@ class SiteController extends Controller
                 'features'          => $features, // <-- Added here
             ]);
         } catch (\Throwable $e) {
-            \Log::error('Exam Babu - Home Page Error: ' . $e->getMessage());
+            Log::error('Exam Babu - Home Page Error: ' . $e->getMessage());
             abort(500, 'Something went wrong while loading the home page.');
         }
     }
@@ -249,38 +249,48 @@ class SiteController extends Controller
         PaymentSettings $paymentSettings
     ): View {
         try {
-            // 1. Fetch Category with Plans
-            $category = SubCategory::with(['plans' => function ($query) {
-                $query->where('is_active', true)
-                    ->orderBy('sort_order')
-                    ->with('features');
-            }])->where('slug', $slug)->firstOrFail();
+            // 1. Fetch SubCategory by slug
+            $subCategory = SubCategory::where('slug', $slug)->firstOrFail();
 
-            // 2. Fetch Features (for benefits section if needed)
+            // 2. Fetch all MicroCategories under this SubCategory with their Plans
+            $microCategories = MicroCategory::where('sub_category_id', $subCategory->id)
+                ->with(['plans' => function ($query) {
+                    $query->where('is_active', true)
+                        ->orderBy('sort_order')
+                        ->with('features');
+                }])
+                ->whereHas('plans', function ($q) {
+                    $q->where('is_active', true);
+                })
+                ->get();
+
+            // 3. Fetch Features (for benefits section if needed)
             $features = Feature::orderBy('sort_order')->get();
 
-            // 3. Calculate Least Price
+            // 4. Calculate Least Price from all plans
+            $allPlans = $microCategories->flatMap->plans;
             $leastPrice = 0;
-            if ($category->plans->isNotEmpty()) {
+            if ($allPlans->isNotEmpty()) {
                 $leastPrice = formatPrice(
-                    $category->plans->min('price'),
+                    $allPlans->min('price'),
                     $paymentSettings->currency_symbol,
                     $paymentSettings->currency_symbol_position
                 );
             }
 
-            // 4. Return View with ALL required variables
+            // 5. Return View with ALL required variables
             return view('store.explore', [
-                'category'         => $category,
-                'selectedCategory' => $category->code ?? $category->slug,
+                'category'         => $subCategory,
+                'microCategories'  => $microCategories,
+                'selectedCategory' => $subCategory->code ?? $subCategory->slug,
                 'least_price'      => $leastPrice,
-                'plans'            => $category->plans,
+                'plans'            => $allPlans,
                 'features'         => $features,
                 'siteSettings'     => $siteSettings,
                 'homePageSettings' => $homePageSettings,
             ]);
         } catch (ModelNotFoundException $e) {
-            Log::warning("Exam Babu - Explore Page: Category not found for slug '{$slug}'");
+            Log::warning("Exam Babu - Explore Page: SubCategory not found for slug '{$slug}'");
             abort(404);
         } catch (\Throwable $e) {
             Log::error('Exam Babu - Explore Page Error: ' . $e->getMessage());
@@ -320,28 +330,28 @@ class SiteController extends Controller
 
     public function pricing(Request $request, HomePageSettings $homePageSettings, SiteSettings $siteSettings): View
     {
-        $subCategory = array_key_first($request->all());
+        $microCategory = array_key_first($request->all());
         try {
             $features = Feature::orderBy('sort_order')->get();
 
-            $categoriesQuery = SubCategory::whereHas('plans', function ($q) {
+            $categoriesQuery = MicroCategory::whereHas('plans', function ($q) {
                 $q->where('is_active', true);
             })
-                ->with(['category', 'plans' => function ($query) use ($subCategory) {
+                ->with(['subCategory', 'plans' => function ($query) use ($microCategory) {
                     $query->where('is_active', true)
                         ->orderBy('sort_order')
                         ->with('features');
 
-                    // ✅ Filter plans by subcategory
-                    if ($subCategory) {
-                        $query->where('category_id', $subCategory);
+                    // Filter plans by microcategory
+                    if ($microCategory) {
+                        $query->where('category_id', $microCategory);
                     }
                 }])
                 ->orderBy('name');
 
-            // ✅ Filter category itself
-            if ($subCategory) {
-                $categoriesQuery->where('id', $subCategory);
+            // Filter category itself
+            if ($microCategory) {
+                $categoriesQuery->where('id', $microCategory);
             }
 
             $categories = $categoriesQuery->get();
@@ -399,42 +409,42 @@ class SiteController extends Controller
     // }
 
 
-        public function exam_details(
-            Request $request,
-            HomePageSettings $homePageSettings,
-            SiteSettings $siteSettings
-        ) {
-            try {
-                $subCategory   = (int) $request->route('subCategory');
-                $microCategory = (int) $request->route('microCategory');
+    public function exam_details(
+        Request $request,
+        HomePageSettings $homePageSettings,
+        SiteSettings $siteSettings
+    ) {
+        try {
+            $subCategory   = (int) $request->route('subCategory');
+            $microCategory = (int) $request->route('microCategory');
 
-                // 1. Fetch Exams (Subjects like Math, Geometry)
-                $examsQuery = Exam::where('sub_category_id', $subCategory)
-                    ->with(['subCategory', 'microCategory'])
-                    ->orderBy('title');
+            // 1. Fetch Exams (Subjects like Math, Geometry)
+            $examsQuery = Exam::where('micro_category_id', $microCategory)
+                ->with(['subCategory', 'microCategory'])
+                ->orderBy('title');
 
-                if ($microCategory) {
-                    $examsQuery->where('micro_category_id', $microCategory);
-                }
-                $exams = $examsQuery->get();
+            $exams = $examsQuery->get();
 
-                // 2. Fetch SubCategory with Plans (For Pricing Card)
-                $subCategoryModel = SubCategory::with(['plans' => function ($q) {
-                    $q->where('is_active', true)->orderBy('sort_order');
-                }])->findOrFail($subCategory);
+            // 2. Fetch MicroCategory with Plans (For Pricing Card)
+            $microCategoryModel = MicroCategory::with(['plans' => function ($q) {
+                $q->where('is_active', true)->orderBy('sort_order');
+            }])->findOrFail($microCategory);
 
-                return view('store.exam_details', [
-                    'exams'            => $exams,
-                    'subCategory'      => $subCategoryModel, // Updated variable with plans
-                    'microCategory'    => $microCategory ? MicroCategory::find($microCategory) : null,
-                    'siteSettings'     => $siteSettings,
-                    'homePageSettings' => $homePageSettings,
-                ]);
-            } catch (\Throwable $e) {
-                \Log::error('Exam Details Error: ' . $e->getMessage());
-                abort(500, 'Unable to load exams.');
-            }
+            // 3. Also get SubCategory for breadcrumb/display
+            $subCategoryModel = SubCategory::find($subCategory);
+
+            return view('store.exam_details', [
+                'exams'            => $exams,
+                'subCategory'      => $subCategoryModel, // For breadcrumb
+                'microCategory'    => $microCategoryModel, // For plans and title
+                'siteSettings'     => $siteSettings,
+                'homePageSettings' => $homePageSettings,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Exam Details Error: ' . $e->getMessage());
+            abort(500, 'Unable to load exams.');
         }
+    }
 
     /**
      * Parent category page

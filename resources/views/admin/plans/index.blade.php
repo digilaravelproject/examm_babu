@@ -18,9 +18,9 @@
 
             <select x-model="filters.category_id" @change="applyFilter()"
                 class="w-48 py-2 text-sm border-0 rounded-lg bg-gray-50">
-                <option value="">All Categories</option>
-                @foreach ($subCategories as $cat)
-                    <option value="{{ $cat->id }}">{{ $cat->name }}</option>
+                <option value="">All Micro Categories</option>
+                @foreach ($microCategories as $microCat)
+                    <option value="{{ $microCat->id }}">{{ $microCat->name }}</option>
                 @endforeach
             </select>
 

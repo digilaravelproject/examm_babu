@@ -126,7 +126,10 @@
                                     <select name="topic_id" id="topicSelect" class="w-full p-2 bg-transparent font-bold text-gray-700 border-none focus:ring-0 cursor-pointer outline-none">
                                         <option value="">-- Select a Topic --</option>
                                         @foreach($topics as $topic)
-                                            <option value="{{ $topic->id }}">{{ $topic->name }}</option>
+                                            <option value="{{ $topic->id }}">
+                                                {{ $topic->name }} -
+                                                ({{ $topic->skill->microCategory->name ?? 'N/A' }} - {{ $topic->skill->microCategory->subCategory->name ?? 'N/A' }})
+                                            </option>
                                         @endforeach
                                     </select>
                                 </div>

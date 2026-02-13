@@ -14,7 +14,7 @@ class UpdatePlanRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'category_id' => 'required|integer|exists:sub_categories,id',
+            'category_id' => 'required|integer|exists:micro_categories,id',
             'name' => 'required|string|max:255',
             'duration' => 'required|integer',
             'price' => 'required|numeric|min:0',
@@ -26,7 +26,7 @@ class UpdatePlanRequest extends FormRequest
 
             'has_discount' => 'nullable|boolean',
             'discount_percentage' => 'required|integer|min:0|max:100', // Validation enforce karega ki value ho
-            
+
             'feature_restrictions' => 'nullable|boolean',
             'features' => 'nullable|array',
             'features.*' => 'exists:features,id',

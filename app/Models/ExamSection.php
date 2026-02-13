@@ -137,4 +137,8 @@ class ExamSection extends Model
             ->dontSubmitEmptyLogs()
             ->setDescriptionForEvent(fn(string $eventName) => "Exam Section has been {$eventName}");
     }
+    public function microCategory(): BelongsTo
+    {
+        return $this->belongsTo(MicroCategory::class);
+    }
 }

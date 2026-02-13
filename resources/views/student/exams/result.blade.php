@@ -131,6 +131,7 @@
                         openShare: false,
                         parentEmail: '',
                         instructorEmail: '',
+                        teacherEmail: '',
                         selfCopy: false,
                         loading: false
                     }">
@@ -172,7 +173,16 @@
                                             Email (Optional)</label>
                                         <input type="email" x-model="instructorEmail"
                                             class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 outline-none transition"
+                                            placeholder="instructor@example.com">
+                                    </div>
+
+                                    <div>
+                                        <label class="block mb-1 text-xs font-bold text-gray-700 uppercase">Teacher's
+                                            Email (Weekly Report)</label>
+                                        <input type="email" x-model="teacherEmail"
+                                            class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 outline-none transition"
                                             placeholder="teacher@example.com">
+                                        <p class="mt-1 text-xs text-gray-500">Teacher will receive a weekly consolidated report.</p>
                                     </div>
 
                                     <div class="flex items-center gap-2 pt-1">
@@ -200,6 +210,7 @@
                                                 body: JSON.stringify({
                                                     parent_email: parentEmail,
                                                     instructor_email: instructorEmail,
+                                                    teacher_email: teacherEmail,
                                                     self_copy: selfCopy
                                                 })
                                             })

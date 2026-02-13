@@ -1,13 +1,13 @@
 <form action="{{ route('admin.plans.store') }}" method="POST" class="space-y-5" x-data="{ hasDiscount: false, restrictedAccess: false }">
     @csrf
 
-    {{-- 1. Category --}}
+    {{-- 1. Micro Category --}}
     <div>
-        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Category <span class="text-red-500">*</span></label>
+        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Micro Category <span class="text-red-500">*</span></label>
         <select name="category_id" required class="w-full text-sm border-gray-300 rounded-lg focus:ring-[#10b981] focus:border-[#10b981]">
-            <option value="">Choose Category</option>
-            @foreach($subCategories as $cat)
-                <option value="{{ $cat->id }}">{{ $cat->name }}</option>
+            <option value="">Choose Micro Category</option>
+            @foreach($microCategories as $microCat)
+                <option value="{{ $microCat->id }}">{{ $microCat->name }}</option>
             @endforeach
         </select>
     </div>
@@ -25,7 +25,7 @@
             <input type="number" name="duration" value="1" min="1" required class="w-full text-sm border-gray-300 rounded-lg focus:ring-[#10b981] focus:border-[#10b981]">
         </div>
         <div>
-            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Monthly Price <span class="text-red-500">*</span></label>
+            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Price <span class="text-red-500">*</span></label>
             <input type="number" name="price" value="0" step="0.01" min="0" required class="w-full text-sm border-gray-300 rounded-lg focus:ring-[#10b981] focus:border-[#10b981]">
         </div>
     </div>

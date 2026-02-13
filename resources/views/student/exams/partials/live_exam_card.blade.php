@@ -28,7 +28,7 @@
                 <span>Ends: {{ \Carbon\Carbon::parse($schedule->end_date)->format('M d, h:i A') }}</span>
             </div>
 
-            @if(!$schedule->exam->is_paid || in_array($schedule->exam->sub_category_id, $subscribedCategoryIds))
+            @if(!$schedule->exam->is_paid || in_array($schedule->exam->micro_category_id, $subscribedCategoryIds))
                 <a href="{{ route('student.exam.start', $schedule->id) }}"
        class="text-xs font-bold text-white bg-green-600 px-3 py-1.5 rounded hover:bg-green-700 transition-colors shadow-sm inline-block text-center">
         Attempt

@@ -122,11 +122,13 @@ class Question extends Model
     /**
      * Through relation: Question -> Skill -> Section
      */
-    public function section()
-    {
-        return $this->belongsToThrough(Section::class, Skill::class);
-    }
-
+    /**
+     * @deprecated Section relationship - Questions are now organized via Skill → MicroCategory
+     */
+    // public function section()
+    // {
+    //     return $this->hasOneThrough(Section::class, Skill::class, 'id', 'id', 'skill_id', 'section_id');
+    // }
     public function difficultyLevel(): BelongsTo
     {
         return $this->belongsTo(DifficultyLevel::class);

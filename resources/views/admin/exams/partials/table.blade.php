@@ -75,15 +75,29 @@
 
                         <td class="px-4 py-3 text-sm">
                             @if ($exam->topic)
-                                <span
-                                    class="inline-flex items-center gap-1 px-3 py-1 text-xs font-semibold
-                                            text-[var(--brand-blue)] bg-blue-50 border border-blue-100 rounded-full">
-                                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                        <path
-                                            d="M17.707 9.293l-7-7A1 1 0 009.586 2H4a2 2 0 00-2 2v5.586a1 1 0 00.293.707l7 7a1 1 0 001.414 0l7-7a1 1 0 000-1.414z" />
-                                    </svg>
-                                    {{ $exam->topic->name }}
-                                </span>
+                                <div class="flex flex-col gap-1">
+                                    <span
+                                        class="inline-flex items-center gap-1 px-3 py-1 text-xs font-semibold
+                                                text-[var(--brand-blue)] bg-blue-50 border border-blue-100 rounded-full">
+                                        <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                            <path
+                                                d="M17.707 9.293l-7-7A1 1 0 009.586 2H4a2 2 0 00-2 2v5.586a1 1 0 00.293.707l7 7a1 1 0 001.414 0l7-7a1 1 0 000-1.414z" />
+                                        </svg>
+                                        {{ $exam->topic->name }}
+                                    </span>
+                                    @if($exam->topic->skill && $exam->topic->skill->microCategory)
+                                        <div class="flex items-center gap-1 text-[10px] text-gray-400 pl-1">
+                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+                                            </svg>
+                                            <span class="font-medium">{{ $exam->topic->skill->microCategory->name }}</span>
+                                            @if($exam->topic->skill->microCategory->subCategory)
+                                                <span class="text-gray-300">›</span>
+                                                <span>{{ $exam->topic->skill->microCategory->subCategory->name }}</span>
+                                            @endif
+                                        </div>
+                                    @endif
+                                </div>
                             @else
                                 <span
                                     class="inline-flex items-center px-3 py-1 text-xs font-medium text-gray-400 bg-gray-100 rounded-full">

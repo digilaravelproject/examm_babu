@@ -4,7 +4,7 @@
         $isAdmin = request()->routeIs('admin.*');
         $routePrefix = $isAdmin ? 'admin.' : 'panel.';
     }
-    
+
     if (!isset($routeParams)) {
         $currentRole = request()->route('role') ?? request()->segment(1);
         $routeParams = (!request()->routeIs('admin.*') && $currentRole) ? ['role' => $currentRole] : [];
@@ -16,8 +16,8 @@
             <thead class="border-b border-gray-200 bg-gray-50">
                 <tr>
                     <th class="px-4 py-3 text-xs font-bold tracking-wider text-gray-500 uppercase">Code</th>
-                    <th class="px-4 py-3 text-xs font-bold tracking-wider text-gray-500 uppercase">Skill Name</th>
-                    <th class="px-4 py-3 text-xs font-bold tracking-wider text-gray-500 uppercase">Parent Section</th>
+                    <th class="px-4 py-3 text-xs font-bold tracking-wider text-gray-500 uppercase">Subject Name</th>
+                    <th class="px-4 py-3 text-xs font-bold tracking-wider text-gray-500 uppercase">Micro Category</th>
                     <th class="px-4 py-3 text-xs font-bold tracking-wider text-gray-500 uppercase">Created By</th>
                     <th class="px-4 py-3 text-xs font-bold tracking-wider text-center text-gray-500 uppercase">Status</th>
                     <th class="px-4 py-3 text-xs font-bold tracking-wider text-right text-gray-500 uppercase">Actions</th>
@@ -41,9 +41,8 @@
                             @endif
                         </td>
 
-                        {{-- Section --}}
                         <td class="px-4 py-4 text-sm text-gray-600">
-                            {{ $skill->section->name ?? 'N/A' }}
+                            {{ $skill->microCategory->name ?? 'N/A' }}
                         </td>
 
                         {{-- Created By --}}
@@ -99,7 +98,7 @@
                                         @csrf @method('DELETE')
                                     </form>
                                 @else
-                                    <button disabled class="flex items-center justify-center w-8 h-8 border border-gray-200 rounded-lg bg-gray-50 btn-disabled" title="You cannot edit this skill">
+                                    <button disabled class="flex items-center justify-center w-8 h-8 border border-gray-200 rounded-lg bg-gray-50 btn-disabled" title="You cannot edit this subject">
                                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                                         </svg>
@@ -115,7 +114,7 @@
                                 <svg class="w-12 h-12 mb-3 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
                                 </svg>
-                                <p class="font-medium text-gray-500">No skills found.</p>
+                                <p class="font-medium text-gray-500">No subjects found.</p>
                             </div>
                         </td>
                     </tr>

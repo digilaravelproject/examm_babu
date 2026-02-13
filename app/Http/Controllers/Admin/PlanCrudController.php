@@ -7,8 +7,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StorePlanRequest;
 use App\Http\Requests\Admin\UpdatePlanRequest;
 use App\Models\Feature;
+use App\Models\MicroCategory;
 use App\Models\Plan;
-use App\Models\SubCategory;
 use App\Transformers\Admin\PlanSearchTransformer;
 use App\Transformers\Admin\PlanTransformer;
 use Illuminate\Http\JsonResponse;
@@ -21,7 +21,7 @@ class PlanCrudController extends Controller
 {
     public function index(Request $request, PlanFilters $filters)
     {
-        $plansCollection = Plan::with('category:id,name')
+        $plansCollection = Plan::with('microCategory:id,name')
             ->filter($filters)
             ->latest()
             ->paginate(request('perPage', 10));
@@ -38,8 +38,8 @@ class PlanCrudController extends Controller
         return view('admin.plans.index', [
             'plans'         => $plansData,
             'paginator'     => $plansCollection,
-            'features'      => Feature::select(['id', 'name'])->active()->get(),
-            'subCategories' => SubCategory::select(['id', 'name'])->active()->get()
+            'features'        => Feature::select(['id', 'name'])->active()->get(),
+            'microCategories' => MicroCategory::select(['id', 'name'])->active()->get()
         ]);
     }
 
@@ -62,7 +62,7 @@ class PlanCrudController extends Controller
      */
     public function store(StorePlanRequest $request)
     {
-     
+
         $data = $request->validated();
 
         // 2. Features extract karein
@@ -70,7 +70,7 @@ class PlanCrudController extends Controller
         unset($data['features']);
 
         // 3. Default Category Type
-        $data['category_type'] = \App\Models\SubCategory::class;
+        $data['category_type'] = \App\Models\MicroCategory::class;
 
         // 4. Create Plan
         $plan = Plan::create($data);
@@ -90,11 +90,11 @@ class PlanCrudController extends Controller
 
     public function edit(Plan $plan)
     {
-        $subCategories = \App\Models\SubCategory::select(['id', 'name'])->get();
+        $microCategories = \App\Models\MicroCategory::select(['id', 'name'])->active()->get();
         $features = \App\Models\Feature::select(['id', 'name'])->active()->get();
         $selectedFeatures = $plan->features()->pluck('features.id')->toArray();
 
-        return view('admin.plans.edit', compact('plan', 'subCategories', 'features', 'selectedFeatures'));
+        return view('admin.plans.edit', compact('plan', 'microCategories', 'features', 'selectedFeatures'));
     }
 
     /**
@@ -111,8 +111,8 @@ class PlanCrudController extends Controller
 
         // --- FIX START ---
         // Extract features to a variable and remove it from the $data array
-        $features = $data['features'] ?? []; 
-        unset($data['features']); 
+        $features = $data['features'] ?? [];
+        unset($data['features']);
         // --- FIX END ---
 
         // 2. Update Plan (Now $data only contains columns that actually exist in the DB)
@@ -122,7 +122,7 @@ class PlanCrudController extends Controller
         if (isset($data['feature_restrictions']) && $data['feature_restrictions'] == 1) {
              $plan->features()->sync($features);
         } else {
-             $plan->features()->detach(); 
+             $plan->features()->detach();
         }
 
         return redirect()->route('admin.plans.index')->with('success', 'Plan was successfully updated!');
@@ -142,7 +142,7 @@ class PlanCrudController extends Controller
              $featureIds = $request->features ?? [];
              $plan->features()->sync($featureIds);
         } else {
-             $plan->features()->detach(); 
+             $plan->features()->detach();
         }
 
         return redirect()->route('admin.plans.index')->with('success', 'Plan was successfully updated!');

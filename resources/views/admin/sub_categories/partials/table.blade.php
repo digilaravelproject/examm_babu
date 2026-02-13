@@ -4,7 +4,7 @@
         $isAdmin = request()->routeIs('admin.*');
         $routePrefix = $isAdmin ? 'admin.' : 'panel.';
     }
-    
+
     if (!isset($routeParams)) {
         $currentRole = request()->route('role') ?? request()->segment(1);
         $routeParams = (!request()->routeIs('admin.*') && $currentRole) ? ['role' => $currentRole] : [];
@@ -86,15 +86,7 @@
 
                             @if ($canEdit)
                                 {{-- Mapping Button --}}
-                                <button type="button" data-id="{{ $sub->id }}"
-                                    class="map-sections-btn p-1.5 text-purple-600 hover:bg-purple-50 rounded-lg"
-                                    title="Map Sections">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path
-                                            d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
-                                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                                    </svg>
-                                </button>
+
 
                                 {{-- Edit Button --}}
                                 <a href="{{ $editUrl }}" class="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg">

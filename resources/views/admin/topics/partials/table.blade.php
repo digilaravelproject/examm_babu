@@ -4,7 +4,7 @@
         $isAdmin = request()->routeIs('admin.*');
         $routePrefix = $isAdmin ? 'admin.' : 'panel.';
     }
-    
+
     if (!isset($routeParams)) {
         $currentRole = request()->route('role') ?? request()->segment(1);
         $routeParams = (!request()->routeIs('admin.*') && $currentRole) ? ['role' => $currentRole] : [];
@@ -17,7 +17,7 @@
                 <tr>
                     <th class="px-4 py-3 text-xs font-bold tracking-wider text-gray-500 uppercase">Code</th>
                     <th class="px-4 py-3 text-xs font-bold tracking-wider text-gray-500 uppercase">Topic Name</th>
-                    <th class="px-4 py-3 text-xs font-bold tracking-wider text-gray-500 uppercase">Parent Skill</th>
+                    <th class="px-4 py-3 text-xs font-bold tracking-wider text-gray-500 uppercase">Parent Subject</th>
                     <th class="px-4 py-3 text-xs font-bold tracking-wider text-gray-500 uppercase">Created By</th>
                     <th class="px-4 py-3 text-xs font-bold tracking-wider text-center text-gray-500 uppercase">Status</th>
                     <th class="px-4 py-3 text-xs font-bold tracking-wider text-right text-gray-500 uppercase">Actions</th>
@@ -33,15 +33,28 @@
                             </span>
                         </td>
 
-                        {{-- Name --}}
+                        {{-- Name with Category Hierarchy --}}
                         <td class="px-4 py-4">
                             <div class="font-medium text-gray-900">{{ $topic->name }}</div>
                             @if($topic->short_description)
                                 <div class="text-xs text-gray-500 truncate max-w-xs">{{ $topic->short_description }}</div>
                             @endif
+                            {{-- Category Hierarchy: MicroCategory & SubCategory --}}
+                            @if($topic->skill && $topic->skill->microCategory)
+                                <div class="mt-1.5 flex items-center gap-1.5 text-[10px] text-gray-400">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+                                    </svg>
+                                    <span class="font-medium">{{ $topic->skill->microCategory->name ?? 'N/A' }}</span>
+                                    @if($topic->skill->microCategory && $topic->skill->microCategory->subCategory)
+                                        <span class="text-gray-300">›</span>
+                                        <span>{{ $topic->skill->microCategory->subCategory->name }}</span>
+                                    @endif
+                                </div>
+                            @endif
                         </td>
 
-                        {{-- Skill --}}
+                        {{-- Subject --}}
                         <td class="px-4 py-4 text-sm text-gray-600">
                             {{ $topic->skill->name ?? 'N/A' }}
                         </td>

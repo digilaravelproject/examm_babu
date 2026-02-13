@@ -63,6 +63,9 @@ class ComprehensionController extends Controller
             }
         });
 
+        // Eager load Question Count
+        $query->withCount('questions');
+
         $passages = $query->paginate(10)->withQueryString();
 
         if ($request->ajax()) {
@@ -116,6 +119,43 @@ class ComprehensionController extends Controller
             DB::rollBack();
             Log::error('Comprehension Store Error: ' . $e->getMessage());
             return redirect()->back()->with('error', 'Failed to create passage.')->withInput();
+        }
+    }
+
+    /**
+     * AJAX Store for Inline Creation.
+     */
+    public function storeAjax(Request $request)
+    {
+        $request->validate([
+            'title' => 'required|string|max:255',
+            'body'  => 'required|string',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $data = $request->only(['title', 'body']);
+            $data['is_active'] = 1; // Default active for inline creation
+            $data['code'] = 'cmp_' . Str::lower(Str::random(10));
+            $data['created_by'] = Auth::id();
+
+            $passage = ComprehensionPassage::create($data);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Passage created.',
+                'passage' => [
+                    'id' => $passage->id,
+                    'title' => $passage->title
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Comprehension Ajax Error: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Failed to create passage.'], 500);
         }
     }
 
@@ -181,6 +221,19 @@ class ComprehensionController extends Controller
         $this->authorizeInstructor($passage);
 
         return view('admin.comprehensions.edit', compact('passage'));
+    }
+
+    /**
+     * Show Usage Details.
+     */
+    public function usage(Request $request): View
+    {
+        $id = $request->route('comprehension');
+        $passage = ComprehensionPassage::with(['questions.exams', 'questions.questionType'])->findOrFail($id);
+
+        $this->authorizeInstructor($passage);
+
+        return view('admin.comprehensions.usage', compact('passage'));
     }
 
     /**

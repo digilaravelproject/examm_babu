@@ -29,7 +29,7 @@
         <div class="flex flex-col justify-between gap-4 md:flex-row md:items-center">
             <div>
                 <h1 class="text-2xl font-bold tracking-tight text-gray-900">Topics</h1>
-                <p class="mt-1 text-sm text-gray-500">Manage detailed topics linked to specific skills.</p>
+                <p class="mt-1 text-sm text-gray-500">Manage detailed topics linked to specific subjects.</p>
             </div>
             <a href="{{ $urlCreate }}"
                 class="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-[#0777be] rounded-lg shadow-md hover:bg-[#0666a3] transition-all">
@@ -52,10 +52,10 @@
                 </svg>
             </div>
 
-            {{-- Skill Filter --}}
+            {{-- Subject Filter --}}
             <select x-model="skill_id" @change="applyFilter()"
                 class="py-2.5 text-sm bg-gray-50 border-0 rounded-lg md:w-48 cursor-pointer hover:bg-gray-100">
-                <option value="">All Skills</option>
+                <option value="">All Subjects</option>
                 @foreach($skills as $sk)
                     <option value="{{ $sk->id }}">{{ $sk->name }}</option>
                 @endforeach

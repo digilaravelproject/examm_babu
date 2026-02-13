@@ -48,11 +48,11 @@
         <div class="space-y-4"> {{-- Container for the list --}}
             @foreach($organizedExams as $index => $section)
                 <div class="bg-white border shadow-sm border-slate-200 rounded-xl">
-                    
+
                     {{-- ✨ CLICKABLE TOPIC HEADER --}}
                     <div class="flex items-center justify-between p-5 cursor-pointer topic-header select-none hover:bg-slate-50 rounded-xl"
                          onclick="toggleTopic('topic-content-{{ $index }}', this)">
-                        
+
                         <div class="flex items-center gap-4">
                             {{-- Topic Icon --}}
                             <div class="flex items-center justify-center w-12 h-12 bg-white border shadow-sm rounded-xl border-slate-200" style="color: var(--brand-pink);">
@@ -88,7 +88,7 @@
                     {{-- ✨ EXPANDABLE EXAM GRID (HIDDEN BY DEFAULT) --}}
                     <div id="topic-content-{{ $index }}" class="exam-grid-container bg-slate-50/50">
                         <div class="p-5 border-t border-slate-100">
-                            
+
                             {{-- Horizontal Scrollable Grid for this Topic --}}
                             <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                                 @foreach($section['schedules'] as $schedule)
@@ -146,7 +146,7 @@
                                                 title="{{ $schedule->exam->title }}">
                                                 {{ $schedule->exam->title }}
                                             </h4>
-                                            
+
                                             <div class="flex items-center gap-2 text-xs text-slate-500">
                                                  <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                                                  {{ $startDt->format('d M Y, h:i A') }}
@@ -162,7 +162,7 @@
                                                 $isLimitReached = ($maxAttempts > 0 && $attemptsTaken >= $maxAttempts);
                                             @endphp
 
-                                            @if(!$schedule->exam->is_paid || in_array($schedule->exam->sub_category_id, $subscribedCategoryIds))
+                                            @if(!$schedule->exam->is_paid || in_array($schedule->exam->micro_category_id, $subscribedCategoryIds))
                                                 @if($isLimitReached)
                                                     <button disabled class="w-full py-2 text-[10px] font-bold text-red-600 bg-red-50 rounded border border-red-100 cursor-not-allowed opacity-80">
                                                         Attempts Full ({{ $attemptsTaken }}/{{ $maxAttempts }})
@@ -211,7 +211,7 @@
     function toggleTopic(contentId, headerElement) {
         // 1. Get the content div
         const contentDiv = document.getElementById(contentId);
-        
+
         // 2. Toggle the visual state
         if (contentDiv.style.display === "block") {
             contentDiv.style.display = "none";

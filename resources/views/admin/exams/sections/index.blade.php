@@ -74,7 +74,8 @@
                                 </th>
                                 <th class="px-6 py-4 text-[11px] font-black tracking-widest text-gray-400 uppercase">Display
                                     Name</th>
-                                <th class="px-6 py-4 text-[11px] font-black tracking-widest text-gray-400 uppercase">Section
+                                <th class="px-6 py-4 text-[11px] font-black tracking-widest text-gray-400 uppercase">Micro
+                                    Category
                                 </th>
                                 <th
                                     class="px-6 py-4 text-[11px] font-black tracking-widest text-gray-400 uppercase text-center">
@@ -100,7 +101,7 @@
                                     <td class="px-6 py-4">
                                         <span
                                             class="px-2.5 py-1 text-[10px] font-black uppercase text-[var(--brand-blue)] bg-[var(--brand-blue)]/10 rounded-lg border border-[var(--brand-blue)]/20">
-                                            {{ $section->section->name ?? 'N/A' }}
+                                            {{ $section->microCategory->name ?? 'N/A' }}
                                         </span>
                                     </td>
                                     <td class="px-6 py-4 font-mono text-sm font-bold text-center text-gray-700">
@@ -215,10 +216,10 @@
                             {{-- Section Type - Custom Dropdown UI --}}
                             <div class="space-y-2" x-data="{ open: false, selected: 'Select Type', value: '' }"
                                 @set-section-type.window="selected = $event.detail.text; value = $event.detail.value">
-                                <label class="text-[11px] font-black text-gray-500 uppercase tracking-widest">Section Type
+                                <label class="text-[11px] font-black text-gray-500 uppercase tracking-widest">Micro Category
                                     <span class="text-[var(--brand-pink)]">*</span></label>
                                 <div class="relative">
-                                    <input type="hidden" name="section_id" :value="value" id="sectionIdInput">
+                                    <input type="hidden" name="micro_category_id" :value="value" id="sectionIdInput">
                                     <button type="button" @click="open = !open" @click.away="open = false"
                                         class="w-full px-4 py-3 text-left text-sm border border-gray-200 rounded-xl bg-gray-50/50 flex justify-between items-center focus:ring-4 focus:ring-[var(--brand-blue)]/10">
                                         <span x-text="selected" :class="value ? 'text-gray-900' : 'text-gray-400'"></span>
@@ -229,11 +230,11 @@
                                     </button>
                                     <div x-show="open" x-transition
                                         class="absolute z-50 w-full mt-2 overflow-y-auto bg-white border border-gray-100 shadow-xl rounded-xl max-h-48 no-scrollbar">
-                                        @foreach ($availableSections as $s)
-                                            <div onclick="updateSkillsDropdown({{ $s->id }})"
-                                                @click="selected = '{{ $s->name }}'; value = '{{ $s->id }}'; open = false"
+                                        @foreach ($microCategories as $mc)
+                                            <div onclick="updateSkillsDropdown({{ $mc->id }})"
+                                                @click="selected = '{{ $mc->name }}'; value = '{{ $mc->id }}'; open = false"
                                                 class="px-4 py-2.5 text-sm cursor-pointer hover:bg-[var(--brand-blue)] hover:text-white transition-colors">
-                                                {{ $s->name }}
+                                                {{ $mc->name }}
                                             </div>
                                         @endforeach
                                     </div>
@@ -247,9 +248,9 @@
                                 <div class="space-y-2">
                                     <div class="flex items-center justify-between mb-2">
                                         <label class="text-[11px] font-black text-gray-500 uppercase tracking-widest">Select
-                                            Skill</label>
+                                            Subject</label>
                                     </div>
-                                    <div x-data="{ open: false, selected: 'Select Skill', selectedId: '' }"
+                                    <div x-data="{ open: false, selected: 'Select Subject', selectedId: '' }"
                                         @set-skill-dropdown.window="selected = $event.detail.text; selectedId = $event.detail.id">
                                         <input type="hidden" name="selected_skill" id="selectedSkillId" :value="selectedId">
                                         <button type="button" @click="open = !open" @click.away="open = false"
@@ -265,7 +266,7 @@
                                             class="absolute z-50 w-full mt-2 overflow-y-auto bg-white border border-gray-100 shadow-xl rounded-xl max-h-48 no-scrollbar"
                                             style="width: calc(100% - 2rem);">
                                             <div id="skillsDropdown" class="divide-y">
-                                                <p class="px-4 py-2.5 text-sm text-gray-400">Loading skills...</p>
+                                                <p class="px-4 py-2.5 text-sm text-gray-400">Loading subjects...</p>
                                             </div>
                                         </div>
                                     </div>
@@ -293,7 +294,7 @@
                                     <div id="topicsList"
                                         class="grid grid-cols-2 gap-2 p-3 overflow-y-auto bg-white border border-gray-200 rounded-lg max-h-48">
                                         {{-- Populated by JS --}}
-                                        <p class="col-span-2 text-xs text-gray-400">Select a skill to see topics...</p>
+                                        <p class="col-span-2 text-xs text-gray-400">Select a subject to see topics...</p>
                                     </div>
                                 </div>
                             </div>
@@ -426,19 +427,20 @@
         const examId = "{{ $exam->id }}";
         const urlPrefix = "{{ $urlPrefix }}";
 
-        const allSections = @json($availableSections);
+        // Renamed variable to reflect new data source
+        const allMicroCategories = @json($microCategories);
         let allSkillsTopics = {};
         let previouslySelectedTopics = [];
-        let currentSelectedSectionId = null;
+        let currentSelectedMicroCategoryId = null;
 
         function initializeSkillsTopicsData() {
-            allSections.forEach(section => {
-                if (section.skills && section.skills.length > 0) {
-                    section.skills.forEach(skill => {
+            allMicroCategories.forEach(mc => {
+                if (mc.skills && mc.skills.length > 0) {
+                    mc.skills.forEach(skill => {
                         if (skill.id && !allSkillsTopics[skill.id]) {
                             allSkillsTopics[skill.id] = {
                                 name: skill.name,
-                                sectionId: section.id,
+                                microCategoryId: mc.id, // Changed from sectionId
                                 topics: skill.topics || []
                             };
                         }
@@ -463,10 +465,10 @@
             form.action = `/${urlPrefix}/exams/${examId}/sections`;
 
             // Reset UI
-            window.dispatchEvent(new CustomEvent('set-section-type', { detail: { text: 'Select Type', value: '' } }));
+            window.dispatchEvent(new CustomEvent('set-section-type', { detail: { text: 'Select Micro Category', value: '' } }));
             window.dispatchEvent(new CustomEvent('set-negative-type', { detail: { type: 'fixed' } }));
             window.dispatchEvent(new CustomEvent('set-import-toggle', { detail: { checked: false } }));
-            window.dispatchEvent(new CustomEvent('set-skill-dropdown', { detail: { text: 'Select Skill', id: '' } }));
+            window.dispatchEvent(new CustomEvent('set-skill-dropdown', { detail: { text: 'Select Subject', id: '' } }));
 
             // Reset Translation
             window.dispatchEvent(new CustomEvent('set-translation-toggle', { detail: { checked: false } }));
@@ -476,21 +478,22 @@
             previouslySelectedTopics = [];
             document.getElementById('skillsTopicsContainer').classList.add('hidden');
             document.getElementById('topicsContainer').classList.add('hidden');
-            document.getElementById('skillsDropdown').innerHTML = '<p class="px-4 py-2.5 text-sm text-gray-400">Loading skills...</p>';
-            document.getElementById('topicsList').innerHTML = '<p class="col-span-2 text-xs text-gray-400">Select a skill to see topics...</p>';
-            currentSelectedSectionId = null;
+            document.getElementById('skillsDropdown').innerHTML = '<p class="px-4 py-2.5 text-sm text-gray-400">Loading subjects...</p>';
+            document.getElementById('topicsList').innerHTML = '<p class="col-span-2 text-xs text-gray-400">Select a subject to see topics...</p>';
+            currentSelectedMicroCategoryId = null;
 
             toggleModal(true);
         }
 
-        function updateSkillsDropdown(sectionId) {
+        // Renamed function to match logic
+        function updateSkillsDropdown(microCategoryId) {
             const container = document.getElementById('skillsTopicsContainer');
             const dropdown = document.getElementById('skillsDropdown');
-            currentSelectedSectionId = sectionId;
+            currentSelectedMicroCategoryId = microCategoryId;
 
-            const selectedSectionData = allSections.find(s => s.id == sectionId);
+            const selectedMCData = allMicroCategories.find(s => s.id == microCategoryId);
 
-            if (!selectedSectionData || !selectedSectionData.skills || selectedSectionData.skills.length === 0) {
+            if (!selectedMCData || !selectedMCData.skills || selectedMCData.skills.length === 0) {
                 container.classList.add('hidden');
                 return;
             }
@@ -498,7 +501,7 @@
             container.classList.remove('hidden');
             dropdown.innerHTML = '';
 
-            selectedSectionData.skills.forEach(skill => {
+            selectedMCData.skills.forEach(skill => {
                 const html = `
                         <div onclick="selectSkill(${skill.id}, '${skill.name.replace(/'/g, "\\'")}', this)"
                              class="px-4 py-2.5 text-sm cursor-pointer hover:bg-[var(--brand-blue)] hover:text-white transition-colors">
@@ -521,7 +524,7 @@
             const skillData = allSkillsTopics[skillId];
             if (!skillData || !skillData.topics || skillData.topics.length === 0) {
                 topicsContainer.classList.add('hidden');
-                topicsList.innerHTML = '<p class="col-span-2 text-xs text-gray-400">No topics available for this skill.</p>';
+                topicsList.innerHTML = '<p class="col-span-2 text-xs text-gray-400">No topics available for this subject.</p>';
                 return;
             }
 
@@ -565,11 +568,12 @@
                     form.querySelector('[name="section_cutoff"]').value = data.section_cutoff || '';
                     form.querySelector('[name="total_duration"]').value = data.duration_minutes || '';
 
-                    const matchedSection = allSections.find(s => s.id == data.section_id);
-                    const sectionName = matchedSection ? matchedSection.name : 'Unknown Type';
+                    // Match MicroCategory instead of Section
+                    const matchedMC = allMicroCategories.find(s => s.id == data.micro_category_id);
+                    const mcName = matchedMC ? matchedMC.name : 'Unknown Category';
 
                     window.dispatchEvent(new CustomEvent('set-section-type', {
-                        detail: { text: sectionName, value: data.section_id }
+                        detail: { text: mcName, value: data.micro_category_id }
                     }));
 
                     window.dispatchEvent(new CustomEvent('set-negative-type', {
@@ -591,7 +595,11 @@
                     }
 
                     previouslySelectedTopics = data.imported_topic_ids || [];
-                    updateSkillsDropdown(data.section_id);
+
+                    // Update dropdown with MicroCategory ID
+                    if (data.micro_category_id) {
+                         updateSkillsDropdown(data.micro_category_id);
+                    }
 
                     if (data.imported_skill_ids && data.imported_skill_ids.length > 0) {
                         const firstSkillId = data.imported_skill_ids[0];

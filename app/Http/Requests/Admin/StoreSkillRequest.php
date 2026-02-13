@@ -13,7 +13,7 @@ class StoreSkillRequest extends FormRequest
     return [
         'name' => ['required', 'string', 'max:255'],
         'short_description' => ['nullable', 'string', 'max:255'],
-        'section_id' => ['required', 'exists:sections,id'],
+        'micro_category_id' => ['required', 'exists:micro_categories,id'],
         'is_active' => ['required', 'boolean'],
     ];
 }

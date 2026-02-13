@@ -114,17 +114,38 @@ class UserExamRepository
         return DB::transaction(function () use ($exam, $schedule, $user) {
             $now = now();
 
-            // Calculate End Time
-            if ($schedule->schedule_type == 'fixed') {
-                if ($schedule->end_date) {
-                    $endDateStr = Carbon::parse($schedule->end_date)->format('Y-m-d');
-                    $endTimeStr = $schedule->end_time ?? '23:59:59';
-                    $endsAt = Carbon::parse($endDateStr . ' ' . $endTimeStr);
-                } else {
-                    $endsAt = $now->copy()->addSeconds($exam->total_duration);
-                }
+            // 0. Calculate Actual Exam Duration
+            // Priority 1: Stored Total Duration (from Model update)
+            $totalDuration = $exam->total_duration;
+
+            // Priority 2: Dynamic Section Sum (if stored is 0)
+            if ($totalDuration == 0) {
+                $totalDuration = $exam->examSections()->sum('total_duration');
+            }
+
+            // Priority 3: Dynamic Question Sum (Auto Mode)
+            if ($totalDuration == 0) {
+                 $totalDuration = $exam->questions()->sum('default_time');
+            }
+
+            // Priority 4: Hard Fallback (just in case)
+             if ($totalDuration == 0) {
+                $totalDuration = 86400; // 24 Hours
+             }
+
+            // Calculate Expected End Time based on Duration
+            $expectedEndTime = $now->copy()->addSeconds($totalDuration);
+
+            // 1. Determine Final Ends At (Respecting Schedule Window)
+            if ($schedule->schedule_type == 'fixed' && $schedule->end_date) {
+                $endDateStr = Carbon::parse($schedule->end_date)->format('Y-m-d');
+                $endTimeStr = $schedule->end_time ?? '23:59:59';
+                $windowEndTime = Carbon::parse($endDateStr . ' ' . $endTimeStr);
+
+                // Exam ends at earlier of (Duration End) or (Window End)
+                $endsAt = $expectedEndTime->lessThan($windowEndTime) ? $expectedEndTime : $windowEndTime;
             } else {
-                $endsAt = $now->copy()->addSeconds($exam->total_duration);
+                $endsAt = $expectedEndTime;
             }
 
             // 1. Create the Session Record

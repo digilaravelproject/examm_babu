@@ -5,7 +5,7 @@
             <h3 class="text-sm font-bold text-slate-800 leading-snug group-hover:text-[var(--brand-blue)] line-clamp-2">
                 {{ $exam->title }}
             </h3>
-            @if($exam->is_paid && !in_array($exam->sub_category_id, $subscribedCategoryIds))
+            @if($exam->is_paid && !in_array($exam->micro_category_id, $subscribedCategoryIds))
                 <span class="shrink-0 px-1.5 py-0.5 text-[10px] font-bold uppercase rounded border border-amber-200 bg-amber-50 text-amber-700">Paid</span>
             @else
                 <span class="shrink-0 px-1.5 py-0.5 text-[10px] font-bold uppercase rounded border border-green-200 bg-green-50 text-green-700">Open</span>
@@ -22,7 +22,7 @@
                 </span>
             </div>
 
-            @if(!$exam->is_paid || in_array($exam->sub_category_id, $subscribedCategoryIds))
+            @if(!$exam->is_paid || in_array($exam->micro_category_id, $subscribedCategoryIds))
                 <a href="#" class="text-xs font-bold text-white bg-[var(--brand-blue)] px-3 py-1.5 rounded hover:bg-blue-700 transition-colors shadow-sm">
                     Start
                 </a>

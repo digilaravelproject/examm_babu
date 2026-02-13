@@ -26,6 +26,7 @@ class StoreExamRequest extends FormRequest
             'exam_type_id'    => ['required', 'exists:exam_types,id'],
             'exam_mode'       => ['required', 'string', 'in:online,offline'],
             'sub_category_id' => ['required', 'exists:sub_categories,id'],
+            'micro_category_id' => ['required', 'exists:micro_categories,id'],
 
             // Boolean fields (Blade checkbox/radio ke liye better handling)
             'is_paid'         => ['required', 'boolean'],
@@ -57,6 +58,8 @@ class StoreExamRequest extends FormRequest
             'points_required.required_if' => 'Please specify the points required to redeem this exam.',
             'exam_type_id.exists'         => 'The selected exam type is invalid.',
             'sub_category_id.exists'      => 'The selected category is invalid.',
+            'micro_category_id.exists'    => 'The selected micro category is invalid.',
+            'micro_category_id.required'  => 'Micro category is required for all exams.',
         ];
     }
 

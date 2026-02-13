@@ -136,6 +136,17 @@
                                             <input type="checkbox" :value="q.id" x-model="selectedQuestions" class="rounded border-gray-300 text-[#0777be] focus:ring-[#0777be]">
                                         </td>
                                         <td class="px-6 py-4">
+                                            <div class="mb-1">
+                                                {{-- 🔥 COMPREHENSION TAG --}}
+                                                <template x-if="q.has_attachment && q.attachment_type === 'comprehension'">
+                                                    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-bold text-purple-700 bg-purple-50 border border-purple-100 rounded">
+                                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                                                        <span>Comprehension</span>
+                                                        <span x-show="q.topic_name" class="text-purple-400">:</span>
+                                                        <span x-show="q.topic_name" x-text="q.topic_name"></span>
+                                                    </span>
+                                                </template>
+                                            </div>
                                             <div class="text-sm font-medium prose-sm text-gray-800 line-clamp-2 max-w-none" x-html="q.question"></div>
                                         </td>
                                         <td class="px-6 py-4 text-center">
@@ -205,27 +216,35 @@
                 <div class="flex flex-col flex-1 overflow-hidden lg:flex-row">
                     {{-- Bank Sidebar Filters --}}
                     <div class="w-full p-5 space-y-5 overflow-y-auto border-b border-gray-200 lg:w-72 bg-gray-50 lg:border-r shrink-0">
+                        {{-- 🔥 Filter Mode Toggles --}}
+                        <div class="flex p-1 mb-4 space-x-1 rounded-lg bg-gray-200/50">
+                            <button @click="filterMode = 'all'; loadBankQuestions()"
+                                class="flex-1 py-1.5 text-xs font-bold rounded-md transition-all"
+                                :class="filterMode === 'all' ? 'bg-white text-[#0777be] shadow-sm' : 'text-gray-500 hover:text-gray-700'">
+                                All
+                            </button>
+                            <button @click="filterMode = 'comprehension'; loadBankQuestions()"
+                                class="flex-1 py-1.5 text-xs font-bold rounded-md transition-all"
+                                :class="filterMode === 'comprehension' ? 'bg-white text-[#0777be] shadow-sm' : 'text-gray-500 hover:text-gray-700'">
+                                Comprehension
+                            </button>
+                        </div>
+
                         <div>
                             <label class="block mb-1 text-[11px] font-black text-gray-400 uppercase">Search</label>
                             <input type="text" x-model="bankFilters.search" @input.debounce.500ms="loadBankQuestions()" placeholder="Code or text..." class="w-full px-3 py-2 text-sm border-gray-300 rounded-lg focus:ring-[#0777be]">
                         </div>
                         <div class="space-y-4">
                             <div>
-                                <label class="block mb-1 text-[11px] font-black text-gray-400 uppercase">Skill</label>
+                                <label class="block mb-1 text-[11px] font-black text-gray-400 uppercase">Subjects</label>
                                 <select x-model="bankFilters.skill" @change="bankFilters.topic=''; loadBankQuestions()" class="w-full py-2 text-xs border-gray-300 rounded-lg">
-                                    <option value="">All Skills</option>
+                                    <option value="">All Subjects</option>
                                     <template x-for="s in skills" :key="s.id">
                                         <option :value="s.id" x-text="s.name"></option>
                                     </template>
                                 </select>
                             </div>
-                            <div>
-                                <label class="block mb-1 text-[11px] font-black text-gray-400 uppercase">Question Type</label>
-                                <select x-model="bankFilters.qtype" @change="loadBankQuestions()" class="w-full py-2 text-xs border-gray-300 rounded-lg">
-                                    <option value="">All Types</option>
-                                    @foreach($questionTypes as $t) <option value="{{ $t->code }}">{{ $t->code }}</option> @endforeach
-                                </select>
-                            </div>
+                            {{-- Removed Duplicate Question Type Filter (Code-based) --}}
                             <div>
                                 <label class="block mb-1 text-[11px] font-black text-gray-400 uppercase">Type</label>
                                 <select x-model="bankFilters.type" @change="loadBankQuestions()" class="w-full py-2 text-xs border-gray-300 rounded-lg">
@@ -287,9 +306,19 @@
                                     </div>
 
                                     <div class="flex-1 min-w-0">
-                                        <div class="mb-1.5 flex items-center gap-2">
+                                        <div class="mb-1.5 flex flex-wrap items-center gap-2">
                                             <span class="text-[10px] font-mono font-bold text-[#0777be] bg-blue-50 px-1.5 rounded" x-text="q.code"></span>
                                             <span class="text-[10px] font-bold text-gray-400 uppercase" x-text="q.difficulty_level?.name"></span>
+
+                                            {{-- 🔥 COMPREHENSION TAG --}}
+                                            <template x-if="q.has_attachment && q.attachment_type === 'comprehension'">
+                                                <span class="flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-bold text-purple-700 bg-purple-50 border border-purple-100 rounded">
+                                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                                                    <span>Comprehension</span>
+                                                    <span x-show="q.topic" class="text-purple-400">:</span>
+                                                    <span x-show="q.topic" x-text="q.topic?.name"></span>
+                                                </span>
+                                            </template>
                                         </div>
                                         <div class="text-sm prose-sm text-gray-700 line-clamp-2" x-html="q.question"></div>
                                     </div>
@@ -364,6 +393,7 @@ function questionManager(config) {
         bankPagination: {},
         bankPerPage: 10,
         bankFilters: { search: '', type: '', difficulty: '', topic: '', skill: '' },
+        filterMode: 'all', // 'all' or 'comprehension'
         addingIds: [],
         toasts: [],
         previewOpen: false,
@@ -423,6 +453,11 @@ function questionManager(config) {
             let fetchUrl = new URL(baseUrl, window.location.origin);
 
             if(!url) fetchUrl.searchParams.append('per_page', this.bankPerPage);
+
+            // Add Filter Mode
+            if(this.filterMode === 'comprehension') {
+                fetchUrl.searchParams.append('is_comprehension', 1);
+            }
 
             Object.keys(this.bankFilters).forEach(key => {
                 if (this.bankFilters[key]) fetchUrl.searchParams.append(key, this.bankFilters[key]);
