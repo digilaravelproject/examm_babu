@@ -134,7 +134,7 @@ class UserExamRepository
              }
 
             // Calculate Expected End Time based on Duration
-            $expectedEndTime = $now->copy()->addSeconds($totalDuration);
+            $expectedEndTime = $now->copy()->addSeconds((int) $totalDuration);
 
             // 1. Determine Final Ends At (Respecting Schedule Window)
             if ($schedule->schedule_type == 'fixed' && $schedule->end_date) {
@@ -182,7 +182,7 @@ class UserExamRepository
                 $sessionSectionsData[] = [
                     'exam_session_id' => $session->id,
                     'exam_section_id' => $section->id, // This is the ID from exam_sections table
-                    'section_id'      => $section->section_id, // Reference to master section
+                    'section_id'      => !empty($section->section_id) ? $section->section_id : 0, // Reference to master section
                     'name'            => $section->name,       // FIXED: Required field
                     'sno'             => $section->section_order, // FIXED: Required field
                     'status'          => ($globalSno == 1) ? 'started' : 'not_visited',

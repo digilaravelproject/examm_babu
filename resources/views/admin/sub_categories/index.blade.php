@@ -86,29 +86,53 @@
                 search: '',
                 category_id: '',
                 loading: false,
+
+                init() {
+                    // This handles the AJAX pagination clicks
+                    document.addEventListener('click', (e) => {
                         let link = e.target.closest('.pagination-wrapper a');
                         if (link) {
                             e.preventDefault();
                             this.fetchData(new URL(link.href).searchParams.get('page'));
                         }
                     });
+                },
+
+                applyFilter() {
+                    this.fetchData(1);
+                },
+
+                async fetchData(page = 1) {
+                    this.loading = true;
+                    try {
+                        let url = new URL(indexUrl);
+                        url.searchParams.set('page', page);
+                        url.searchParams.set('search', this.search);
+                        url.searchParams.set('category_id', this.category_id);
+
+                        const response = await fetch(url, {
+                            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                        });
+                        const html = await response.text();
+                        document.getElementById('table-container').innerHTML = html;
+                    } catch (error) {
+                        console.error('Error fetching data:', error);
+                    } finally {
+                        this.loading = false;
+                    }
                 }
             }
         }
 
-        // --- UPDATED DELETE LOGIC ---
+        // Keep your existing confirmDelete function below
         function confirmDelete(id, name, microCount) {
-
-            // 1. BLOCK DELETE
             if (microCount > 0) {
                 Swal.fire({
                     title: '🚫 Action Blocked',
-                    html: `
-                        <div class="text-left text-sm text-gray-600">
+                    html: `<div class="text-left text-sm text-gray-600">
                             <p class="mb-2">You cannot delete <b>"${name}"</b> because it has <b>${microCount}</b> linked Micro-Categories.</p>
                             <p class="text-red-500 font-bold">Please delete the micro-categories first.</p>
-                        </div>
-                    `,
+                        </div>`,
                     icon: 'error',
                     confirmButtonText: 'Okay, I understand',
                     confirmButtonColor: '#0777be'
@@ -116,7 +140,6 @@
                 return;
             }
 
-            // 2. ALLOW DELETE
             Swal.fire({
                 title: 'Are you sure?',
                 text: "You won't be able to revert this!",
@@ -131,25 +154,5 @@
                 }
             })
         }
-
-        // --- TOAST NOTIFICATIONS ---
-        @if (session('success'))
-            Swal.fire({
-                icon: 'success',
-                title: 'Success',
-                text: "{{ session('success') }}",
-                timer: 3000,
-                showConfirmButton: false
-            });
-        @endif
-        @if (session('error'))
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: "{{ session('error') }}",
-                timer: 3000,
-                showConfirmButton: false
-            });
-        @endif
     </script>
 @endpush

@@ -614,7 +614,7 @@ class ExamController extends Controller
                 $sessionSectionsData[] = [
                     'exam_session_id' => $session->id,
                     'exam_section_id' => $section->id,
-                    'section_id'      => $section->section_id ?? null,
+                    'section_id'      => !empty($section->section_id) ? $section->section_id : 0,
                     'name'            => $section->name,
                     'sno'             => $section->section_order,
                     'status'          => ($globalSno == 1) ? 'started' : 'not_visited',
@@ -707,7 +707,7 @@ class ExamController extends Controller
                 $sessionSectionsData[] = [
                     'exam_session_id' => $session->id,
                     'exam_section_id' => $section->id,
-                    'section_id'      => $section->section_id ?? null,
+                    'section_id'      => !empty($section->section_id) ? $section->section_id : 0,
                     'name'            => $section->name,
                     'sno'             => $section->section_order,
                     'status'          => ($globalSno == 1) ? 'started' : 'not_visited',

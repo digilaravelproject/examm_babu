@@ -129,7 +129,7 @@ class ExamSessionController extends Controller
         if (str_starts_with($session->code, 'PREVIEW-')) {
             $totalDuration = $session->exam->examSections()->sum('total_duration');
             if ($totalDuration > 0) {
-                $expectedEndsAt = \Carbon\Carbon::parse($session->starts_at)->addSeconds($totalDuration);
+                $expectedEndsAt = \Carbon\Carbon::parse($session->starts_at)->addSeconds((int) $totalDuration);
 
                 // If the current ends_at is significantly different (e.g., > 1 minute diff), fix it
                 if ($session->ends_at->diffInMinutes($expectedEndsAt) > 1) {
