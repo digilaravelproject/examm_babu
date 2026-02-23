@@ -63,49 +63,26 @@ class AiImportController extends Controller
      */
     public function uploadAndPrepare(Request $request)
     {
-        set_time_limit(0);
-
         $request->validate([
-            'pdf_file' => 'required|mimes:pdf|max:20000',
-            'topic_id' => 'required|exists:topics,id'
+            'topic_id' => 'required|exists:topics,id',
+            'total_chunks' => 'required|integer|min:1'
         ]);
 
         try {
             $topicId = $request->topic_id;
-            $file = $request->file('pdf_file');
 
             // 1. Capture User ID then UNLOCK SESSION immediately
             $userId = Auth::id();
             session()->save(); // FIX: Page loading issue resolved
 
-            $parser = new Parser();
-            $pdf = $parser->parseFile($file->getPathname());
-            $fullText = $pdf->getText();
-            // Remove non-printable characters
-            $fullText = preg_replace('/[^\x20-\x7E\n\t]/', '', $fullText);
-
-            if (strlen($fullText) < 50) {
-                return response()->json(['success' => false, 'message' => 'PDF empty.'], 422);
-            }
-
-            // Chunking Strategy
-            $chunkSize = 3000;
-            $overlap = 200;
-            $textChunks = [];
-            $length = strlen($fullText);
-
-            for ($i = 0; $i < $length; $i += ($chunkSize - $overlap)) {
-                $textChunks[] = substr($fullText, $i, $chunkSize);
-            }
-
+            $totalChunks = (int) $request->total_chunks;
             $batchId = Str::random(20);
 
             // Save Batch Data to JSON
             $batchData = [
                 'topic_id' => $topicId,
                 'user_id' => $userId,
-                'total_chunks' => count($textChunks),
-                'chunks' => $textChunks,
+                'total_chunks' => $totalChunks,
                 'start_time' => Carbon::now('Asia/Kolkata')->format('d-M-Y h:i:s A')
             ];
 
@@ -114,7 +91,7 @@ class AiImportController extends Controller
             return response()->json([
                 'success' => true,
                 'batch_id' => $batchId,
-                'total_chunks' => count($textChunks),
+                'total_chunks' => $totalChunks,
                 'start_time' => $batchData['start_time']
             ]);
 
@@ -125,6 +102,7 @@ class AiImportController extends Controller
 
     /**
      * STEP 2: Process a single chunk via AI (AJAX).
+     * Now accepts an image_base64 parameter containing the rendered PDF page.
      *
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
@@ -138,8 +116,16 @@ class AiImportController extends Controller
 
         set_time_limit(0);
 
+        $request->validate([
+            'batch_id' => 'required|string',
+            'chunk_index' => 'required|integer',
+            'image_base64' => 'required|string'
+        ]);
+
         $batchId = $request->batch_id;
         $index = $request->chunk_index;
+        $imageBase64 = $request->image_base64; // e.g., data:image/jpeg;base64,...
+
         $fileName = 'temp/ai_batch_' . $batchId . '.json';
 
         if (!Storage::exists($fileName)) {
@@ -149,11 +135,6 @@ class AiImportController extends Controller
 
         $batchData = json_decode(Storage::get($fileName), true);
 
-        if (!isset($batchData['chunks'][$index])) {
-            return response()->json(['success' => false, 'message' => 'Chunk not found.']);
-        }
-
-        $textSegment = $batchData['chunks'][$index];
         $topicId = $batchData['topic_id'];
         $creatorId = $batchData['user_id'] ?? 1;
 
@@ -167,12 +148,17 @@ class AiImportController extends Controller
                     'HTTP-Referer' => url('/'),
                     'X-Title' => env('APP_NAME', 'Exam Babu'),
                 ])->post('https://openrouter.ai/api/v1/chat/completions', [
-                    'model' => 'deepseek/deepseek-chat',
+                    'model' => 'google/gemini-2.5-flash',
                     'messages' => [
-                        ['role' => 'system', 'content' => 'You are an SME. Extract questions, SOLVE them (find correct answer), output JSON.'],
-                        ['role' => 'user', 'content' => $this->getPrompt($textSegment)]
+                        [
+                            'role' => 'user',
+                            'content' => [
+                                ['type' => 'text', 'text' => $this->getPrompt()],
+                                ['type' => 'image_url', 'image_url' => ['url' => $imageBase64]]
+                            ]
+                        ]
                     ],
-                    'max_tokens' => 2500, // Limit output to reduce credit reservation
+                    'max_tokens' => 3000,
                     'temperature' => 0.1
                 ]);
 
@@ -199,7 +185,6 @@ class AiImportController extends Controller
             if (!$aiContent) throw new \Exception("Empty Response from AI - Check Logs");
 
             // Robust JSON Extraction
-            // Find the first '[' and last ']' to isolate the JSON array
             $firstBracket = strpos($aiContent, '[');
             $lastBracket = strrpos($aiContent, ']');
 
@@ -213,7 +198,6 @@ class AiImportController extends Controller
             $questionsArray = json_decode($cleanedJson, true);
 
             if (json_last_error() !== JSON_ERROR_NONE) {
-                  // Log the failed JSON for debugging if needed
                  Log::error("AI Import JSON Error: " . json_last_error_msg() . " Content: " . substr($cleanedJson, 0, 500));
                  return response()->json(['success' => true, 'processed_count' => 0, 'warning' => 'Invalid JSON Structure from AI.']);
             }
@@ -255,17 +239,16 @@ class AiImportController extends Controller
     /**
      * Generates the system prompt for the AI.
      *
-     * @param string $text The text segment to analyze
      * @return string
      */
-    private function getPrompt($text) {
+    private function getPrompt() {
         return <<<EOT
-        You are an expert academic assistant used to digitize exam questions from PDF text.
+        You are an expert academic assistant used to digitize exam questions from PDF pages.
 
         YOUR TASK:
-        1. Analyze the provided text and extract multiple-choice questions (MSA).
+        1. Analyze the provided image of a question paper and extract all multiple-choice questions (MSA).
         2. Extract the Question Stem and Options (A, B, C, D).
-        3. ACCURACY IS CRITICAL. If options are jumbled, use logic to separate them.
+        3. ACCURACY IS CRITICAL. If options are jumbled, use logic to separate them. Ignore unrelated text like page numbers or headers.
         4. FIND THE CORRECT ANSWER.
            - If the answer key is present in the text, use it.
            - If NO answer key is found, you MUST SOLVE the question yourself and provide the correct option index (0-3).
@@ -273,7 +256,7 @@ class AiImportController extends Controller
            - Provide a short "hint" or "solution" explanation for the student.
 
         OUTPUT FORMAT:
-        Return ONLY a raw JSON array. Do not output markdown code blocks (```json).
+        Return ONLY a raw JSON array of objects. Do not output markdown code blocks (```json).
 
         JSON STRUCTURE:
         [
@@ -285,9 +268,6 @@ class AiImportController extends Controller
                 "hint": "A short clue to help the student."
             }
         ]
-
-        RAW TEXT TO ANALYZE:
-        $text
         EOT;
     }
 

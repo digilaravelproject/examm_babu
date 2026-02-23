@@ -150,14 +150,17 @@
 </div>
 
 {{-- Scripts --}}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
     document.addEventListener('DOMContentLoaded', function() {
         // Elements
         const topicSelect = document.getElementById('topicSelect');
         const fileInput = document.getElementById('fileInput');
         const dropZone = document.getElementById('dropZone');
         const startBtn = document.getElementById('startBtn');
-        const stopBtn = document.getElementById('stopBtn'); // <-- Stop Button
+        const stopBtn = document.getElementById('stopBtn');
 
         // Progress Elements
         const progressContainer = document.getElementById('progress-container');
@@ -176,43 +179,77 @@
         // URLs
         const URL_PREPARE = "{{ route('admin.ai-import.prepare') }}";
         const URL_CHUNK = "{{ route('admin.ai-import.chunk') }}";
-        const URL_CANCEL = "{{ route('admin.ai-import.cancel') }}"; // Ensure this route exists
+        const URL_CANCEL = "{{ route('admin.ai-import.cancel') }}";
 
         // State Variables
         let isStopped = false;
         let currentBatchId = null;
+        let pdfDocument = null;
+        let totalPages = 0;
 
         // --- 1. UI Interaction Logic ---
 
         function updateButtonState() {
             const hasTopic = topicSelect.value !== "";
-            const hasFile = fileInput.files.length > 0;
+            const hasFile = fileInput.files.length > 0 && pdfDocument !== null;
 
             if (hasTopic && hasFile) {
                 startBtn.disabled = false;
-                startBtn.className = "w-full py-4 text-lg font-bold text-white bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl shadow-lg hover:shadow-xl hover:scale-[1.01] transition-all cursor-pointer flex items-center justify-center gap-2";
+                startBtn.className = "flex items-center justify-center w-full gap-2 py-4 text-lg font-bold text-white transition-all shadow-lg cursor-pointer bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl hover:shadow-xl hover:scale-[1.01]";
                 startBtn.innerHTML = '<i class="fas fa-magic"></i> Start AI Extraction';
             } else {
                 startBtn.disabled = true;
-                startBtn.className = "w-full py-4 text-lg font-bold text-gray-400 bg-gray-200 rounded-xl cursor-not-allowed transition-all shadow-none flex items-center justify-center gap-2";
-                startBtn.innerHTML = '<span>Select Topic & File to Start</span>';
+                startBtn.className = "flex items-center justify-center w-full gap-2 py-4 text-lg font-bold text-gray-400 transition-all bg-gray-200 shadow-none cursor-not-allowed rounded-xl";
+                startBtn.innerHTML = '<span>Select Topic & Valid File to Start</span>';
             }
         }
 
         // Trigger File Input on Box Click
         dropZone.addEventListener('click', () => fileInput.click());
 
-        // Handle File Selection
-        fileInput.addEventListener('change', function() {
-            if (this.files[0]) {
+        // Handle File Selection and Load PDF.js
+        fileInput.addEventListener('change', async function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                if(file.type !== "application/pdf") {
+                    alert("Please select a valid PDF file.");
+                    fileInput.value = "";
+                    return;
+                }
+
                 document.getElementById('emptyState').classList.add('hidden');
                 document.getElementById('fileInfo').classList.remove('hidden');
-                document.getElementById('fileName').innerText = this.files[0].name;
+                document.getElementById('fileName').innerText = 'Loading PDF...';
+
+                try {
+                    const fileReader = new FileReader();
+                    fileReader.onload = async function() {
+                        const typedarray = new Uint8Array(this.result);
+                        try {
+                            pdfDocument = await pdfjsLib.getDocument(typedarray).promise;
+                            totalPages = pdfDocument.numPages;
+                            document.getElementById('fileName').innerHTML = file.name + ` <span class="text-xs text-gray-500">(${totalPages} pages)</span>`;
+                            updateButtonState();
+                        } catch(err) {
+                            alert("Failed to read PDF. It might be corrupted.");
+                            console.error(err);
+                            pdfDocument = null;
+                            fileInput.value = "";
+                            document.getElementById('emptyState').classList.remove('hidden');
+                            document.getElementById('fileInfo').classList.add('hidden');
+                            updateButtonState();
+                        }
+                    };
+                    fileReader.readAsArrayBuffer(file);
+                } catch(e) {
+                    console.error("FileReader Error:", e);
+                }
             } else {
+                pdfDocument = null;
                 document.getElementById('emptyState').classList.remove('hidden');
                 document.getElementById('fileInfo').classList.add('hidden');
+                updateButtonState();
             }
-            updateButtonState();
         });
 
         topicSelect.addEventListener('change', updateButtonState);
@@ -225,7 +262,6 @@
             stopBtn.disabled = true;
             stopBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Stopping...';
 
-            // Optional: Tell server to delete temporary files
             if (currentBatchId) {
                 try {
                     await fetch(URL_CANCEL, {
@@ -236,7 +272,6 @@
                 } catch(e) { console.error("Cancel API error", e); }
             }
 
-            // Reset UI
             progressContainer.classList.add('hidden');
             errorBox.classList.remove('hidden');
             errorMsg.innerText = "Process was stopped by user.";
@@ -248,10 +283,12 @@
         });
 
 
-        // --- 3. Processing Logic (Progress Bar) ---
+        // --- 3. Processing Logic (PDF -> Canvas -> Base64 -> AI) ---
 
         document.getElementById('aiImportForm').addEventListener('submit', async function(e) {
             e.preventDefault();
+            if(!pdfDocument) return;
+
             isStopped = false; // Reset stop flag
 
             // Lock UI
@@ -259,7 +296,6 @@
             startBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
             startBtn.classList.add('opacity-75');
 
-            // Enable Stop Button
             stopBtn.disabled = false;
             stopBtn.innerHTML = '<i class="mr-1 fas fa-stop-circle"></i> Stop Process';
 
@@ -268,88 +304,110 @@
             errorBox.classList.add('hidden');
             successBox.classList.add('hidden');
 
-            // Reset Bar
             progressBar.style.width = '0%';
             percentText.innerText = '0%';
             currentChunkEl.innerText = '0';
 
-            const formData = new FormData(this);
             let totalQuestions = 0;
 
             try {
-                // STEP A: Prepare
-                progressStatusEl.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> Uploading PDF...';
+                // STEP A: Prepare Batch metadata on server
+                progressStatusEl.innerHTML = '<i class="fas fa-server"></i> Initiating Batch...';
+
+                // Send topic_id and total_chunks to prepare endpoint
+                const prepDataPayload = new FormData();
+                prepDataPayload.append('topic_id', topicSelect.value);
+                prepDataPayload.append('total_chunks', totalPages);
 
                 const prepRes = await fetch(URL_PREPARE, {
                     method: 'POST',
-                    body: formData,
+                    body: prepDataPayload,
                     headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
                 });
 
-                if(!prepRes.ok) throw new Error("Upload failed. Server error.");
+                if(!prepRes.ok) throw new Error("Initialization failed. Server error.");
 
                 const prepData = await prepRes.json();
                 if (!prepData.success) throw new Error(prepData.message);
 
-                // Setup Progress
                 currentBatchId = prepData.batch_id;
-                const totalChunks = prepData.total_chunks;
-
                 timeStartedEl.innerText = prepData.start_time || 'Now';
-                totalChunksEl.innerText = totalChunks;
+                totalChunksEl.innerText = totalPages;
 
-                // STEP B: Process Chunks
-                for (let i = 0; i < totalChunks; i++) {
+                // Hidden canvas for PDF rendering
+                const canvas = document.createElement("canvas");
+                const ctx = canvas.getContext("2d");
 
-                    // CHECK STOP FLAG
+                // STEP B: Process Pages
+                for (let i = 1; i <= totalPages; i++) {
                     if(isStopped) break;
 
-                    // Update Status Text
-                    progressStatusEl.innerHTML = `<i class="fas fa-brain fa-spin"></i> Analyzing Batch ${i+1}...`;
-                    currentChunkEl.innerText = i + 1;
+                    progressStatusEl.innerHTML = `<i class="fas fa-image fa-pulse"></i> Rendering Page ${i}...`;
 
-                    // API Call
+                    // Render PDF Page to Base64
+                    const page = await pdfDocument.getPage(i);
+                    // Higher scale for better OCR accuracy
+                    const viewport = page.getViewport({ scale: 2.0 });
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+
+                    await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+                    const imageBase64 = canvas.toDataURL("image/jpeg", 0.85);
+
+                    if(isStopped) break;
+
+                    progressStatusEl.innerHTML = `<i class="fas fa-brain fa-spin"></i> API Extracting Questions from Page ${i}...`;
+                    currentChunkEl.innerText = i;
+
+                    // Send Image to Server Chunk processing
                     const chunkRes = await fetch(URL_CHUNK, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                             'X-CSRF-TOKEN': '{{ csrf_token() }}'
                         },
-                        body: JSON.stringify({ batch_id: currentBatchId, chunk_index: i })
+                        body: JSON.stringify({
+                            batch_id: currentBatchId,
+                            chunk_index: i - 1,
+                            image_base64: imageBase64
+                        })
                     });
 
-                    if(isStopped) break; // Check again after await
+                    if(isStopped) break;
+
+                    if(!chunkRes.ok) {
+                        throw new Error(`Server returned status ${chunkRes.status} for Page ${i}`);
+                    }
 
                     const chunkData = await chunkRes.json();
 
                     if (!chunkData.success) {
-                        throw new Error(chunkData.message || `Batch ${i+1} failed`);
+                        throw new Error(chunkData.message || `Page ${i} processing failed`);
                     }
 
                     totalQuestions += (chunkData.processed_count || 0);
 
                     // Update Progress Bar
-                    let percent = Math.round(((i + 1) / totalChunks) * 100);
+                    let percent = Math.round((i / totalPages) * 100);
                     progressBar.style.width = `${percent}%`;
                     percentText.innerText = `${percent}%`;
-
-                    // Optional delay for smoothness
-                    if(totalChunks < 5) await new Promise(r => setTimeout(r, 300));
                 }
+
+                // Clean up canvas memory
+                canvas.width = 0;
+                canvas.height = 0;
 
                 // STEP C: Completion (Only if not stopped)
                 if(!isStopped) {
                     successBox.classList.remove('hidden');
-                    document.getElementById('success-msg').innerHTML = `<strong>Success!</strong> ${totalQuestions} questions extracted and saved.`;
+                    document.getElementById('success-msg').innerHTML = `<strong>Success!</strong> ${totalQuestions} questions extracted and saved over ${totalPages} pages.`;
 
                     progressStatusEl.innerHTML = '<span class="text-green-600"><i class="fas fa-check"></i> Completed</span>';
 
-                    // Reset Buttons
                     startBtn.innerHTML = 'Import Another File';
                     startBtn.disabled = false;
                     startBtn.classList.remove('opacity-75', 'cursor-not-allowed');
 
-                    // Hide Stop Button when done
                     stopBtn.disabled = true;
                     stopBtn.innerHTML = 'Done';
                 }
