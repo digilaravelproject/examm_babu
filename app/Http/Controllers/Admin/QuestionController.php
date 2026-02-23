@@ -191,6 +191,14 @@ class QuestionController extends Controller
                 }
             }
 
+            // FIX: Ensure sequential array to prevent JSON object conversion
+            $options = array_values($options);
+
+            // Clean options for FIB
+            if ($typeCode === 'FIB') {
+                $options = [];
+            }
+
             $data['options'] = $options;
             $data['preferences'] = $request->input('preferences', []);
 
@@ -199,7 +207,7 @@ class QuestionController extends Controller
                 $data['correct_answer'] = getBlankItems($request->question);
             } elseif ($typeCode === 'MMA') {
                 $corrects = [];
-                foreach ($options as $idx => $opt) {
+                foreach ($data['options'] as $idx => $opt) {
                     if (isset($opt['is_correct']) && ($opt['is_correct'] == "1" || $opt['is_correct'] == "on")) {
                         $corrects[] = $idx;
                     }
@@ -295,7 +303,7 @@ class QuestionController extends Controller
 
         DB::beginTransaction();
         try {
-            $data = $request->except(['_token', '_method', 'question_image', 'options', 'attachment_options', 'last_active_tab', 'comprehension_id']);
+            $data = $request->except(['_token', '_method', 'question_image', 'options', 'attachment_options', 'last_active_tab', 'comprehension_id', 'submit_action']);
 
             $data['topic_id'] = $request->topic_id ?: null;
             $data['difficulty_level_id'] = $request->difficulty_level_id ?: null;
@@ -329,6 +337,14 @@ class QuestionController extends Controller
                 }
             }
 
+            // FIX: Ensure sequential array to prevent JSON object conversion
+            $options = array_values($options);
+
+            // Clean options for FIB
+            if ($typeCode === 'FIB') {
+                $options = [];
+            }
+
             $data['options'] = $options;
             $data['preferences'] = $request->input('preferences', []);
 
@@ -336,7 +352,7 @@ class QuestionController extends Controller
                 $data['correct_answer'] = getBlankItems($request->question);
             } elseif ($typeCode === 'MMA') {
                 $corrects = [];
-                foreach ($options as $idx => $opt) {
+                foreach ($data['options'] as $idx => $opt) {
                     if (isset($opt['is_correct']) && ($opt['is_correct'] == "1" || $opt['is_correct'] == "on")) {
                         $corrects[] = $idx;
                     }

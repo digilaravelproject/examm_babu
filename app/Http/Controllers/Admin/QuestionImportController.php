@@ -338,10 +338,20 @@ class QuestionImportController extends Controller
 
         if ($typeCode === 'FIB') {
             preg_match_all('/##(.*?)##/', $questionText, $matches);
-            $correctAnswerFinal = isset($matches[1]) ? json_encode($matches[1]) : json_encode([]);
+            $correctAnswerFinal = isset($matches[1]) ? $matches[1] : [];
             $options = [];
         } elseif ($typeCode === 'MTF' || $typeCode === 'ORD' || $typeCode === 'SAQ') {
             $correctAnswerFinal = null;
+
+            // SAQ Fallback: if options empty but answer is provided in sheet
+            if ($typeCode === 'SAQ' && empty($options) && !empty($correctAnswerRaw)) {
+                $options[] = [
+                    'option' => $correctAnswerRaw,
+                    'image' => null,
+                    'is_correct' => false,
+                    'partial_weightage' => 0
+                ];
+            }
         } else {
             if (empty($correctAnswerRaw)) throw new \Exception("Correct Answer is missing.");
 

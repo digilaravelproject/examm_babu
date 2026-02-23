@@ -43,8 +43,8 @@ if (!function_exists('formatOptionsProperty')) {
 
                 if (is_array($options)) {
                     foreach ($options as $key => $option) {
-                        $val = is_array($option) ? ($option['option'] ?? '') : ($option->option ?? '');
-                        $pairVal = is_array($option) ? ($option['pair'] ?? '') : ($option->pair ?? '');
+                        $val = is_array($option) ? ($option['option'] ?? '') : (is_object($option) ? ($option->option ?? '') : (is_string($option) ? $option : ''));
+                        $pairVal = is_array($option) ? ($option['pair'] ?? '') : (is_object($option) ? ($option->pair ?? '') : '');
 
                         // Fallback: Agar pair khali hai toh comma se split karne ki koshish karein (Issue #3 Fix)
                         if (empty($pairVal) && preg_match('/^(.*?),(.*)$/s', $val, $matches_split)) {
@@ -78,7 +78,7 @@ if (!function_exists('formatOptionsProperty')) {
             case "ORD":
                 if (is_array($options)) {
                     foreach ($options as $key => $option) {
-                        $val = is_array($option) ? ($option['option'] ?? '') : ($option->option ?? '');
+                        $val = is_array($option) ? ($option['option'] ?? '') : (is_object($option) ? ($option->option ?? '') : (is_string($option) ? $option : ''));
                         array_push($newOptions, ['id' => md5($o_salt . $key), 'value' => trim($val), 'code' => '']);
                     }
                 }
@@ -95,7 +95,7 @@ if (!function_exists('formatOptionsProperty')) {
             default:
                 if (is_array($options)) {
                     foreach ($options as $option) {
-                        $val = is_array($option) ? ($option['option'] ?? '') : ($option->option ?? '');
+                        $val = is_array($option) ? ($option['option'] ?? '') : (is_object($option) ? ($option->option ?? '') : (is_string($option) ? $option : ''));
                         array_push($newOptions, trim($val));
                     }
                 }

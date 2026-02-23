@@ -193,23 +193,26 @@ class ExamSessionController extends Controller
                 $decoded = json_decode($options, true);
                 $options = (json_last_error() === JSON_ERROR_NONE) ? $decoded : @unserialize($options);
             }
+            if (!is_array($options)) {
+                $options = [];
+            }
 
             // --- FIX: MTF & ORD formatting with IDs ---
-            if ($q->type_code === 'MTF' && is_array($options)) {
+            if ($q->type_code === 'MTF') {
                 $matches = [];
                 $pairs = [];
                 // Add Unique ID to each option if not present, based on index
                 foreach ($options as $idx => $opt) {
-                    $id = $opt['id'] ?? $idx; // Ensure ID exists
-                    $val = $opt['option'] ?? '';
+                    $id = is_array($opt) ? ($opt['id'] ?? $idx) : $idx; // Ensure ID exists
+                    $val = is_array($opt) ? ($opt['option'] ?? '') : '';
 
-                    if (str_contains($val, ',')) {
+                    if (is_string($val) && str_contains($val, ',')) {
                         $parts = explode(',', $val);
                         $left = trim($parts[0]);
                         $right = trim($parts[1] ?? '');
                     } else {
                         $left = $val;
-                        $right = $opt['pair'] ?? $opt['match'] ?? '';
+                        $right = is_array($opt) ? ($opt['pair'] ?? $opt['match'] ?? '') : '';
                     }
                     $matches[] = ['id' => $id, 'value' => $left];
                     $pairs[] = ['id' => $id, 'value' => $right];
@@ -217,10 +220,13 @@ class ExamSessionController extends Controller
                 $options = ['matches' => $matches, 'pairs' => $pairs];
             }
 
-            if ($q->type_code === 'ORD' && is_array($options)) {
+            if ($q->type_code === 'ORD') {
+                $options = array_values($options); // Ensure sequential indices
                 $options = array_map(function ($o, $i) {
                     // Ensure ID exists for tracking
-                    return ['id' => $o['id'] ?? $i, 'value' => $o['option'] ?? ''];
+                    $id = is_array($o) ? ($o['id'] ?? $i) : $i;
+                    $value = is_array($o) ? ($o['option'] ?? '') : (is_string($o) ? $o : '');
+                    return ['id' => $id, 'value' => $value];
                 }, $options, array_keys($options));
             }
 
