@@ -88,18 +88,28 @@ class UserExamRepository
             }
         }
 
-        // 5. Check Subscription (DIRECT DB QUERY FIX)
+        // 5. Check Subscription
+        // Subscriptions are stored with category_id = plan.category_id (which maps to micro_category_id).
+        // We check both: direct category_id match on micro_category_id, AND via the plan relationship.
         if ($schedule->exam->is_paid) {
+            $microCategoryId = $schedule->exam->micro_category_id;
+
             $hasSubscription = Subscription::query()
                 ->where('user_id', $user->id)
-                ->where('category_id', $schedule->exam->sub_category_id) // ID Match
-                ->where('category_type', \App\Models\SubCategory::class) // Exact Class Name Match
-                ->where('status', 'active') // Status Match
-                ->where('ends_at', '>', now()) // Expiry Match
+                ->where('status', 'active')
+                ->where('ends_at', '>', now())
+                ->where(function ($q) use ($microCategoryId) {
+                    // Check 1: Direct match — category_id stored on subscription matches the exam's micro_category_id
+                    $q->where('category_id', $microCategoryId)
+                    // Check 2: Via Plan — the plan linked to this subscription covers the exam's micro_category_id
+                      ->orWhereHas('plan', function ($planQuery) use ($microCategoryId) {
+                          $planQuery->where('category_id', $microCategoryId);
+                      });
+                })
                 ->exists();
 
             if (!$hasSubscription) {
-                 return ['allowed' => false, 'message' => __('You need an active plan to access this exam.')];
+                return ['allowed' => false, 'message' => 'You need an active plan to access this exam.'];
             }
         }
 

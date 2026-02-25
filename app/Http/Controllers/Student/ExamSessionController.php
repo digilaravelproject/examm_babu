@@ -68,7 +68,7 @@ class ExamSessionController extends Controller
             $maxAttempts = $exam->settings['no_of_attempts'] ?? 0;
 
             if (! $isAdmin && $maxAttempts > 0 && $attemptsCount >= $maxAttempts) {
-                return redirect()->back()->with('error', __('Maximum attempts reached.'));
+                return redirect()->back()->with('error', 'Maximum attempts reached.');
             }
 
             $accessCheck = $this->repository->checkAccess($schedule, $user);
@@ -86,11 +86,11 @@ class ExamSessionController extends Controller
             if (! $isAdmin && $exam->is_paid && ! $hasSubscription) {
                 if ($exam->can_redeem) {
                     if ($user->balance < $exam->points_required) {
-                        return redirect()->back()->with('error', __('Insufficient points and no active subscription.'));
+                        return redirect()->back()->with('error', 'Insufficient points and no active subscription.');
                     }
                     $user->withdraw($exam->points_required, ['description' => 'Attempt: ' . $exam->title]);
                 } else {
-                    return redirect()->back()->with('error', __('You need an active subscription plan to access this exam.'));
+                    return redirect()->back()->with('error', 'You need an active subscription plan to access this exam.');
                 }
             }
 
@@ -268,8 +268,8 @@ class ExamSessionController extends Controller
             }
 
             // Load full question model to get 'question' text for FIB regex
-            $question = Question::with('questionType')->find($request->question_id);
-            $section = ExamSection::find($request->section_id);
+            $question = Question::with('questionType')->findOrFail($request->question_id);
+            $section = ExamSection::findOrFail($request->section_id);
 
             // Correctness evaluation
             $isCorrect = false;
