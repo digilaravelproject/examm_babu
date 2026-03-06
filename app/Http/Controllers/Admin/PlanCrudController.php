@@ -64,21 +64,8 @@ class PlanCrudController extends Controller
     {
 
         $data = $request->validated();
-
-        // 2. Features extract karein
-        $features = $data['features'] ?? [];
-        unset($data['features']);
-
-        // 3. Default Category Type
-        $data['category_type'] = \App\Models\MicroCategory::class;
-
-        // 4. Create Plan
-        $plan = Plan::create($data);
-
-        // 5. Sync Features only if Restrictions are ENABLED
-        if (!empty($features) && $data['feature_restrictions'] == 1) {
-            $plan->features()->sync($features);
-        }
+        $data['category_type'] = MicroCategory::class;
+        Plan::create($data);
 
         return redirect()->route('admin.plans.index')->with('success', 'Plan created successfully!');
     }
@@ -90,8 +77,8 @@ class PlanCrudController extends Controller
 
     public function edit(Plan $plan)
     {
-        $microCategories = \App\Models\MicroCategory::select(['id', 'name'])->active()->get();
-        $features = \App\Models\Feature::select(['id', 'name'])->active()->get();
+        $microCategories = MicroCategory::select(['id', 'name'])->active()->get();
+        $features = Feature::select(['id', 'name'])->active()->get();
         $selectedFeatures = $plan->features()->pluck('features.id')->toArray();
 
         return view('admin.plans.edit', compact('plan', 'microCategories', 'features', 'selectedFeatures'));
@@ -102,60 +89,13 @@ class PlanCrudController extends Controller
      */
      public function update(UpdatePlanRequest $request, Plan $plan): RedirectResponse
     {
-        if (config('qwiktest.demo_mode')) {
-            return back()->with('error', "Demo Mode! Plans can't be changed.");
-        }
-
-        // 1. Data Get (Validated & Cleaned by Request class)
         $data = $request->validated();
-
-        // --- FIX START ---
-        // Extract features to a variable and remove it from the $data array
-        $features = $data['features'] ?? [];
-        unset($data['features']);
-        // --- FIX END ---
-
-        // 2. Update Plan (Now $data only contains columns that actually exist in the DB)
         $plan->update($data);
-
-        // 3. Sync Features
-        if (isset($data['feature_restrictions']) && $data['feature_restrictions'] == 1) {
-             $plan->features()->sync($features);
-        } else {
-             $plan->features()->detach();
-        }
-
-        return redirect()->route('admin.plans.index')->with('success', 'Plan was successfully updated!');
-    }
-    public function update_old(UpdatePlanRequest $request, Plan $plan): RedirectResponse
-    {
-        if (config('qwiktest.demo_mode')) {
-            return back()->with('error', "Demo Mode! Plans can't be changed.");
-        }
-
-        // 1. Data Get (Validated & Cleaned by Request class)
-        $data = $request->validated();
-
-        // 2. Update Plan
-        $plan->update($data);
-        if ($data['feature_restrictions'] == 1) {
-             $featureIds = $request->features ?? [];
-             $plan->features()->sync($featureIds);
-        } else {
-             $plan->features()->detach();
-        }
-
         return redirect()->route('admin.plans.index')->with('success', 'Plan was successfully updated!');
     }
 
     public function destroy(Plan $plan)
     {
-        if (config('qwiktest.demo_mode')) {
-            return response()->json([
-                'success' => false,
-                'message' => "Demo Mode! Plans can't be deleted."
-            ], 403);
-        }
 
         try {
             DB::transaction(function () use ($plan) {

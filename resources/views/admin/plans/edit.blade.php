@@ -94,42 +94,6 @@
                     </div>
                 </div>
 
-                {{-- 5. Feature Access Section --}}
-                <div class="border-t border-gray-100 pt-4">
-                    <div class="flex items-center justify-between">
-                        <div class="pr-4">
-                            <span class="block text-xs font-bold text-gray-700 uppercase">Feature Access</span>
-                            <span class="text-[10px] text-gray-500 leading-tight block mt-1">
-                                <span x-show="!restrictedAccess" class="text-green-600 font-semibold">Unlimited</span>
-                                <span x-show="restrictedAccess" class="text-orange-600 font-semibold">Restricted</span>
-                                (Access based on selection).
-                            </span>
-                        </div>
-                        <label class="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" name="feature_restrictions" value="1" x-model="restrictedAccess"
-                                {{ $plan->feature_restrictions ? 'checked' : '' }} class="sr-only peer">
-                            <div
-                                class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#10b981]">
-                            </div>
-                        </label>
-                    </div>
-
-                    <div x-show="restrictedAccess" style="display: none;"
-                        class="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200 max-h-48 overflow-y-auto">
-                        <label class="block text-xs font-bold text-gray-700 uppercase mb-2">Select Features <span
-                                class="text-red-500">*</span></label>
-                        <div class="space-y-2">
-                            @foreach ($features as $feature)
-                                <label class="flex items-center hover:bg-gray-100 p-1 rounded cursor-pointer">
-                                    <input type="checkbox" name="features[]" value="{{ $feature->id }}"
-                                        {{ in_array($feature->id, $selectedFeatures) ? 'checked' : '' }}
-                                        class="rounded text-[#10b981] focus:ring-[#10b981] border-gray-300">
-                                    <span class="ml-2 text-sm text-gray-700">{{ $feature->name }}</span>
-                                </label>
-                            @endforeach
-                        </div>
-                    </div>
-                </div>
 
                 {{-- 6. Short Description --}}
                 <div>
