@@ -85,11 +85,14 @@ class CheckoutController extends Controller
                 ->where('category_id', $plan->category_id)
                 ->where('status', 'active')
                 ->where('ends_at', '>', now())
-                ->exists();
+                ->first();
 
             if ($hasActiveSub) {
                 ReferralService::handleRevisitReward($user, $plan);
-                return redirect()->back()->withErrors(['error' => 'You already have an active subscription for this category.']);
+                return redirect()->route('student.exams.dashboard')->with([
+                    'error' => 'This plan is already active.',
+                    'highlight_plan_id' => $hasActiveSub->plan_id
+                ]);
             }
 
             $orderSummary = $this->checkoutRepo->orderSummary($plan);
@@ -212,14 +215,14 @@ private function processFreePlan($user, $plan, $orderSummary): RedirectResponse
                 ->where('category_id', $plan->category_id)
                 ->where('status', 'active')
                 ->where('ends_at', '>', now())
-                ->exists();
+                ->first();
 
             if ($hasActiveSub) {
                 ReferralService::handleRevisitReward($user, $plan);
-                $categoryName = $plan->category->name ?? $plan->name ?? 'this plan';
-                return redirect()
-                    ->route('student.exams.dashboard')
-                    ->with(['error' => "You already have an active subscription for {$categoryName}."]);
+                return redirect()->route('student.exams.dashboard')->with([
+                    'error' => 'This plan is already active.',
+                    'highlight_plan_id' => $hasActiveSub->plan_id
+                ]);
             }
 
             $paymentRefId = 'free_' . Str::random(16);

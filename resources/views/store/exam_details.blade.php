@@ -165,7 +165,7 @@
                                     <div class="p-6 pt-4">
                                         {{-- Pricing --}}
                                         <div class="mb-6">
-                                            <div class="flex items-center gap-2 items-baseline">
+                                            <div class="flex items-baseline gap-2">
                                                 <span class="text-4xl font-extrabold text-slate-900">
                                                     {{ $siteSettings->currency_symbol ?? '₹' }}{{ $sellingPrice }}
                                                 </span>
@@ -203,14 +203,14 @@
                                                 @endforeach
                                             @else
                                                 {{-- Fallback Features if none in DB --}}
-                                                <li class="flex items-start gap-3 text-sm text-slate-600">
+                                                {{-- <li class="flex items-start gap-3 text-sm text-slate-600">
                                                     <svg class="w-5 h-5 text-green-500 flex-shrink-0" fill="none"
                                                         viewBox="0 0 24 24" stroke="currentColor">
                                                         <path stroke-linecap="round" stroke-linejoin="round"
                                                             stroke-width="2" d="M5 13l4 4L19 7" />
                                                     </svg>
                                                     <span>Comprehensive study material.</span>
-                                                </li>
+                                                </li> --}}
                                                 <li class="flex items-start gap-3 text-sm text-slate-600">
                                                     <svg class="w-5 h-5 text-green-500 flex-shrink-0" fill="none"
                                                         viewBox="0 0 24 24" stroke="currentColor">

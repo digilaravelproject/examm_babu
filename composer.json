@@ -28,7 +28,7 @@
         "spatie/laravel-permission": "^6.23",
         "spatie/laravel-schemaless-attributes": "^2.5",
         "spatie/laravel-settings": "^3.6",
-        "znck/belongs-to-through": "^2.2"
+        "staudenmeir/belongs-to-through": "^2.17"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",

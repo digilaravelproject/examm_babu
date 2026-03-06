@@ -132,7 +132,9 @@
                         </button>
 
                         {{-- Mega Menu Dropdown --}}
-                        <div x-show="megaMenu === 'exams'" x-data="{ activeCat: 'Police Exams' }"
+                        <div x-show="megaMenu === 'exams'"
+                            x-init="$watch('megaMenu', value => { if(value === 'exams' && !activeCat) activeCat = Object.keys({{ json_encode($examCategories) }})[0] })"
+                            x-data="{ activeCat: null }"
                             x-transition:enter="transition ease-out duration-200"
                             x-transition:enter-start="opacity-0 translate-y-4"
                             x-transition:enter-end="opacity-100 translate-y-0"
@@ -145,15 +147,19 @@
                             {{-- Sidebar --}}
                             <div class="w-1/3 py-3 overflow-y-auto border-r bg-slate-50 border-slate-100 custom-scrollbar">
                                 @foreach ($examCategories as $catName => $data)
-                                    <button @mouseenter="activeCat = '{{ $catName }}'"
+                                    <button
+                                        @mouseenter="activeCat = '{{ $catName }}'"
+                                        @click="window.location.href = '{{ route('store.categories.show', $data['slug']) }}'"
                                         class="flex items-center w-full gap-3 px-5 py-3 text-sm font-bold text-left transition-all duration-200 border-l-4"
                                         :class="activeCat === '{{ $catName }}' ? 'bg-white shadow-sm border-[var(--brand-blue)] text-[var(--brand-blue)]' : 'text-slate-600 border-transparent hover:bg-slate-100'">
-                                        <img
-                                            src="{{ $data['icon'] }}"
-                                            onerror="this.src='{{ asset('storage/site_images/def_cat_logo.jpg') }}'"
-                                            class="object-contain w-10 h-10 rounded-full"
-                                            alt="Category Icon"
-                                        />
+
+                                        @if($data['icon'])
+                                            <img src="{{ $data['icon'] }}" class="object-contain w-10 h-10 rounded-full" alt="{{ $catName }}">
+                                        @else
+                                            <div class="flex items-center justify-center w-10 h-10 font-bold text-white rounded-full bg-slate-300 text-md">
+                                                {{ $data['first_letter'] }}
+                                            </div>
+                                        @endif
 
                                         {{ $catName }}
                                         <svg x-show="activeCat === '{{ $catName }}'" class="w-4 h-4 ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -169,13 +175,16 @@
                                     <div x-show="activeCat === '{{ $catName }}'" class="flex flex-col h-full" style="display: none;">
                                         <div class="flex items-center justify-between pb-2 mb-4 border-b border-slate-100">
                                             <h3 class="flex items-center gap-2 text-lg font-extrabold text-slate-800">
-                                                <img
-                                                    src="{{ $data['icon'] }}"
-                                                    onerror="this.src='{{ asset('storage/site_images/def_cat_logo.jpg') }}'"
-                                                    class="object-contain w-10 h-10 rounded-full"
-                                                    alt="Category Icon"
-                                                /> Popular {{ $catName }}
+                                                @if($data['icon'])
+                                                    <img src="{{ $data['icon'] }}" class="object-contain w-10 h-10 rounded-full" alt="{{ $catName }}">
+                                                @else
+                                                    <div class="flex items-center justify-center w-10 h-10 font-bold text-white rounded-full bg-slate-300 text-md">
+                                                        {{ $data['first_letter'] }}
+                                                    </div>
+                                                @endif
+                                                Popular {{ $catName }}
                                             </h3>
+                                            <a href="{{ route('store.categories.show', $data['slug']) }}" class="text-xs font-bold text-blue-600 hover:underline">View All</a>
                                         </div>
 
                                         <div class="space-y-3" x-data="{ openSub: null }">
@@ -183,27 +192,35 @@
                                                 <div class="border rounded-lg border-slate-100">
 
                                                     {{-- Subcategory Row --}}
-                                                    <div class="flex items-center justify-between px-4 py-3 transition hover:bg-slate-50">
+                                                    <div class="flex items-center justify-between px-4 py-3 transition cursor-pointer hover:bg-slate-50"
+                                                        @if (count($sub['micro_categories']) > 0)
+                                                            @click="openSub === {{ $sub['id'] }} ? openSub = null : openSub = {{ $sub['id'] }}"
+                                                        @else
+                                                            @click="window.location.href = '{{ route('exam_details.subcategory', $sub['id']) }}'"
+                                                        @endif
+                                                    >
 
-                                                        {{-- Subcategory CLICKABLE --}}
-                                                        <a href="{{ route('exam_details.subcategory', $sub['id']) }}"
-                                                        class="text-sm font-semibold text-slate-700 hover:text-[var(--brand-blue)]">
+                                                        {{-- Subcategory Label --}}
+                                                        <span class="text-sm font-semibold text-slate-700 hover:text-[var(--brand-blue)]">
                                                             {{ $sub['name'] }}
-                                                        </a>
+                                                        </span>
 
                                                         {{-- Arrow ONLY if micro category exists --}}
                                                         @if (count($sub['micro_categories']) > 0)
-                                                            <button
-                                                                @click.stop="openSub === {{ $sub['id'] }} ? openSub = null : openSub = {{ $sub['id'] }}"
-                                                                class="text-slate-400 hover:text-[var(--brand-blue)] transition"
-                                                            >
+                                                            <div class="text-slate-400">
                                                                 <svg class="w-4 h-4 transition-transform duration-200"
                                                                     :class="openSub === {{ $sub['id'] }} ? 'rotate-180' : ''"
                                                                     fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                                         d="M19 9l-7 7-7-7" />
                                                                 </svg>
-                                                            </button>
+                                                            </div>
+                                                        @else
+                                                            <div class="text-slate-300">
+                                                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                                                                </svg>
+                                                            </div>
                                                         @endif
                                                     </div>
 
@@ -211,12 +228,15 @@
                                                     @if (count($sub['micro_categories']) > 0)
                                                         <div x-show="openSub === {{ $sub['id'] }}"
                                                             x-collapse
-                                                            class="px-6 py-2 space-y-2 bg-slate-50">
+                                                            class="px-6 py-2 pb-4 space-y-2 bg-slate-50">
 
                                                             @foreach ($sub['micro_categories'] as $micro)
                                                                 <a href="{{ route('exam_details.microcategory', [$sub['id'], $micro['id']]) }}"
-                                                                    class="block text-sm text-slate-600 hover:text-[var(--brand-blue)] hover:translate-x-1 transition">
-                                                                        • {{ $micro['name'] }}
+                                                                    class="flex items-center justify-between text-sm text-slate-600 hover:text-[var(--brand-blue)] hover:translate-x-1 transition">
+                                                                        <span>• {{ $micro['name'] }}</span>
+                                                                        <svg class="w-3 h-3 opacity-0 group-hover:opacity-100" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                                                        </svg>
                                                                 </a>
                                                             @endforeach
 
@@ -298,7 +318,7 @@
          x-transition:leave="transition ease-in duration-300"
          x-transition:leave-start="translate-x-0"
          x-transition:leave-end="translate-x-full"
-         class="fixed inset-0 z-40 w-full h-screen overflow-y-auto bg-white md:hidden"
+         class="fixed inset-0 z-[60] w-full h-screen overflow-y-auto bg-white md:hidden"
          @click.self="mobileOpen = false"
          style="display: none;">
 
@@ -311,12 +331,61 @@
             </button>
         </div>
 
-        <div class="p-4 pb-20 space-y-3">
-            {{-- Navigation Links --}}
-            <a href="#" class="block px-4 py-3 text-lg font-semibold text-slate-800 hover:text-blue-600 transition-colors">Exams</a>
-            <a href="#" class="block px-4 py-3 text-lg font-semibold text-slate-800 hover:text-blue-600 transition-colors">Test Series</a>
+        <div class="p-4 pb-20 space-y-3" x-data="{ openCat: null, openSub: null }">
 
-            <div class="h-px my-6 bg-slate-200"></div>
+            <div class="text-xs font-bold tracking-widest uppercase text-slate-400 mb-2 px-2">Browse Exams</div>
+
+            <div class="space-y-2">
+                @foreach ($examCategories as $catName => $data)
+                    <div class="border rounded-xl border-slate-100 overflow-hidden">
+                        <div class="flex items-center justify-between px-4 py-3 bg-slate-50/50" @click="openCat === '{{ $catName }}' ? openCat = null : openCat = '{{ $catName }}'">
+                            <div class="flex items-center gap-3">
+                                @if($data['icon'])
+                                    <img src="{{ $data['icon'] }}" class="w-8 h-8 rounded-full object-contain" alt="">
+                                @else
+                                    <div class="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center font-bold text-xs text-slate-500">{{ $data['first_letter'] }}</div>
+                                @endif
+                                <span class="font-bold text-slate-700">{{ $catName }}</span>
+                            </div>
+                            <svg class="w-4 h-4 transition-transform text-slate-400" :class="openCat === '{{ $catName }}' ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </div>
+
+                        <div x-show="openCat === '{{ $catName }}'" x-collapse class="bg-white border-t border-slate-50">
+                            @foreach ($data['subcategories'] as $sub)
+                                <div class="border-b last:border-0 border-slate-50">
+                                    <div class="flex items-center justify-between px-6 py-3" @click="openSub === {{ $sub['id'] }} ? openSub = null : openSub = {{ $sub['id'] }}">
+                                        <span class="text-sm font-semibold text-slate-600">{{ $sub['name'] }}</span>
+                                        @if(count($sub['micro_categories']) > 0)
+                                            <svg class="w-3 h-3 transition-transform text-slate-300" :class="openSub === {{ $sub['id'] }} ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                            </svg>
+                                        @else
+                                            <a href="{{ route('exam_details.subcategory', $sub['id']) }}" class="text-blue-500">
+                                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                                </svg>
+                                            </a>
+                                        @endif
+                                    </div>
+
+                                    @if(count($sub['micro_categories']) > 0)
+                                        <div x-show="openSub === {{ $sub['id'] }}" x-collapse class="bg-slate-50 px-8 py-2 space-y-2">
+                                            @foreach ($sub['micro_categories'] as $micro)
+                                                <a href="{{ route('exam_details.microcategory', [$sub['id'], $micro['id']]) }}" class="block py-2 text-sm text-slate-500 active:text-blue-600">• {{ $micro['name'] }}</a>
+                                            @endforeach
+                                        </div>
+                                    @endif
+                                </div>
+                            @endforeach
+                            <a href="{{ route('store.categories.show', $data['slug']) }}" class="block p-4 text-center text-xs font-bold text-blue-600 bg-blue-50/50">View all in {{ $catName }}</a>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+
+            <div class="h-px my-6 bg-slate-100"></div>
 
             {{-- Auth Buttons --}}
             <div class="space-y-3">

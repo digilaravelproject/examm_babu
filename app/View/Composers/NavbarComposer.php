@@ -39,15 +39,15 @@ class NavbarComposer
         $examCategories = [];
 
         foreach ($categories as $category) {
-
-            $icon = $iconMap[$category->name] ?? null;
-
             $examCategories[$category->name] = [
-                'icon' => $icon ?: asset('storage/site_images/def_cat_logo.jpg'),
+                'id'    => $category->id,
+                'slug'  => $category->slug,
+                'icon'  => $category->image_path ? asset($category->image_path) : null,
+                'first_letter' => substr($category->name, 0, 1),
 
                 'subcategories' => $category->subCategories->map(function ($sub) {
                     return [
-                        'id' => $sub->id,
+                        'id'   => $sub->id,
                         'name' => $sub->name,
                         'slug' => $sub->slug ?? '#',
 
@@ -55,6 +55,7 @@ class NavbarComposer
                             return [
                                 'id'   => $micro->id,
                                 'name' => $micro->name,
+                                'slug' => $micro->slug ?? '#',
                             ];
                         })->toArray(),
                     ];

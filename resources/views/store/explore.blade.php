@@ -157,7 +157,7 @@
                                             </span>
                                         </li>
                                     @empty
-                                        <li class="text-xs italic text-slate-400">Comprehensive study material included.</li>
+                                        <li class="text-xs italic text-slate-400">Comprehensive included.</li>
                                     @endforelse
                                 </ul>
                             </div>
@@ -200,7 +200,7 @@
                     </div>
                     <h3 class="text-lg font-bold text-slate-800">Coming Soon!</h3>
                     <p class="max-w-xs mx-auto mt-2 text-sm text-slate-500">
-                        We are currently updating the study material for <span class="font-semibold text-blue-600">{{ $category->name }}</span>.
+                        We are currently updating for <span class="font-semibold text-blue-600">{{ $category->name }}</span>.
                     </p>
                     <a href="{{ route('welcome') }}" class="mt-6 text-sm font-bold text-blue-600 hover:text-blue-700 hover:underline">
                         &larr; Back to Home

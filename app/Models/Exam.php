@@ -120,6 +120,11 @@ class Exam extends Model
         return $this->hasMany(ExamSchedule::class);
     }
 
+    public function schedules(): HasMany
+    {
+        return $this->hasMany(ExamSchedule::class);
+    }
+
     public function questions(): BelongsToMany
     {
         return $this->belongsToMany(Question::class, 'exam_questions', 'exam_id', 'question_id')

@@ -25,7 +25,7 @@
             </h1>
 
             <p class="max-w-xl mx-auto text-base font-light leading-relaxed text-slate-400">
-                Select a category below to access premium mock tests and study materials.
+                Select a category below to access premium mock tests..
             </p>
         </div>
     </section>

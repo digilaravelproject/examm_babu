@@ -58,24 +58,40 @@ class ExamDashboardController extends Controller
             // --- STEP 2: Loop through subscriptions and find exams ---
             $organizedExams = [];
             foreach ($activeSubscriptions as $subscription) {
-                $schedules = ExamSchedule::query()
-                    ->whereHas('exam', function (Builder $query) use ($subscription) {
-                        $query->where('micro_category_id', $subscription->category_id)
-                            ->where('is_active', true);
-                    })
-                    ->with(['exam.subCategory:id,name', 'exam.examType:id,name'])
-                    ->orderBy('start_date', 'asc')
-                    ->active() // Scope for active schedules
+                $exams = \App\Models\Exam::query()
+                    ->where('micro_category_id', $subscription->category_id)
+                    ->where('is_active', true)
+                    ->with([
+                        'subCategory:id,name',
+                        'examType:id,name',
+                        'topic:id,name',
+                        'schedules' => function ($query) {
+                            $query->active()->orderBy('start_date', 'asc');
+                        }
+                    ])
+                    ->orderBy('sub_category_id', 'asc')
+                    ->orderBy('topic_id', 'asc')
                     ->limit(8)
                     ->get();
 
-                if ($schedules->isNotEmpty()) {
+                if ($exams->isNotEmpty()) {
                     $organizedExams[] = [
+                        'plan_id' => $subscription->plan_id,
                         'plan_name' => $subscription->plan->name ?? 'General',
                         'category_name' => $subscription->plan->microCategory->name ?? 'Exams',
-                        'schedules' => $schedules
+                        'exams' => $exams
                     ];
                 }
+            }
+
+            // Move highlight_plan_id to top
+            $highlightPlanId = session('highlight_plan_id');
+            if ($highlightPlanId) {
+                usort($organizedExams, function ($a, $b) use ($highlightPlanId) {
+                    if ($a['plan_id'] == $highlightPlanId) return -1;
+                    if ($b['plan_id'] == $highlightPlanId) return 1;
+                    return 0;
+                });
             }
 
             $attemptCounts = \App\Models\ExamSession::where('user_id', $user->id)
@@ -173,14 +189,15 @@ class ExamDashboardController extends Controller
             $user = $request->user();
             $visibleCategoryIds = $this->getSubscribedCategories($user);
 
-            // Fetch Exams
             $schedules = ExamSchedule::query()
-                ->whereHas('exam', function (Builder $query) use ($visibleCategoryIds) {
-                    $query->whereIn('micro_category_id', $visibleCategoryIds)
-                        ->where('is_active', true);
-                })
-                ->with(['exam.subCategory', 'exam.examType'])
-                ->orderBy('end_date', 'asc')
+                ->join('exams', 'exam_schedules.exam_id', '=', 'exams.id')
+                ->whereIn('exams.micro_category_id', $visibleCategoryIds)
+                ->where('exams.is_active', true)
+                ->with(['exam.subCategory', 'exam.examType', 'exam.topic'])
+                ->orderBy('exams.micro_category_id', 'asc')
+                ->orderBy('exams.sub_category_id', 'asc')
+                ->orderBy('exams.topic_id', 'asc')
+                ->select('exam_schedules.*')
                 ->active()
                 ->paginate(9);
 
@@ -208,12 +225,14 @@ class ExamDashboardController extends Controller
             $visibleCategoryIds = $this->getSubscribedCategories($user);
 
             $schedules = ExamSchedule::query()
-                ->whereHas('exam', function (Builder $query) use ($visibleCategoryIds) {
-                    $query->whereIn('micro_category_id', $visibleCategoryIds)
-                        ->where('is_active', true);
-                })
-                ->with(['exam.subCategory', 'exam.examType'])
-                ->orderBy('end_date', 'asc')
+                ->join('exams', 'exam_schedules.exam_id', '=', 'exams.id')
+                ->whereIn('exams.micro_category_id', $visibleCategoryIds)
+                ->where('exams.is_active', true)
+                ->with(['exam.subCategory', 'exam.examType', 'exam.topic'])
+                ->orderBy('exams.micro_category_id', 'asc')
+                ->orderBy('exams.sub_category_id', 'asc')
+                ->orderBy('exams.topic_id', 'asc')
+                ->select('exam_schedules.*')
                 ->active()
                 ->paginate(9);
 

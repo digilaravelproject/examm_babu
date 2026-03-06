@@ -113,7 +113,6 @@
                                                 {{-- STATS --}}
                                                 <div class="flex items-center gap-4 text-xs font-semibold text-slate-400">
                                                     <span>⏱ {{ $plan->duration ?? 30 }} Days</span>
-                                                    <span>👥 {{ rand(100, 2000) }}+ Users</span>
                                                 </div>
                                             </div>
 

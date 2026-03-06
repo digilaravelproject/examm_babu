@@ -60,12 +60,30 @@
     {{-- ORGANIZED SECTIONS BY PLAN --}}
     @if(count($organizedExams) > 0)
 
+        @php $isFirstSection = true; @endphp
         @foreach($organizedExams as $section)
-            <div class="mb-12">
+            @php
+                $isHighlighted = session('highlight_plan_id') == $section['plan_id'];
+            @endphp
+
+            @if($isHighlighted)
+                <div class="mb-4">
+                    <h2 class="text-xl font-bold text-green-600 flex items-center gap-2">
+                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        Active Plan (Highlighted)
+                    </h2>
+                </div>
+            @elseif(session('highlight_plan_id') && !$isFirstSection && $loop->index == 1)
+                <div class="mb-6 mt-12 pb-2 border-b-2 border-slate-200">
+                    <h2 class="text-xl font-bold text-slate-800">Other Plans</h2>
+                </div>
+            @endif
+
+            <div class="mb-12 {{ $isHighlighted ? 'p-6 bg-green-50/50 border-2 border-green-500 rounded-2xl shadow-sm' : '' }}">
                 {{-- ✨ Enhanced Section Header --}}
                 <div class="flex items-start gap-4 mb-6">
                     {{-- Icon Box --}}
-                    <div class="flex items-center justify-center w-12 h-12 bg-white border shadow-sm rounded-xl border-slate-200" style="color: var(--brand-blue);">
+                    <div class="flex items-center justify-center w-12 h-12 bg-white border shadow-sm rounded-xl {{ $isHighlighted ? 'border-green-200 text-green-600' : 'border-slate-200' }}" style="{{ !$isHighlighted ? 'color: var(--brand-blue);' : '' }}">
                         <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                         </svg>
@@ -73,8 +91,13 @@
 
                     {{-- Text Content --}}
                     <div>
-                        <h3 class="text-xl font-bold leading-tight text-slate-900">
+                        <h3 class="text-xl font-bold leading-tight text-slate-900 flex items-center">
                             {{ $section['plan_name'] }}
+                            @if($isHighlighted)
+                                <span class="ml-3 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-800">
+                                    Status: Active
+                                </span>
+                            @endif
                         </h3>
                         <div class="mt-1.5 flex items-center">
                             {{-- Category Badge --}}
@@ -86,32 +109,53 @@
                     </div>
                 </div>
 
-                {{-- Horizontal Scrollable Grid for this Plan --}}
-                <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                    @foreach($section['schedules'] as $schedule)
+                {{-- Group Exams by Subject --}}
+                @php
+                    $groupedExams = $section['exams']->groupBy(function($exam) {
+                        return $exam->subCategory->name ?? 'Uncategorized';
+                    });
+                @endphp
+
+                @foreach($groupedExams as $subjectName => $subjectExams)
+                    <div class="mb-8 last:mb-0">
+                        <h4 class="mb-4 text-lg font-bold text-slate-800 border-b border-slate-200 pb-2 flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-[var(--brand-blue)]"></span>
+                            {{ $subjectName }}
+                        </h4>
+                        <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                            @foreach($subjectExams as $exam)
 
                         {{-- 🟢 TIMEZONE FIXED LOGIC --}}
                         @php
+                            $schedule = $exam->schedules->first();
                             $adminTimezone = 'Asia/Kolkata';
-                            $startDateStr = \Carbon\Carbon::parse($schedule->start_date)->format('Y-m-d');
-                            $startDt = \Carbon\Carbon::createFromFormat('Y-m-d H:i:s', $startDateStr . ' ' . $schedule->start_time, $adminTimezone);
 
-                            if($schedule->end_date) {
-                                $endDateStr = \Carbon\Carbon::parse($schedule->end_date)->format('Y-m-d');
-                                $endTimeStr = $schedule->end_time ?? '23:59:59';
-                                $endDt = \Carbon\Carbon::createFromFormat('Y-m-d H:i:s', $endDateStr . ' ' . $endTimeStr, $adminTimezone);
-                            } else {
-                                if($schedule->schedule_type == 'fixed') {
-                                    $endDt = $startDt->copy()->addMinutes($schedule->grace_period ?? 30);
+                            $isDeactivated = !$schedule;
+                            $isUpcoming = false;
+                            $isExpired = false;
+                            $isLive = false;
+
+                            if ($schedule) {
+                                $startDateStr = \Carbon\Carbon::parse($schedule->start_date)->format('Y-m-d');
+                                $startDt = \Carbon\Carbon::createFromFormat('Y-m-d H:i:s', $startDateStr . ' ' . $schedule->start_time, $adminTimezone);
+
+                                if($schedule->end_date) {
+                                    $endDateStr = \Carbon\Carbon::parse($schedule->end_date)->format('Y-m-d');
+                                    $endTimeStr = $schedule->end_time ?? '23:59:59';
+                                    $endDt = \Carbon\Carbon::createFromFormat('Y-m-d H:i:s', $endDateStr . ' ' . $endTimeStr, $adminTimezone);
                                 } else {
-                                    $endDt = $startDt->copy()->addYears(1);
+                                    if($schedule->schedule_type == 'fixed') {
+                                        $endDt = $startDt->copy()->addMinutes($schedule->grace_period ?? 30);
+                                    } else {
+                                        $endDt = $startDt->copy()->addYears(1);
+                                    }
                                 }
-                            }
 
-                            $now = now()->setTimezone($adminTimezone);
-                            $isUpcoming = $now->lt($startDt);
-                            $isExpired = $now->gt($endDt);
-                            $isLive = !$isUpcoming && !$isExpired;
+                                $now = now()->setTimezone($adminTimezone);
+                                $isUpcoming = $now->lt($startDt);
+                                $isExpired = $now->gt($endDt);
+                                $isLive = !$isUpcoming && !$isExpired;
+                            }
                         @endphp
 
                         {{-- ✨ Enhanced Card --}}
@@ -120,12 +164,23 @@
                             {{-- Card Header --}}
                             <div class="flex-1 p-5">
                                 <div class="flex items-start justify-between mb-3">
-                                    <span class="px-2 py-1 text-[10px] font-bold text-slate-600 bg-slate-100 rounded border border-slate-200">
-                                        {{ $schedule->exam->examType->name ?? 'Test' }}
-                                    </span>
+                                    <div class="flex flex-wrap gap-2">
+                                        <span class="px-2 py-1 text-[10px] font-bold text-slate-600 bg-slate-100 rounded border border-slate-200">
+                                            {{ $exam->subCategory->name ?? 'Subject' }}
+                                        </span>
+                                        @if($exam->topic)
+                                        <span class="px-2 py-1 text-[10px] font-bold text-slate-600 bg-slate-100 rounded border border-slate-200">
+                                            {{ $exam->topic->name }}
+                                        </span>
+                                        @endif
+                                    </div>
 
                                     {{-- Status Badge --}}
-                                    @if($isLive)
+                                    @if($isDeactivated)
+                                        <span class="px-2 py-1 text-[10px] font-bold text-slate-500 bg-slate-200 rounded-full border border-slate-300 uppercase tracking-wider">
+                                            Deactivated
+                                        </span>
+                                    @elseif($isLive)
                                         <span class="flex items-center gap-1.5 px-2 py-1 bg-red-50 text-red-600 rounded-full border border-red-100">
                                             <span class="relative flex w-2 h-2">
                                               <span class="absolute inline-flex w-full h-full bg-red-400 rounded-full opacity-75 animate-ping"></span>
@@ -149,87 +204,91 @@
                                     style="transition: color 0.3s;"
                                     onmouseover="this.style.color='var(--brand-blue)'"
                                     onmouseout="this.style.color=''"
-                                    title="{{ $schedule->exam->title }}">
-                                    {{ $schedule->exam->title }}
+                                    title="{{ $exam->title }}">
+                                    {{ $exam->title }}
                                 </h4>
 
                                 {{-- Time Details --}}
+                                @if($schedule)
                                 <div class="flex items-center gap-2 mt-3 text-xs font-medium text-slate-500">
                                     <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                                     <span>{{ $startDt->format('d M Y') }}</span>
                                     <span class="text-slate-300">|</span>
                                     <span>{{ $startDt->format('h:i A') }}</span>
                                 </div>
+                                @endif
                             </div>
 
                             {{-- Card Footer / Action --}}
 <div class="p-4 border-t border-slate-100 bg-slate-50/50 rounded-b-xl">
+    @if($isDeactivated)
+        <button disabled class="w-full py-2.5 text-xs font-bold text-slate-500 bg-slate-200 rounded-lg border border-slate-300 cursor-not-allowed">
+            Status: Deactivated
+        </button>
+    @else
+        @php
+            // 1. Get Attempts Taken
+            $attemptsTaken = $attemptCounts[$schedule->id] ?? 0;
 
-    @php
-        // 1. Get Attempts Taken
-        $attemptsTaken = $attemptCounts[$schedule->id] ?? 0;
+            // 2. Get Max Attempts from Settings (Default to 0/Unlimited if null)
+            $settings = $exam->settings;
+            $maxAttempts = $settings['no_of_attempts'] ?? 0;
 
-        // 2. Get Max Attempts from Settings (Default to 0/Unlimited if null)
-        // Ensure 'settings' is cast to array/collection in Model or access via array key
-        $settings = $schedule->exam->settings;
-        $maxAttempts = $settings['no_of_attempts'] ?? 0;
+            // 3. Logic: Lock only if Limit is set (>0) AND Taken >= Limit
+            $isLimitReached = ($maxAttempts > 0 && $attemptsTaken >= $maxAttempts);
+        @endphp
 
-        // 3. Logic: Lock only if Limit is set (>0) AND Taken >= Limit
-        $isLimitReached = ($maxAttempts > 0 && $attemptsTaken >= $maxAttempts);
-    @endphp
+        @if(!$exam->is_paid || in_array($exam->micro_category_id, $subscribedCategoryIds))
 
-    @if(!$schedule->exam->is_paid || in_array($schedule->exam->micro_category_id, $subscribedCategoryIds))
+            @if($isLimitReached)
+                {{-- 🛑 CONDITION 1: LIMIT REACHED --}}
+                <button disabled class="w-full py-2.5 text-xs font-bold text-red-600 bg-red-50 rounded-lg border border-red-100 cursor-not-allowed flex items-center justify-center gap-2 opacity-80">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    Max Attempts Reached ({{ $attemptsTaken }}/{{ $maxAttempts }})
+                </button>
 
-        @if($isLimitReached)
-            {{-- 🛑 CONDITION 1: LIMIT REACHED --}}
-            <button disabled class="w-full py-2.5 text-xs font-bold text-red-600 bg-red-50 rounded-lg border border-red-100 cursor-not-allowed flex items-center justify-center gap-2 opacity-80">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
-                Max Attempts Reached ({{ $attemptsTaken }}/{{ $maxAttempts }})
-            </button>
+            @elseif($isUpcoming)
+                 {{-- ⏳ CONDITION 2: UPCOMING --}}
+                 <button disabled class="w-full py-2.5 text-xs font-bold text-slate-400 bg-slate-100 rounded-lg border border-slate-200 cursor-not-allowed flex items-center justify-center gap-2">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Starts {{ $startDt->diffForHumans() }}
+                </button>
 
-        @elseif($isUpcoming)
-             {{-- ⏳ CONDITION 2: UPCOMING --}}
-             {{-- ... (Same as your old code) ... --}}
-             <button disabled class="w-full py-2.5 text-xs font-bold text-slate-400 bg-slate-100 rounded-lg border border-slate-200 cursor-not-allowed flex items-center justify-center gap-2">
-                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                Starts {{ $startDt->diffForHumans() }}
-            </button>
+            @elseif($isExpired)
+                {{-- ❌ CONDITION 3: EXPIRED --}}
+                 <button disabled class="w-full py-2.5 text-xs font-bold text-slate-400 bg-slate-100 rounded-lg border border-slate-200 cursor-not-allowed">
+                    Test Closed
+                </button>
 
-        @elseif($isExpired)
-            {{-- ❌ CONDITION 3: EXPIRED --}}
-             {{-- ... (Same as your old code) ... --}}
-             <button disabled class="w-full py-2.5 text-xs font-bold text-slate-400 bg-slate-100 rounded-lg border border-slate-200 cursor-not-allowed">
-                Test Closed
-            </button>
+            @else
+                {{-- 🚀 CONDITION 4: LIVE / READY TO START --}}
+                <a href="{{ route('student.exam.start', $schedule->id) }}"
+                   class="w-full inline-flex justify-center items-center py-2.5 text-xs font-bold rounded-lg transition-colors shadow-sm btn-brand-action">
+                    @if($attemptsTaken > 0)
+                        Retake Exam ({{ $attemptsTaken }} Done) &rarr;
+                    @else
+                        Attempt Now &rarr;
+                    @endif
+                </a>
+            @endif
 
         @else
-            {{-- 🚀 CONDITION 4: LIVE / READY TO START --}}
-            {{-- Show Attempt Button (Even if attempted before, as long as limit not reached) --}}
-            <a href="{{ route('student.exam.start', $schedule->id) }}"
-               class="w-full inline-flex justify-center items-center py-2.5 text-xs font-bold rounded-lg transition-colors shadow-sm btn-brand-action">
-                @if($attemptsTaken > 0)
-                    Retake Exam ({{ $attemptsTaken }} Done) &rarr;
-                @else
-                    Attempt Now &rarr;
-                @endif
+            {{-- 🔒 LOCKED --}}
+             <a href="#" class="w-full inline-flex justify-center items-center py-2.5 text-xs font-bold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors">
+                Unlock Test
             </a>
         @endif
-
-    @else
-        {{-- 🔒 LOCKED --}}
-        {{-- ... (Same as your old code) ... --}}
-         <a href="#" class="w-full inline-flex justify-center items-center py-2.5 text-xs font-bold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors">
-            Unlock Test
-        </a>
     @endif
 </div>
                         </div>
-                    @endforeach
-                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endforeach
             </div>
         @endforeach
 

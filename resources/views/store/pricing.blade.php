@@ -22,7 +22,7 @@
                 Choose Your Success Plan
             </h1>
             <p class="max-w-2xl mx-auto text-sm font-light leading-relaxed md:text-base text-blue-100/90">
-                Unlimited access to mock tests, quizzes, and study material. Start your journey today.
+                Unlimited access to mock tests, quizzes. Start your journey today.
             </p>
         </div>
     </section>
@@ -153,7 +153,7 @@
                                                         </span>
                                                     </li>
                                                 @empty
-                                                    <li class="text-xs italic text-slate-400">Comprehensive study material.</li>
+                                                    <li class="text-xs italic text-slate-400">Comprehensive.</li>
                                                 @endforelse
                                             </ul>
                                         </div>

@@ -8,13 +8,13 @@ use App\Models\Category;
 use App\Models\Feature;
 use App\Models\SubCategory;
 use App\Models\MicroCategory;
-use App\Models\Plan; // Make sure to import Plan
+// use App\Models\Plan; // Make sure to import Plan
 use App\Settings\HomePageSettings;
 use App\Settings\PaymentSettings;
 use App\Settings\SiteSettings;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Support\FacadesLog;
+// use Illuminate\Support\FacadesLog;
 use Illuminate\Http\Request;
 use App\Models\Exam;
 
@@ -415,28 +415,31 @@ class SiteController extends Controller
         SiteSettings $siteSettings
     ) {
         try {
-            $subCategory   = (int) $request->route('subCategory');
-            $microCategory = (int) $request->route('microCategory');
+            $subCategoryId   = (int) $request->route('subCategory');
+            $microCategoryId = (int) $request->route('microCategory');
 
-            // 1. Fetch Exams (Subjects like Math, Geometry)
-            $examsQuery = Exam::where('micro_category_id', $microCategory)
+            // 1. Fetch Exams
+            $examsQuery = Exam::where('sub_category_id', $subCategoryId)
                 ->with(['subCategory', 'microCategory'])
                 ->orderBy('title');
 
+            // Filter by micro category if provided
+            if ($microCategoryId) {
+                $examsQuery->where('micro_category_id', $microCategoryId);
+            }
+
             $exams = $examsQuery->get();
 
-            // 2. Fetch MicroCategory with Plans (For Pricing Card)
-            $microCategoryModel = MicroCategory::with(['plans' => function ($q) {
+            // 2. Fetch Models for view
+            $subCategoryModel = SubCategory::findOrFail($subCategoryId);
+            $microCategoryModel = $microCategoryId ? MicroCategory::with(['plans' => function ($q) {
                 $q->where('is_active', true)->orderBy('sort_order');
-            }])->findOrFail($microCategory);
-
-            // 3. Also get SubCategory for breadcrumb/display
-            $subCategoryModel = SubCategory::find($subCategory);
+            }])->find($microCategoryId) : null;
 
             return view('store.exam_details', [
                 'exams'            => $exams,
-                'subCategory'      => $subCategoryModel, // For breadcrumb
-                'microCategory'    => $microCategoryModel, // For plans and title
+                'subCategory'      => $subCategoryModel,
+                'microCategory'    => $microCategoryModel,
                 'siteSettings'     => $siteSettings,
                 'homePageSettings' => $homePageSettings,
             ]);

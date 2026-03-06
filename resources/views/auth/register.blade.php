@@ -120,7 +120,7 @@
                 <div class="flex flex-col flex-wrap items-start">
                     <span class="bullet-tag">🚀 Interactive Mock Tests</span>
                     <span class="bullet-tag">📊 Detailed Performance Reports</span>
-                    <span class="bullet-tag">📚 Comprehensive Study Material</span>
+                    {{-- <span class="bullet-tag">📚 Comprehensive Study Material</span> --}}
                 </div>
             </div>
 

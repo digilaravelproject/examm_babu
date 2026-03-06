@@ -10,16 +10,20 @@
 
         <div>
             <div class="flex flex-col pr-4 mb-2">
-                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                    {{ $schedule->exam->examType->name ?? 'Exam' }}
-                </span>
+                <div class="flex flex-wrap gap-2 mb-1">
+                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        {{ $schedule->exam->subCategory->name ?? 'Subject' }}
+                    </span>
+                    @if($schedule->exam->topic)
+                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        • {{ $schedule->exam->topic->name }}
+                    </span>
+                    @endif
+                </div>
                 <h3 class="text-sm font-bold text-slate-900 leading-snug group-hover:text-[var(--brand-blue)] line-clamp-2 transition-colors">
                     {{ $schedule->exam->title }}
                 </h3>
             </div>
-            <p class="text-[11px] font-semibold text-slate-500 bg-slate-50 inline-block px-2 py-0.5 rounded border border-slate-100">
-                {{ $schedule->exam->subCategory->name }}
-            </p>
         </div>
 
         <div class="flex items-center justify-between pt-3 mt-4 border-t border-slate-100">

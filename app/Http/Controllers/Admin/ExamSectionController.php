@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Exam;
 use App\Models\ExamSection;
-use App\Models\Section;
 use App\Models\Question;
 use App\Repositories\ExamRepository;
 use Illuminate\Http\Request;
@@ -123,6 +122,7 @@ class ExamSectionController extends Controller
             $examSection->correct_marks = $request->correct_marks;
             $examSection->negative_marking_type = $request->negative_marking_type ?? 'fixed';
             $examSection->negative_marks = $request->negative_marks ?? 0;
+            $examSection->enable_negative_marking = $examSection->negative_marks > 0;
             $examSection->section_cutoff = $request->section_cutoff ?? 0;
 
             // Translation Logic
@@ -136,11 +136,7 @@ class ExamSectionController extends Controller
             if (is_array($rawSettings)) {
                 $autoDuration = $rawSettings['auto_duration'] ?? true;
             } elseif (is_object($rawSettings)) {
-                if (is_callable([$rawSettings, 'get'])) {
-                    $autoDuration = $rawSettings->get('auto_duration', true);
-                } else {
-                    $autoDuration = $rawSettings->auto_duration ?? true;
-                }
+                $autoDuration = $rawSettings->auto_duration ?? true;
             }
 
             if ($autoDuration) {
@@ -249,6 +245,7 @@ class ExamSectionController extends Controller
 
             // Explicitly set micro_category_id
             $examSection->micro_category_id = $request->micro_category_id;
+            $examSection->enable_negative_marking = $examSection->negative_marks > 0;
 
             // Ideally we should start nullifying section_id if we want to move away from it fully
             // $examSection->section_id = null;

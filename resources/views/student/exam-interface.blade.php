@@ -451,7 +451,7 @@
         </main>
 
         <!-- RIGHT: PALETTE AREA -->
-        <aside class="z-20 flex flex-col hidden bg-white border-l border-gray-300 w-80 shrink-0 md:flex">
+        <aside class="z-20 flex-col hidden bg-white border-l border-gray-300 w-80 shrink-0 md:flex">
             <!-- User Info -->
             <div class="flex items-center gap-3 p-3 border-b border-gray-200 bg-blue-50">
                 <img src="{{ $userImage }}" class="w-10 h-10 rounded shadow-sm">

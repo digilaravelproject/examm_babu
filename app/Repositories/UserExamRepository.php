@@ -375,7 +375,10 @@ class UserExamRepository
         if ($isCorrect) {
             $earned = $autoGrading ? $question->default_marks : $section->correct_marks;
         } else {
-            if ($exam->settings['enable_negative_marking'] ?? false) {
+            // APPLY NEGATIVE MARKING: If global setting is ON OR if section specifically has negative marks
+            $hasNegativeMarks = ($exam->settings['enable_negative_marking'] ?? false) || ($section->enable_negative_marking ?? false) || ($section->negative_marks > 0);
+
+            if ($hasNegativeMarks) {
                 $negativeType = $section->negative_marking_type ?? 'fixed';
                 $baseMarks = $autoGrading ? $question->default_marks : $section->correct_marks;
 

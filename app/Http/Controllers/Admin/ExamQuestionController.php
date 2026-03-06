@@ -79,8 +79,23 @@ class ExamQuestionController extends Controller
         $questionTypes = QuestionType::where('is_active', 1)->get();
         $difficultyLevels = DifficultyLevel::where('is_active', 1)->get();
 
-        $topics = Topic::where('is_active', 1)->select('id', 'name', 'skill_id')->limit(200)->get();
-        $skills = \App\Models\Skill::where('is_active', 1)->select('id', 'name')->orderBy('name')->get();
+        $topics = Topic::active()
+            ->with(['skill.microCategory.subCategory'])
+            ->limit(500)
+            ->get()
+            ->map(function ($topic) {
+                $subject = $topic->skill->name ?? 'No Subject';
+                $micro = $topic->skill->microCategory->name ?? 'No Micro';
+                $sub = $topic->skill->microCategory->subCategory->name ?? 'No SubCategory';
+
+                return [
+                    'id' => $topic->id,
+                    'skill_id' => $topic->skill_id,
+                    'name' => "{$topic->name} ({$subject} | {$micro} | {$sub})"
+                ];
+            });
+
+        $skills = \App\Models\Skill::active()->select('id', 'name')->orderBy('name')->get();
 
         $steps = $this->repository->getSteps($exam->id, 'questions');
 
