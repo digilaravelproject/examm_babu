@@ -90,6 +90,17 @@
             </div>
         </div>
 
+        {{-- Advertisement Banner START --}}
+        @if(isset($advertisement) && $advertisement)
+            <div class="px-4 py-4 md:px-8 print:px-0">
+                <a href="{{ $advertisement->link_url ?: '#' }}" target="_blank" class="block overflow-hidden rounded-xl border border-gray-100 shadow-sm transition hover:shadow-md">
+                    <img src="{{ asset('storage/' . $advertisement->image_path) }}" alt="{{ $advertisement->title }}" class="w-full h-auto object-cover max-h-32 md:max-h-48">
+                </a>
+                <div class="mt-1 text-[10px] text-gray-400 text-right uppercase tracking-widest print:hidden">Sponsored</div>
+            </div>
+        @endif
+        {{-- Advertisement Banner END --}}
+
         {{-- Questions List --}}
         <div class="p-4 md:p-8 bg-gray-50 print:bg-white print:p-0">
             @if(empty($reportData))
@@ -133,38 +144,119 @@
                                 {!! $q->text !!}
                             </div>
 
-                            {{-- Options --}}
+                            {{-- Options / Answers --}}
                             <div class="mb-6 space-y-3">
-                                @if(($q->type === 'MSA' || $q->type === 'MMA' || $q->type === 'TOF') && is_array($q->options))
+                                @if(in_array($q->type, ['MSA', 'MMA', 'TOF']) && is_array($q->options))
                                     @foreach($q->options as $optIdx => $opt)
                                         @php
                                             $userVal = $q->user_answer;
                                             $correctVal = $q->correct_answer;
 
-                                            if(is_array($userVal)) $isUser = in_array($optIdx, $userVal);
-                                            else $isUser = ($userVal == $optIdx);
+                                            // More robust comparison (handles strings, ints, and arrays)
+                                            $isUser = false;
+                                            if (is_array($userVal)) {
+                                                $isUser = in_array((string)$optIdx, array_map('strval', $userVal));
+                                            } else if ($userVal !== null && $userVal !== '') {
+                                                $isUser = ((string)$userVal === (string)$optIdx);
+                                            }
 
-                                            if(is_array($correctVal)) $isCorrect = in_array($optIdx, $correctVal);
-                                            else $isCorrect = ($correctVal == $optIdx);
+                                            $isCorrect = false;
+                                            if (is_array($correctVal)) {
+                                                $isCorrect = in_array((string)$optIdx, array_map('strval', $correctVal));
+                                            } else if ($correctVal !== null && $correctVal !== '') {
+                                                $isCorrect = ((string)$correctVal === (string)$optIdx);
+                                            }
 
-                                            $classes = "p-4 rounded-lg border flex justify-between items-center transition ";
+                                            $classes = "p-4 rounded-xl border-2 flex justify-between items-center transition ";
 
-                                            if ($isCorrect) $classes .= "correct-bg print:border-black print:font-bold ";
-                                            elseif ($isUser && !$isCorrect) $classes .= "wrong-bg print:border-black ";
-                                            else $classes .= "bg-white border-gray-200";
+                                            if ($isCorrect) {
+                                                $classes .= "bg-green-50 border-green-500 shadow-sm ";
+                                            } elseif ($isUser && !$isCorrect) {
+                                                $classes .= "bg-red-50 border-red-500 shadow-sm ";
+                                            } else {
+                                                $classes .= "bg-white border-gray-100 ";
+                                            }
 
-                                            if ($isUser) $classes .= " user-sel ring-2 ring-offset-1 " . ($isCorrect ? 'ring-green-500' : 'ring-red-500');
+                                            if ($isUser) {
+                                                $classes .= " ring-2 ring-offset-1 " . ($isCorrect ? 'ring-green-400' : 'ring-red-400');
+                                            }
                                         @endphp
 
                                         <div class="{{ $classes }}">
-                                            <div class="flex flex-1 gap-3">
-                                                <span class="font-bold text-gray-400 print:text-black">{{ $loop->iteration }}.</span>
-                                                <div class="text-gray-800 print:text-black">{!! $opt['option'] ?? $opt !!}</div>
+                                            <div class="flex items-center flex-1 gap-4">
+                                                <div class="flex items-center justify-center w-8 h-8 rounded-full font-bold {{ $isCorrect ? 'bg-green-600 text-white' : ($isUser ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-500') }}">
+                                                    {{ $loop->iteration }}
+                                                </div>
+                                                <div class="text-gray-800 font-medium">
+                                                    {!! is_array($opt) ? ($opt['option'] ?? '') : $opt !!}
+                                                </div>
                                             </div>
-                                            @if($isUser) <span class="text-[10px] font-bold uppercase ml-2 px-2 py-1 rounded bg-gray-700 text-white print:text-black print:border print:border-black print:bg-transparent">You</span> @endif
-                                            @if($isCorrect) <span class="text-[10px] font-bold uppercase ml-2 px-2 py-1 rounded bg-green-600 text-white print:text-black print:border print:border-black print:bg-transparent">Correct</span> @endif
+                                            <div class="flex items-center gap-3">
+                                                @if($isUser && $isCorrect)
+                                                    <div class="flex items-center gap-1.5 bg-green-100 text-green-700 px-3 py-1.5 rounded-full text-xs font-bold">
+                                                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
+                                                        Your Correct Choice
+                                                    </div>
+                                                @elseif($isUser)
+                                                    <div class="flex items-center gap-1.5 bg-red-100 text-red-700 px-3 py-1.5 rounded-full text-xs font-bold">
+                                                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
+                                                        Your Choice
+                                                    </div>
+                                                @endif
+
+                                                @if($isCorrect && !$isUser)
+                                                    <div class="flex items-center gap-1.5 bg-green-600 text-white px-3 py-1.5 rounded-full text-xs font-bold">
+                                                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
+                                                        Correct Answer
+                                                    </div>
+                                                @endif
+                                            </div>
                                         </div>
                                     @endforeach
+                                @elseif(in_array($q->type, ['MTF', 'ORD']))
+                                    <div class="space-y-4">
+                                        {{-- Correct Reference --}}
+                                        <div class="p-4 bg-green-50 border-2 border-green-200 rounded-xl">
+                                            <p class="mb-3 text-sm font-bold text-green-800 uppercase tracking-wider">Correct Solution:</p>
+                                            <div class="space-y-2">
+                                                @foreach($q->correct_answer as $cIdx => $cVal)
+                                                    <div class="flex items-center gap-3 p-2 bg-white rounded-lg border border-green-100 shadow-sm">
+                                                        <span class="flex items-center justify-center w-6 h-6 bg-green-600 text-white rounded-full text-[10px] font-bold">{{ $loop->iteration }}</span>
+                                                        <span class="text-sm font-medium text-gray-700">
+                                                            {{ is_array($cVal) ? ($cVal['value'] ?? json_encode($cVal)) : $cVal }}
+                                                        </span>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        </div>
+
+                                        {{-- User Response --}}
+                                        <div class="p-4 bg-white border-2 {{ $q->is_correct ? 'border-green-500' : 'border-red-500' }} rounded-xl shadow-sm">
+                                            <p class="mb-3 text-sm font-bold {{ $q->is_correct ? 'text-green-700' : 'text-red-700' }} uppercase tracking-wider">
+                                                Your Response: {{ $q->is_correct ? '(Perfect Match!)' : '' }}
+                                            </p>
+                                            <div class="space-y-2">
+                                                @if(is_array($q->user_answer))
+                                                    @foreach($q->user_answer as $uVal)
+                                                        @php
+                                                            $label = $uVal;
+                                                            if (isset($q->options['pairs'])) {
+                                                                foreach($q->options['pairs'] as $pair) { if($pair['id'] == $uVal) $label = $pair['value']; }
+                                                            } else if(is_array($q->options)) {
+                                                                foreach($q->options as $opt) { if(is_array($opt) && ($opt['id'] ?? null) == $uVal) $label = $opt['value']; }
+                                                            }
+                                                        @endphp
+                                                        <div class="flex items-center gap-3 p-2 {{ $q->is_correct ? 'bg-green-50' : 'bg-gray-50' }} rounded-lg border border-gray-100">
+                                                            <span class="flex items-center justify-center w-6 h-6 {{ $q->is_correct ? 'bg-green-500' : 'bg-gray-400' }} text-white rounded-full text-[10px] font-bold">{{ $loop->iteration }}</span>
+                                                            <span class="text-sm font-medium text-gray-700">{{ $label }}</span>
+                                                        </div>
+                                                    @endforeach
+                                                @else
+                                                    <p class="text-sm italic text-gray-500">Not Answered</p>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </div>
                                 @else
                                     {{-- For Text/FIB Types --}}
                                     <div class="grid grid-cols-1 gap-6 md:grid-cols-2">

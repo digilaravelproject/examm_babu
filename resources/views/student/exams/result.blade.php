@@ -185,7 +185,7 @@
                                         <p class="mt-1 text-xs text-gray-500">Teacher will receive a weekly consolidated report.</p>
                                     </div>
 
-                                    <div class="flex items-center gap-2 pt-1">
+                        <div class="flex items-center gap-2 pt-1">
                                         <input type="checkbox" id="selfCopy" x-model="selfCopy"
                                             class="w-4 h-4 text-indigo-600 rounded cursor-pointer focus:ring-indigo-500">
                                         <label for="selfCopy"
@@ -241,6 +241,20 @@
                         </div>
                     </div>
                     {{-- SHARE BUTTON END --}}
+
+                    {{-- VIEW REVIEW BUTTON START --}}
+                    <a href="{{ route('student.exams.review', $session->id) }}"
+                        class="flex items-center justify-center w-full gap-2 py-3 font-bold text-white transition bg-green-600 shadow rounded-xl hover:bg-green-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z">
+                            </path>
+                        </svg>
+                        View Detailed Review
+                    </a>
+                    {{-- VIEW REVIEW BUTTON END --}}
 
                     <a href="{{ auth()->user()->hasRole('admin') ? route('admin.dashboard') : route('student.dashboard') }}"
                         class="block w-full py-3 font-bold text-center text-gray-600 transition bg-white border-2 border-gray-200 hover:border-gray-400 hover:text-gray-800 rounded-xl">

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
 use App\Models\ExamSession;
+use App\Models\Advertisement;
 use App\Settings\EmailSettings;
 use App\Settings\SiteSettings;
 use Illuminate\Http\Request;
@@ -162,7 +163,9 @@ class ShareReportController extends Controller
             }
         }
 
-        return view('student.exams.public_report', compact('session', 'reportData', 'siteSettings'));
+        $advertisement = Advertisement::active()->where('location', 'report_banner')->inRandomOrder()->first();
+
+        return view('student.exams.public_report', compact('session', 'reportData', 'siteSettings', 'advertisement'));
     }
 
     /**

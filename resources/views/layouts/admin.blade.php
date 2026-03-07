@@ -369,6 +369,8 @@
                             class="block px-8 py-2 text-sm {{ request()->routeIs('admin.subscriptions.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Subscription</a>
                         <a href="{{ Route::has('admin.payments.index') ? route('admin.payments.index') : '#' }}"
                             class="block px-8 py-2 text-sm {{ request()->routeIs('admin.payments.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Payments</a>
+                        <a href="{{ Route::has('admin.advertisements.index') ? route('admin.advertisements.index') : '#' }}"
+                            class="block px-8 py-2 text-sm {{ request()->routeIs('admin.advertisements.*') ? 'sub-link-active' : 'text-slate-400 hover:text-white' }}">Advertisements</a>
                     </div>
                 </div>
 

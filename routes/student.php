@@ -72,6 +72,7 @@ Route::middleware(['auth', 'verified', 'role:student|admin'])->prefix('student')
         Route::post('/exam/terminate/{sessionCode}', 'terminateExam')->name('exam.terminate');
         Route::post('/exam/finish/{sessionCode}', 'finishExam')->name('exam.finish');
         Route::get('/exam/result/{sessionId}', 'showResult')->name('exams.result');
+        Route::get('/exam/review/{sessionId}', 'showReview')->name('exams.review'); // ✅ New Route for Test Review
 
         // ✅ SHARE REPORT (Sending Email requires Auth) - Moved here for Admin Access too
         Route::post('/exam/share/send/{sessionCode}', [ShareReportController::class, 'sendShareLink'])->name('exam.share.send');

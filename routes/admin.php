@@ -39,6 +39,7 @@ use App\Http\Controllers\Admin\UserGroupController;
 use App\Http\Controllers\Admin\HeroSlideController;
 use App\Http\Controllers\Admin\HomeStatController;
 use App\Http\Controllers\Admin\HomeFeatureController;
+use App\Http\Controllers\Admin\AdvertisementController;
 
 /*
 |--------------------------------------------------------------------------
@@ -245,4 +246,8 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('ad
 
     Route::resource('home-features', HomeFeatureController::class);
     Route::post('home-features/{id}/toggle', [HomeFeatureController::class, 'toggleStatus'])->name('home-features.toggle');
+
+    // Advertisements
+    Route::resource('advertisements', AdvertisementController::class);
+    Route::post('advertisements/{id}/toggle', [AdvertisementController::class, 'toggle'])->name('advertisements.toggle');
 });

@@ -9,6 +9,7 @@ use App\Http\Requests\Student\ExamUpdateAnswerRequest;
 use App\Models\ExamSchedule;
 use App\Models\ExamSection;
 use App\Models\ExamSession;
+use App\Models\Advertisement;
 use App\Models\Question;
 use App\Repositories\UserExamRepository;
 use Illuminate\Http\Request;
@@ -230,6 +231,27 @@ class ExamSessionController extends Controller
                 }, $options, array_keys($options));
             }
 
+            // --- SECURITY: Strip sensitive fields from options ---
+            if (is_array($options)) {
+                // For nested structures like MTF
+                if (isset($options['matches']) && isset($options['pairs'])) {
+                    $options['matches'] = array_map(function($o) {
+                        if (is_array($o)) { unset($o['is_correct'], $o['answer'], $o['correct_answer']); }
+                        return $o;
+                    }, $options['matches']);
+                    $options['pairs'] = array_map(function($o) {
+                        if (is_array($o)) { unset($o['is_correct'], $o['answer'], $o['correct_answer']); }
+                        return $o;
+                    }, $options['pairs']);
+                } else {
+                    // Standard list of options (Radio/Checkbox)
+                    $options = array_map(function($o) {
+                        if (is_array($o)) { unset($o['is_correct'], $o['answer'], $o['correct_answer']); }
+                        return $o;
+                    }, $options);
+                }
+            }
+
             return [
                 'id' => $q->id,
                 'text' => $q->question_text,
@@ -364,5 +386,88 @@ class ExamSessionController extends Controller
         }
 
         return view('student.exams.result', compact('session'));
+    }
+
+    /**
+     * 8. Show Review Page (Authenticated Student/Admin)
+     */
+    public function showReview($sessionId)
+    {
+        $session = ExamSession::where('id', $sessionId)
+            ->with(['exam', 'user'])
+            ->firstOrFail();
+
+        // Security: Only owner or admin/instructor can view
+        if ($session->user_id !== Auth::id() && !Auth::user()->hasAnyRole(['admin', 'instructor'])) {
+            abort(403);
+        }
+
+        // Get sections order
+        $sections = $session->exam->examSections()->orderBy('section_order')->get();
+
+        // Prefetch ALL questions in one query (Optimization)
+        $allQuestions = DB::table('exam_session_questions')
+            ->join('questions', 'exam_session_questions.question_id', '=', 'questions.id')
+            ->join('question_types', 'questions.question_type_id', '=', 'question_types.id')
+            ->leftJoin('comprehension_passages', 'questions.comprehension_passage_id', '=', 'comprehension_passages.id')
+            ->where('exam_session_questions.exam_session_id', $session->id)
+            ->orderBy('exam_session_questions.sno', 'asc')
+            ->select(
+                'exam_session_questions.exam_section_id',
+                'questions.id',
+                'questions.solution',
+                'questions.correct_answer',
+                'question_types.code as type_code',
+                'exam_session_questions.original_question as question_text',
+                'exam_session_questions.options',
+                'exam_session_questions.user_answer',
+                'exam_session_questions.status',
+                'exam_session_questions.is_correct',
+                'exam_session_questions.marks_earned',
+                'exam_session_questions.marks_deducted',
+                'comprehension_passages.body as passage_body',
+                'comprehension_passages.title as passage_title'
+            )
+            ->get();
+
+        $questionsBySection = $allQuestions->groupBy('exam_section_id');
+        $reportData = [];
+
+        foreach($sections as $section) {
+            if(isset($questionsBySection[$section->id])) {
+                $formattedQs = $questionsBySection[$section->id]->map(function($q) {
+                    return (object) [
+                        'id'             => $q->id,
+                        'text'           => $q->question_text,
+                        'type'           => $q->type_code,
+                        'options'        => $this->safeUnserialize($q->options),
+                        'user_answer'    => $this->safeUnserialize($q->user_answer),
+                        'correct_answer' => $this->safeUnserialize($q->correct_answer),
+                        'status'         => $q->status,
+                        'is_correct'     => $q->is_correct,
+                        'marks_earned'   => $q->marks_earned,
+                        'marks_deducted' => $q->marks_deducted,
+                        'explanation'    => $q->solution,
+                        'passage'        => $q->passage_body ? ['title' => $q->passage_title, 'body' => $q->passage_body] : null
+                    ];
+                });
+                $reportData[] = ['name' => $section->name, 'questions' => $formattedQs];
+            }
+        }
+
+        $siteSettings = app(\App\Settings\SiteSettings::class);
+        $advertisement = Advertisement::active()->where('location', 'report_banner')->inRandomOrder()->first();
+
+        return view('student.exams.public_report', compact('session', 'reportData', 'siteSettings', 'advertisement'));
+    }
+
+    private function safeUnserialize($data) {
+        if (is_array($data) || is_object($data)) return $data;
+        if (is_string($data)) {
+            $json = json_decode($data, true);
+            if (json_last_error() === JSON_ERROR_NONE) return $json;
+            return @unserialize($data) ?: $data;
+        }
+        return $data;
     }
 }

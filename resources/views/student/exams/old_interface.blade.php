@@ -1,3 +1,4 @@
+-- Active: 1771832095693@@127.0.0.1@3306@bizgurukul
 <!DOCTYPE html>
 <html lang="en" class="h-full select-none">
 
@@ -7,10 +8,12 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $exam->title }} - Exam Babu Interface</title>
 
+    {{-- CSS Libraries --}}
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
+    {{-- MathJax --}}
     <script>
         window.MathJax = {
             tex: {
@@ -36,6 +39,7 @@
             user-select: none;
         }
 
+        /* --- TCS iON Classic Palette --- */
         .btn-status {
             width: 40px;
             height: 35px;
@@ -111,6 +115,7 @@
             font-weight: bold;
         }
 
+        /* Scrollbars */
         ::-webkit-scrollbar {
             width: 6px;
             height: 6px;
@@ -121,6 +126,7 @@
             border-radius: 3px;
         }
 
+        /* FIB Styling Fix */
         .fib-container input {
             border: none;
             border-bottom: 2px solid #3498db;
@@ -138,6 +144,7 @@
             background: #f0fdf4;
         }
 
+        /* MTF Styles */
         .mtf-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -169,6 +176,7 @@
             background: #eff6ff;
         }
 
+        /* Loader */
         .loader {
             border: 4px solid #f3f3f3;
             border-radius: 50%;
@@ -188,6 +196,7 @@
             }
         }
 
+        /* Language Separator */
         .lang-sep {
             display: flex;
             align-items: center;
@@ -217,9 +226,12 @@
 </head>
 
 <body class="flex flex-col h-screen overflow-hidden bg-gray-100" x-data="examEngine(@js($sections), {{ $remainingSeconds }}, '{{ $session->code }}')" x-init="init()"
-    @contextmenu.prevent @keydown.f12.prevent @keydown.ctrl.shift.i.prevent>
+    @contextmenu.prevent="return false;" @keydown.f12.prevent="return false;"
+    @keydown.ctrl.shift.i.prevent="return false;">
 
-    <!-- INSTRUCTIONS MODAL -->
+    {{-- ========================================== --}}
+    {{-- 1. FULL INSTRUCTIONS MODAL (Restore) --}}
+    {{-- ========================================== --}}
     <div x-show="showInstructions" class="fixed inset-0 z-[100] bg-white overflow-y-auto" x-transition>
         <header class="sticky top-0 flex items-center h-16 px-6 text-white bg-blue-600 shadow-md">
             <h1 class="text-xl font-bold">Instructions - {{ $exam->title }}</h1>
@@ -255,6 +267,27 @@
                             question using TCS iON symbols.</li>
                     </ul>
                 </div>
+                {{--
+                <div class="p-6 border border-blue-200 shadow-sm rounded-xl bg-blue-50">
+                    <h3 class="flex items-center gap-2 mb-4 font-bold text-blue-800">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path
+                                d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5c1.382 4.06 3.868 7.428 7.042 9.5">
+                            </path>
+                        </svg>
+                        Language Preference
+                    </h3>
+                    <label class="block mb-2 text-xs font-bold text-gray-500 uppercase">Secondary Translation
+                        Language</label>
+                    <select x-model="secondaryLang"
+                        class="w-full p-3 font-bold text-gray-800 transition bg-white border-2 border-blue-300 rounded-lg focus:ring-4 focus:ring-blue-100">
+                        <option value="">-- No Translation --</option>
+                        <option value="hi">Hindi (हिन्दी)</option>
+                        <option value="mr">Marathi (मराठी)</option>
+                    </select>
+                    <p class="mt-3 text-[11px] text-blue-600 font-medium italic">* Questions will be available in
+                        English and your chosen language.</p>
+                </div> --}}
             </div>
 
             <div class="pt-6 border-t">
@@ -277,9 +310,20 @@
         </div>
     </div>
 
-    <!-- MAIN INTERFACE -->
+    {{-- ========================================== --}}
+    {{-- 2. MAIN INTERFACE --}}
+    {{-- ========================================== --}}
     <header class="h-16 bg-[#3498db] text-white flex justify-between items-center px-4 shadow-md z-50 shrink-0">
-        <div class="text-lg font-bold tracking-wide truncate max-w-md">{{ $exam->title }}</div>
+        <div class="flex items-center gap-3">
+            <button @click="showPalette = !showPalette" class="p-2 rounded md:hidden hover:bg-blue-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16">
+                    </path>
+                </svg>
+            </button>
+            <div class="text-lg font-bold tracking-wide truncate max-w-[200px] md:max-w-md">{{ $exam->title }}</div>
+        </div>
+
         <div class="flex items-center gap-6">
             <div class="text-right">
                 <span class="text-[10px] text-blue-100 uppercase font-semibold block">Time Remaining</span>
@@ -288,14 +332,14 @@
                     x-text="formatTime(timeRemaining)"></span>
             </div>
             <button @click="submitExam()"
-                class="px-5 py-2 text-sm font-bold bg-red-500 rounded shadow hover:bg-red-600 active:scale-95">Submit</button>
+                class="px-5 py-2 text-sm font-bold transition transform bg-red-500 rounded shadow hover:bg-red-600 active:scale-95">Submit</button>
         </div>
     </header>
 
     <div class="relative flex flex-1 overflow-hidden">
-        <!-- QUESTION AREA -->
+        {{-- LEFT: Main Question Area --}}
         <main class="relative flex flex-col flex-1 w-full bg-white border-gray-300 md:border-r">
-            <!-- Section Tabs -->
+            {{-- Section Tabs --}}
             <div class="flex overflow-x-auto border-b border-gray-300 bg-gray-50">
                 <template x-for="(sec, idx) in sectionsMeta" :key="sec.id">
                     <button @click="switchSection(idx)"
@@ -307,19 +351,19 @@
                 </template>
             </div>
 
-            <!-- Question Header -->
+            {{-- Question Header --}}
             <div class="flex items-center justify-between px-6 py-3 bg-white border-b border-gray-200">
-                <h2 class="text-lg font-bold text-red-600">Question No. <span x-text="currQIdx+1"></span></h2>
+                <h2 class="text-lg font-bold text-red-600">Question No. <span x-text="currQIdx + 1"></span></h2>
                 <div class="flex gap-2">
                     <span class="px-3 py-1 text-xs font-bold text-green-700 bg-green-100 rounded">Correct: +<span
                             x-text="currQ?.marks"></span></span>
                 </div>
             </div>
 
-            <!-- Question Content -->
+            {{-- Question Content Scrollable --}}
             <div class="flex-1 p-6 overflow-y-auto" x-show="!loading && currQ">
                 <div class="flex flex-col h-full gap-8 lg:flex-row">
-                    <!-- Passage -->
+                    {{-- Passage Pane --}}
                     <template x-if="currQ?.passage">
                         <div
                             class="lg:w-1/2 overflow-y-auto border border-gray-200 rounded-xl p-5 bg-gray-50 max-h-[40vh] lg:max-h-full">
@@ -329,40 +373,50 @@
                         </div>
                     </template>
 
-                    <!-- Interaction Pane -->
+                    {{-- Interaction Pane --}}
                     <div class="flex-1">
-                        <!-- Question Text -->
+                        {{-- 1. Question Text (Dual Language Support) --}}
                         <div class="mb-8">
+                            {{-- IMPORTANT: Use x-html to render text, but rely on window.updateFIB for inputs --}}
                             <div class="text-lg font-bold leading-relaxed text-gray-800" x-html="renderFIB(currQ)">
                             </div>
 
-                            <!-- Translation -->
-                            <template x-if="secondaryLang && currQ?.allow_translation && currQ?.translated_text">
-                                <div class="mt-4 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-400">
-                                    <div class="text-xs font-bold text-blue-400 uppercase tracking-widest mb-2" x-text="secondaryLang === 'hi' ? 'Hindi Translation' : 'Translation'"></div>
-                                    <div class="text-lg font-bold leading-relaxed text-blue-700" x-html="renderFIB(currQ, true)"></div>
+                            <template x-if="secondaryLang && currQ?.allow_translation">
+                                <div class="mt-6">
+                                    <div class="lang-sep"
+                                        x-text="secondaryLang === 'hi' ? 'HINDI VERSION' : 'MARATHI VERSION'"></div>
+
+                                    <template x-if="currQ.translated_text">
+                                        <div class="text-lg font-bold leading-relaxed text-blue-700"
+                                            x-html="renderFIB(currQ, true)"></div>
+                                    </template>
+
+                                    <template x-if="currQ.translated_text === null">
+                                        <div class="text-sm italic text-gray-400 animate-pulse">Translating question...
+                                        </div>
+                                    </template>
                                 </div>
                             </template>
                         </div>
 
-                        <!-- Options -->
+                        {{-- 2. Interaction Based on Type --}}
                         <div class="space-y-4">
-                            <template x-if="['MSA','TOF'].includes(currQ.type_code)">
+                            {{-- TYPE: MSA / TOF (Radio) --}}
+                            <template x-if="['MSA', 'TOF'].includes(currQ.type_code)">
                                 <div class="grid gap-3">
-                                    <template x-for="(opt,oIdx) in currQ.options" :key="oIdx">
+                                    <template x-for="(opt, oIdx) in currQ.options" :key="oIdx">
                                         <div @click="selectOption(oIdx)"
-                                            class="flex flex-col p-4 transition border-2 cursor-pointer rounded-xl hover:bg-gray-50"
-                                            :class="(currQ.selected_option == oIdx) ? 'border-blue-500 bg-blue-50' :
+                                            class="flex items-center p-4 transition border-2 cursor-pointer rounded-xl hover:bg-gray-50"
+                                            :class="currQ.selected_option === oIdx ? 'border-blue-500 bg-blue-50' :
                                                 'border-gray-200'">
-                                            <div class="flex items-center gap-2">
-                                                <div class="flex items-center justify-center w-6 h-6 mr-2 border-2 rounded-full"
-                                                    :class="(currQ.selected_option == oIdx) ? 'border-blue-600 bg-blue-600' :
-                                                        'border-gray-400'">
-                                                    <div class="w-2 h-2 bg-white rounded-full"
-                                                        x-show="currQ.selected_option == oIdx"></div>
-                                                </div>
-                                                <div x-html="typeof opt === 'object' ? opt.option : opt" class="flex-1 font-medium text-gray-700"></div>
+                                            <div class="flex items-center justify-center w-6 h-6 mr-4 border-2 rounded-full"
+                                                :class="currQ.selected_option === oIdx ? 'border-blue-600 bg-blue-600' :
+                                                    'border-gray-400'">
+                                                <div class="w-2 h-2 bg-white rounded-full"
+                                                    x-show="currQ.selected_option === oIdx"></div>
                                             </div>
+                                            <div class="flex-1 font-medium text-gray-700" x-html="opt.option"></div>
+                                            {{-- Translated Option (Show only if language is selected) --}}
                                             <template x-if="secondaryLang && opt.translated_option">
                                                 <div class="mt-1 text-sm font-bold text-blue-700"
                                                     x-html="opt.translated_option"></div>
@@ -383,7 +437,8 @@
                                                 :class="isMMAChecked(oIdx) ? 'border-blue-600 bg-blue-600' : 'border-gray-400'">
                                                 <span class="text-xs text-white" x-show="isMMAChecked(oIdx)">✔</span>
                                             </div>
-                                            <div class="flex-1 font-medium text-gray-700" x-html="typeof opt === 'object' ? opt.option : opt"></div>
+                                            <div class="flex-1 font-medium text-gray-700" x-html="opt.option"></div>
+                                            {{-- Translated Option --}}
                                             <template x-if="secondaryLang && opt.translated_option">
                                                 <div class="mt-1 text-sm font-bold text-blue-700"
                                                     x-html="opt.translated_option"></div>
@@ -406,25 +461,13 @@
                                                     <span
                                                         class="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-[10px] mr-3"
                                                         x-text="mIdx + 1"></span>
-                                                    <div class="flex-1">
-                                                        <div x-html="match.value"></div>
-                                                        <template x-if="secondaryLang && match.translated_value">
-                                                            <div class="mt-1 text-xs font-bold text-blue-600"
-                                                                x-html="match.translated_value"></div>
-                                                        </template>
-                                                    </div>
+                                                    <div x-html="match.value"></div>
                                                 </div>
                                                 <div class="mtf-right-item" draggable="true"
                                                     @dragstart="mtfDragStart($event, mIdx)" @dragover.prevent=""
                                                     @drop="mtfDrop($event, mIdx)">
-                                                    <div class="flex-1">
-                                                        <div class="font-medium text-gray-800"
-                                                            x-html="currQ.mtfPairs[mIdx].value"></div>
-                                                        <template x-if="secondaryLang && currQ.mtfPairs[mIdx].translated_value">
-                                                            <div class="mt-1 text-xs font-bold text-blue-600"
-                                                                x-html="currQ.mtfPairs[mIdx].translated_value"></div>
-                                                        </template>
-                                                    </div>
+                                                    <div class="flex-1 font-medium text-gray-800"
+                                                        x-html="currQ.mtfPairs[mIdx].value"></div>
                                                     <span class="text-gray-300">☰</span>
                                                 </div>
                                             </div>
@@ -446,13 +489,7 @@
                                                 <span
                                                     class="flex items-center justify-center w-8 h-8 font-bold text-blue-700 bg-blue-100 rounded-full"
                                                     x-text="iIdx + 1"></span>
-                                                <div class="flex-1">
-                                                    <div class="font-medium text-gray-800" x-html="item.value"></div>
-                                                    <template x-if="secondaryLang && item.translated_value">
-                                                        <div class="mt-1 text-xs font-bold text-blue-600"
-                                                            x-html="item.translated_value"></div>
-                                                    </template>
-                                                </div>
+                                                <div class="font-medium text-gray-800" x-html="item.value"></div>
                                             </div>
                                             <span class="text-gray-300">☰</span>
                                         </div>
@@ -469,28 +506,29 @@
                                         rows="4" placeholder="Type your answer here..." x-model="currQ.selected_option"></textarea>
                                 </div>
                             </template>
+
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Footer Controls -->
+            {{-- Footer Controls --}}
             <footer class="flex items-center justify-between h-16 px-6 border-t border-gray-300 bg-gray-50">
                 <div class="flex gap-3">
                     <button @click="markReview()"
-                        class="px-6 py-2 font-bold text-white bg-purple-600 rounded shadow-md hover:bg-purple-700">Mark
+                        class="px-6 py-2 font-bold text-white transition bg-purple-600 rounded shadow-md hover:bg-purple-700">Mark
                         & Next</button>
                     <button @click="clearResponse()"
-                        class="px-6 py-2 font-bold text-gray-700 bg-white border border-gray-300 rounded shadow-sm hover:bg-gray-100">Clear
+                        class="px-6 py-2 font-bold text-gray-700 transition bg-white border border-gray-300 rounded shadow-sm hover:bg-gray-100">Clear
                         Response</button>
                 </div>
                 <button @click="saveNext()"
-                    class="px-10 py-2 bg-[#27AE60] text-white font-bold rounded shadow-lg hover:bg-[#219150] border-b-4 border-[#1e8449] active:scale-95">Save
+                    class="px-10 py-2 bg-[#27AE60] text-white font-bold rounded shadow-lg hover:bg-[#219150] transition transform active:scale-95 border-b-4 border-[#1e8449]">Save
                     & Next</button>
             </footer>
         </main>
 
-        <!-- Sidebar / Palette -->
+        {{-- RIGHT: Palette (Restore Sidebar) --}}
         <aside
             class="fixed inset-0 z-50 flex flex-col w-full h-full transition-transform duration-300 bg-white md:relative md:w-80 md:translate-x-0 shrink-0"
             :class="showPalette ? 'translate-x-0' : 'translate-x-full md:translate-x-0'">
@@ -542,7 +580,7 @@
         </aside>
     </div>
 
-    <!-- Scripts -->
+    {{-- SCRIPTS --}}
     <script>
         function examEngine(sectionsMeta, duration, sessionCode) {
             return {
@@ -561,9 +599,6 @@
                 started: false,
                 showPalette: false,
 
-                // Debounce store for FIB
-                fibDebounceTimers: {},
-
                 get currentSectionQs() {
                     return this.loadedSections[this.sectionsMeta[this.currSecIdx].id] || [];
                 },
@@ -572,24 +607,18 @@
                 },
 
                 init() {
+                    // Make this available globally for window.updateFIB
                     window.examApp = this;
                     if (this.sectionsMeta.length > 0) {
                         this.secondaryLang = this.sectionsMeta[0].translation_language || '';
                     }
-
-                    // Lightweight security
+                    // Security
                     window.addEventListener("blur", () => {
                         if (this.started) this.violation();
                     });
                     document.addEventListener("visibilitychange", () => {
                         if (document.hidden && this.started) this.violation();
                     });
-
-                    // Prevent copy/paste/cut
-                    document.addEventListener("copy", e => e.preventDefault());
-                    document.addEventListener("paste", e => e.preventDefault());
-                    document.addEventListener("cut", e => e.preventDefault());
-
                     history.pushState(null, null, location.href);
                     window.onpopstate = () => history.go(1);
                 },
@@ -629,7 +658,9 @@
                         const res = await fetch(`/student/exam/fetch-section/${sessionCode}/${secId}`);
                         const data = await res.json();
 
+                        // Prepare Local State for Questions
                         this.loadedSections[secId] = data.questions.map(q => {
+                            // Logic for FIB blanks
                             if (q.type_code === 'FIB') {
                                 if (!q.selected_option || !Array.isArray(q.selected_option)) {
                                     const matchCount = (q.text.match(/##/g) || []).length / 2;
@@ -637,16 +668,19 @@
                                 }
                             }
 
+                            // Logic for MTF shuffle
                             if (q.type_code === 'MTF' && q.options.pairs) {
                                 if (!q.selected_option) {
                                     q.mtfPairs = [...q.options.pairs].sort(() => Math.random() - 0.5);
                                     q.selected_option = q.mtfPairs.map(p => p.id);
                                 } else {
+                                    // Resume state
                                     const savedIds = q.selected_option;
                                     q.mtfPairs = savedIds.map(id => q.options.pairs.find(p => p.id == id));
                                 }
                             }
 
+                            // Logic for ORD shuffle
                             if (q.type_code === 'ORD') {
                                 if (!q.selected_option) {
                                     q.mtfPairs = [...q.options].sort(() => Math.random() - 0.5);
@@ -656,26 +690,16 @@
                                     q.mtfPairs = savedIds.map(id => q.options.find(o => o.id == id));
                                 }
                             }
-
                             q.translated_text = null;
-                            if (Array.isArray(q.options)) {
-                                q.options.forEach(opt => opt.translated_option = null);
-                            }
-
                             if (this.secondaryLang && q.allow_translation) {
-                                // If it's the first question, we might want to await it
                                 this.translateQuestion(q);
                             }
+
                             return q;
                         });
 
                         this.currSecIdx = idx;
                         this.currQIdx = 0;
-
-                        // Ensure the first question is translated if needed
-                        if (this.currQ && this.secondaryLang && this.currQ.allow_translation && !this.currQ.translated_text) {
-                            await this.translateQuestion(this.currQ);
-                        }
                     } catch (e) {
                         console.error(e);
                     } finally {
@@ -695,68 +719,41 @@
                     } catch (e) {
                         q.translated_text = q.text;
                     }
-                    if (q.type_code === 'MTF' && q.options.matches && q.options.pairs) {
-                        // Translate MTF Left Items (matches)
-                        await Promise.all(q.options.matches.map(async (m) => {
-                            if (m.value && !m.translated_value) {
-                                try {
-                                    const optUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=${this.secondaryLang}&dt=t&q=${encodeURIComponent(m.value)}`;
-                                    const res = await fetch(optUrl);
-                                    const data = await res.json();
-                                    m.translated_value = data[0].map(x => x[0]).join('');
-                                } catch (e) { m.translated_value = m.value; }
-                            }
-                        }));
-                        // Translate MTF Right Items (pairs)
-                        await Promise.all(q.options.pairs.map(async (p) => {
-                            if (p.value && !p.translated_value) {
-                                try {
-                                    const optUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=${this.secondaryLang}&dt=t&q=${encodeURIComponent(p.value)}`;
-                                    const res = await fetch(optUrl);
-                                    const data = await res.json();
-                                    p.translated_value = data[0].map(x => x[0]).join('');
-                                } catch (e) { p.translated_value = p.value; }
-                            }
-                        }));
-                    } else if (q.type_code === 'ORD' && Array.isArray(q.options)) {
-                        await Promise.all(q.options.map(async (o) => {
-                            if (o.value && !o.translated_value) {
-                                try {
-                                    const optUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=${this.secondaryLang}&dt=t&q=${encodeURIComponent(o.value)}`;
-                                    const res = await fetch(optUrl);
-                                    const data = await res.json();
-                                    o.translated_value = data[0].map(x => x[0]).join('');
-                                } catch (e) { o.translated_value = o.value; }
-                            }
-                        }));
-                    } else if (Array.isArray(q.options)) {
+                    if (Array.isArray(q.options)) {
+                        // Hum Promise.all use karenge taaki saare options ek saath translate ho jayein
                         await Promise.all(q.options.map(async (opt) => {
+                            // Agar option text hai aur abhi tak translate nahi hua hai
                             if (opt.option && !opt.translated_option) {
                                 try {
                                     const optUrl =
                                         `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=${this.secondaryLang}&dt=t&q=${encodeURIComponent(opt.option)}`;
                                     const optRes = await fetch(optUrl);
                                     const optData = await optRes.json();
+                                    // Translated text ko naye variable 'translated_option' mein save karein
                                     opt.translated_option = optData[0].map(x => x[0]).join('');
                                 } catch (e) {
-                                    opt.translated_option = opt.option;
+                                    opt.translated_option = opt
+                                    .option; // Error aaye to English hi rakh lo
                                 }
                             }
                         }));
                     }
-                    // Trigger Alpine reactivity by refreshing the object reference in the pool if needed
-                    // Since currQ is a getter, we just need to ensure the underlying object is updated.
-                    this.renderMath();
+                    this.currQ = {
+                        ...q
+                    };
                 },
 
                 renderFIB(q, isTranslation = false) {
+                    // Safe guard against null q
                     if (!q) return '';
+
                     let text = isTranslation ? q.translated_text : q.text;
                     if (q.type_code !== 'FIB' || !text) return text;
 
                     let i = 0;
                     return text.replace(/##(.*?)##/g, (match) => {
                         const val = q.selected_option[i] || '';
+                        // FIXED: Pass `q.id` to identify question, `i` for index
                         const elId = `fib_input_${q.id}_${i}`;
                         const html = `<input type="text" id="${elId}" class="fib-container input"
                                         style="border: none; border-bottom: 2px solid #3498db; outline: none; padding: 2px 8px; font-weight: bold; color: #2c3e50; background: #f8fafc; min-width: 100px;"
@@ -771,16 +768,25 @@
                 selectOption(idx) {
                     this.currQ.selected_option = idx;
                 },
+
                 toggleMMA(idx) {
-                    if (!Array.isArray(this.currQ.selected_option)) this.currQ.selected_option = [];
+                    // Logic to handle array init if empty
+                    if (!Array.isArray(this.currQ.selected_option)) {
+                        this.currQ.selected_option = [];
+                    }
                     const pos = this.currQ.selected_option.indexOf(idx);
-                    pos === -1 ? this.currQ.selected_option.push(idx) : this.currQ.selected_option.splice(pos, 1);
-                },
-                isMMAChecked(idx) {
-                    if (!this.currQ || !Array.isArray(this.currQ.selected_option)) return false;
-                    return this.currQ.selected_option.some(v => v == idx);
+                    if (pos === -1) {
+                        this.currQ.selected_option.push(idx);
+                    } else {
+                        this.currQ.selected_option.splice(pos, 1);
+                    }
                 },
 
+                isMMAChecked(idx) {
+                    return Array.isArray(this.currQ.selected_option) && this.currQ.selected_option.includes(idx);
+                },
+
+                // MTF Drag & Drop Logic Fix (No undefined)
                 mtfDragStart(e, idx) {
                     e.dataTransfer.setData('text/plain', idx);
                 },
@@ -792,6 +798,8 @@
                     q.mtfPairs.splice(toIdx, 0, item);
                     q.selected_option = q.mtfPairs.map(p => p.id);
                 },
+
+                // ORD Drag & Drop Logic
                 ordDragStart(e, idx) {
                     e.dataTransfer.setData('text/plain', idx);
                 },
@@ -808,11 +816,22 @@
                     const q = this.currQ;
                     const time = Math.round((Date.now() - this.qStartTime) / 1000);
                     this.qStartTime = Date.now();
-                    let status = statusOverride || (this.hasAnswered(q) ? 'answered' : 'not_answered');
+
+                    // Status Logic
+                    let status = statusOverride || 'visited';
+                    if (!statusOverride) {
+                        status = this.hasAnswered(q) ? 'answered' : 'not_answered';
+                    }
+
                     q.status = status;
 
-                    let backStatus = status;
-                    await fetch(`/student/exam/save-answer/${sessionCode}`, {
+                    // Convert to Backend expected statuses
+                    let backStatus = 'visited';
+                    if (status === 'answered') backStatus = 'answered';
+                    if (status === 'answered_mark_for_review') backStatus = 'answered_mark_for_review';
+                    if (status === 'mark_for_review') backStatus = 'mark_for_review';
+
+                    fetch(`/student/exam/save-answer/${sessionCode}`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -832,29 +851,43 @@
                 hasAnswered(q) {
                     const ans = q.selected_option;
                     if (ans === null || ans === undefined || ans === '') return false;
-                    if (Array.isArray(ans)) return q.type_code === 'FIB' ? ans.some(v => v.trim() !== '') : ans.length > 0;
+                    if (Array.isArray(ans)) {
+                        if (q.type_code === 'FIB') return ans.some(v => v.trim() !== '');
+                        return ans.length > 0;
+                    }
                     return true;
                 },
 
                 markReview() {
-                    this.saveAnswer(this.hasAnswered(this.currQ) ? 'answered_mark_for_review' : 'mark_for_review').then(
-                    () => this.next());
+                    const status = this.hasAnswered(this.currQ) ? 'answered_mark_for_review' : 'mark_for_review';
+                    this.saveAnswer(status);
+                    this.next();
                 },
+
                 saveNext() {
-                    this.saveAnswer().then(() => this.next());
+                    this.saveAnswer();
+                    this.next();
                 },
+
                 clearResponse() {
-                    if (Array.isArray(this.currQ.selected_option)) this.currQ.selected_option = this.currQ.type_code ===
-                        'FIB' ? new Array(this.currQ.selected_option.length).fill('') : [];
-                    else this.currQ.selected_option = null;
+                    if (Array.isArray(this.currQ.selected_option)) {
+                        this.currQ.selected_option = this.currQ.type_code === 'FIB' ? new Array(this.currQ.selected_option
+                            .length).fill('') : [];
+                    } else {
+                        this.currQ.selected_option = null;
+                    }
                     this.currQ.status = 'visited';
                     this.saveAnswer('visited');
                 },
 
                 next() {
-                    this.currQIdx < this.currentSectionQs.length - 1 ? this.jumpTo(this.currQIdx + 1) : (this.currSecIdx <
-                        this.sectionsMeta.length - 1 ? this.switchSection(this.currSecIdx + 1) : null);
+                    if (this.currQIdx < this.currentSectionQs.length - 1) {
+                        this.jumpTo(this.currQIdx + 1);
+                    } else if (this.currSecIdx < this.sectionsMeta.length - 1) {
+                        this.switchSection(this.currSecIdx + 1);
+                    }
                 },
+
                 jumpTo(idx) {
                     this.currQIdx = idx;
                     this.qStartTime = Date.now();
@@ -902,14 +935,15 @@
                             didOpen: () => Swal.showLoading()
                         });
                         fetch(`/student/exam/finish/${sessionCode}`, {
-                            method: 'POST',
-                            headers: {
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                                'Accept': 'application/json'
-                            }
-                        }).then(r => r.json()).then(d => {
-                            if (d.redirect) window.location.href = d.redirect
-                        })
+                                method: 'POST',
+                                headers: {
+                                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                                    'Accept': 'application/json'
+                                }
+                            })
+                            .then(r => r.json()).then(d => {
+                                if (d.redirect) window.location.href = d.redirect;
+                            });
                     };
                     if (auto) doSubmit();
                     else Swal.fire({
@@ -920,14 +954,14 @@
                         confirmButtonText: 'Yes, Submit',
                         confirmButtonColor: '#27ae60'
                     }).then(r => {
-                        if (r.isConfirmed) doSubmit()
+                        if (r.isConfirmed) doSubmit();
                     });
                 },
 
                 renderMath() {
                     this.$nextTick(() => {
                         if (window.MathJax) window.MathJax.typesetPromise();
-                    })
+                    });
                 }
             };
         }
@@ -975,7 +1009,6 @@
             }
         };
     </script>
-
 </body>
 
 </html>
