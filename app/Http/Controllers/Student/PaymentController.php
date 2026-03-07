@@ -33,7 +33,7 @@ class PaymentController extends Controller
     /**
      * 1. PREVIEW INVOICE (Web Page)
      */
-    public function previewInvoice(string $paymentId, SiteSettings $siteSettings, LocalizationSettings $localizationSettings)
+    public function previewInvoice(string $paymentId, SiteSettings $siteSettings, LocalizationSettings $localizationSettings, BillingSettings $billingSettings)
     {
         $payment = $this->getPaymentSecurely($paymentId);
 
@@ -42,6 +42,7 @@ class PaymentController extends Controller
             'data'    => $payment->data,
             'logo'    => asset('storage/'.$siteSettings->logo_path),
             'siteSettings' => $siteSettings,
+            'billingSettings' => $billingSettings,
             'currencySymbol' => $payment->currency // Or logic to get symbol
         ]);
     }
@@ -49,7 +50,7 @@ class PaymentController extends Controller
     /**
      * 2. DOWNLOAD PDF (Actual File)
      */
-    public function downloadInvoice(string $paymentId, SiteSettings $siteSettings, LocalizationSettings $localizationSettings)
+    public function downloadInvoice(string $paymentId, SiteSettings $siteSettings, LocalizationSettings $localizationSettings, BillingSettings $billingSettings)
     {
         try {
             $payment = $this->getPaymentSecurely($paymentId);
@@ -63,12 +64,13 @@ class PaymentController extends Controller
                 'data'    => $payment->data,
                 'logo'    => public_path('storage/'.$siteSettings->logo_path), // DomPDF needs absolute path or base64
                 'footer'  => "* Invoice Generated from {$siteSettings->app_name} by {$userName} on {$now->toDayDateTimeString()}",
-                'rtl'     => $localizationSettings->default_direction == 'rtl'
+                'rtl'     => $localizationSettings->default_direction == 'rtl',
+                'billingSettings' => $billingSettings
             ];
 
             // Load the View specifically designed for PDF (no headers/buttons)
             $pdf = Pdf::loadView('pdf.invoice', $data);
-            
+
             // Set paper size
             $pdf->setPaper('a4', 'portrait');
 

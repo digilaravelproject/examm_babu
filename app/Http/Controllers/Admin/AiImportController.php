@@ -202,11 +202,60 @@ class AiImportController extends Controller
                  return response()->json(['success' => true, 'processed_count' => 0, 'warning' => 'Invalid JSON Structure from AI.']);
             }
 
-            $count = $this->insertQuestionsToDB($questionsArray, $topicId, $creatorId);
+            // Image clipping if bounding box exists
+            $imgBase64Raw = preg_replace('#^data:image/\w+;base64,#i', '', $imageBase64);
+            $imgData = base64_decode($imgBase64Raw);
+            $imgResource = @imagecreatefromstring($imgData);
+
+            if ($imgResource !== false) {
+                $imgWidth = imagesx($imgResource);
+                $imgHeight = imagesy($imgResource);
+
+                foreach ($questionsArray as &$q) {
+                    if (isset($q['image_box']) && is_array($q['image_box']) && count($q['image_box']) === 4) {
+                        try {
+                            $box = $q['image_box'];
+                            $ymin = max(0, min(1000, $box[0])) / 1000 * $imgHeight;
+                            $xmin = max(0, min(1000, $box[1])) / 1000 * $imgWidth;
+                            $ymax = max(0, min(1000, $box[2])) / 1000 * $imgHeight;
+                            $xmax = max(0, min(1000, $box[3])) / 1000 * $imgWidth;
+
+                            $cW = $xmax - $xmin;
+                            $cH = $ymax - $ymin;
+
+                            if ($cW > 0 && $cH > 0) {
+                                $cropped = imagecrop($imgResource, ['x' => $xmin, 'y' => $ymin, 'width' => $cW, 'height' => $cH]);
+                                if ($cropped !== false) {
+                                    ob_start();
+                                    imagejpeg($cropped, null, 85);
+                                    $cBase64 = base64_encode(ob_get_clean());
+                                    $q['cropped_image_base64'] = 'data:image/jpeg;base64,' . $cBase64;
+                                    imagedestroy($cropped);
+
+                                    // Append image to question text
+                                    $q['question'] .= '<br><img src="' . $q['cropped_image_base64'] . '" class="my-2 border rounded shadow-sm max-w-full" alt="Extracted Image" />';
+                                }
+                            }
+                        } catch (\Exception $e) {
+                            Log::error("Failed to crop image for question", ['err' => $e->getMessage()]);
+                        }
+                    }
+                }
+                imagedestroy($imgResource);
+            }
+
+            // Save to temp JSON instead of inserting immediately
+            $jsonFile = 'temp/ai_batch_' . $batchId . '_questions.json';
+            $existing = [];
+            if (Storage::exists($jsonFile)) {
+                $existing = json_decode(Storage::get($jsonFile), true) ?? [];
+            }
+            $existing = array_merge($existing, $questionsArray);
+            Storage::put($jsonFile, json_encode($existing));
 
             return response()->json([
                 'success' => true,
-                'processed_count' => $count
+                'processed_count' => count($questionsArray)
             ]);
 
         } catch (\Illuminate\Http\Client\ConnectionException $e) {
@@ -247,12 +296,14 @@ class AiImportController extends Controller
 
         YOUR TASK:
         1. Analyze the provided image of a question paper and extract all multiple-choice questions (MSA).
-        2. Extract the Question Stem and Options (A, B, C, D).
-        3. ACCURACY IS CRITICAL. If options are jumbled, use logic to separate them. Ignore unrelated text like page numbers or headers.
-        4. FIND THE CORRECT ANSWER.
+        2. KEEP QUESTIONS IN THE EXACT SAME ORDER as they appear in the original document.
+        3. Extract the Question Stem and Options (A, B, C, D).
+        4. If a question contains a diagram, graph, equation, or picture as part of the question itself, output its bounding box as a 4-element array [ymin, xmin, ymax, xmax] normalized to 0-1000 scale in the `image_box` field. E.g., `[250, 100, 450, 900]`. If there's no image, set `image_box` to `null`.
+        5. ACCURACY IS CRITICAL. If options are jumbled, use logic to separate them. Ignore unrelated text like page numbers or headers.
+        6. FIND THE CORRECT ANSWER.
            - If the answer key is present in the text, use it.
            - If NO answer key is found, you MUST SOLVE the question yourself and provide the correct option index (0-3).
-        5. GENERATE A HINT/EXPLANATION.
+        7. GENERATE A HINT/EXPLANATION.
            - Provide a short "hint" or "solution" explanation for the student.
 
         OUTPUT FORMAT:
@@ -263,6 +314,7 @@ class AiImportController extends Controller
             {
                 "question": "The question text here...",
                 "options": ["Option A", "Option B", "Option C", "Option D"],
+                "image_box": [100, 200, 300, 400],
                 "correct_option_index": 0,  // Integer: 0 for A, 1 for B, 2 for C, 3 for D
                 "solution": "Detailed explanation of why this option is correct.",
                 "hint": "A short clue to help the student."
@@ -344,5 +396,49 @@ class AiImportController extends Controller
             }
         }
         return $insertedCount;
+    }
+
+    /**
+     * Preview the imported questions before saving them.
+     */
+    public function preview($batchId)
+    {
+        $metaFile = 'temp/ai_batch_' . $batchId . '.json';
+        $jsonFile = 'temp/ai_batch_' . $batchId . '_questions.json';
+
+        if (!Storage::exists($metaFile) || !Storage::exists($jsonFile)) {
+            return redirect()->route('admin.ai-import.index')->with('error', 'Batch not found or expired.');
+        }
+
+        $questions = json_decode(Storage::get($jsonFile), true) ?? [];
+        return view('admin.ai-import.preview', compact('questions', 'batchId'));
+    }
+
+    /**
+     * Approve and save the imported questions.
+     */
+    public function approve(Request $request, $batchId)
+    {
+        $metaFile = 'temp/ai_batch_' . $batchId . '.json';
+        $jsonFile = 'temp/ai_batch_' . $batchId . '_questions.json';
+
+        if (!Storage::exists($metaFile) || !Storage::exists($jsonFile)) {
+            return response()->json(['success' => false, 'message' => 'Batch not found.']);
+        }
+
+        $batchData = json_decode(Storage::get($metaFile), true);
+        $questions = json_decode(Storage::get($jsonFile), true) ?? [];
+
+        $topicId = $batchData['topic_id'];
+        $creatorId = $batchData['user_id'] ?? 1;
+
+        $count = $this->insertQuestionsToDB($questions, $topicId, $creatorId);
+
+        // Delete temp files
+        Storage::delete([$metaFile, $jsonFile]);
+
+        $request->session()->flash('success', "Successfully imported {$count} questions!");
+
+        return response()->json(['success' => true, 'redirect' => route('admin.ai-import.index')]);
     }
 }

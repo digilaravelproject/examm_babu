@@ -113,9 +113,11 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('ad
 
     // // AI Import Page
     Route::get('ai-import', [AiImportController::class, 'index'])->name('ai-import.index');
+    Route::get('ai-import/preview/{batch_id}', [AiImportController::class, 'preview'])->name('ai-import.preview');
     Route::post('ai-import/prepare', [AiImportController::class, 'uploadAndPrepare'])->name('ai-import.prepare');
     Route::post('ai-import/chunk', [AiImportController::class, 'processChunk'])->name('ai-import.chunk');
     Route::post('ai-import/cancel', [AiImportController::class, 'cancelImport'])->name('ai-import.cancel');
+    Route::post('ai-import/approve/{batch_id}', [AiImportController::class, 'approve'])->name('ai-import.approve');
 
     // General Question Routes
     Route::get('questions/{id}/usage', [QuestionController::class, 'usage'])->name('questions.usage');

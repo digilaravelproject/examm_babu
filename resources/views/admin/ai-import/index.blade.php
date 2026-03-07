@@ -400,16 +400,13 @@
                 // STEP C: Completion (Only if not stopped)
                 if(!isStopped) {
                     successBox.classList.remove('hidden');
-                    document.getElementById('success-msg').innerHTML = `<strong>Success!</strong> ${totalQuestions} questions extracted and saved over ${totalPages} pages.`;
+                    document.getElementById('success-msg').innerHTML = `<strong>Success!</strong> Extraction completed. Redirecting to preview...`;
 
                     progressStatusEl.innerHTML = '<span class="text-green-600"><i class="fas fa-check"></i> Completed</span>';
 
-                    startBtn.innerHTML = 'Import Another File';
-                    startBtn.disabled = false;
-                    startBtn.classList.remove('opacity-75', 'cursor-not-allowed');
-
-                    stopBtn.disabled = true;
-                    stopBtn.innerHTML = 'Done';
+                    setTimeout(function() {
+                        window.location.href = "{{ url('admin/ai-import/preview') }}/" + currentBatchId;
+                    }, 1000);
                 }
 
             } catch (error) {

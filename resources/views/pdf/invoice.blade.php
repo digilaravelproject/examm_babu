@@ -128,10 +128,25 @@
 
     <table class="info-table">
         <tr>
-            <td width="60%">
+            <td width="55%">
+                <div class="bill-to-title">Issued By</div>
+                <div class="client-name">{{ $billingSettings->vendor_name ?? 'Exam Babu' }}</div>
+                <div class="text-gray text-sm">
+                    {{ $billingSettings->address }}<br>
+                    {{ $billingSettings->city }}, {{ $billingSettings->state }} - {{ $billingSettings->zip }}<br>
+                    {{ $billingSettings->country }}<br>
+                    @if(!empty($billingSettings->phone_number))
+                        Phone: {{ $billingSettings->phone_number }}<br>
+                    @endif
+                    @if(!empty($billingSettings->vat_number))
+                        <strong>GST/VAT:</strong> {{ $billingSettings->vat_number }}
+                    @endif
+                </div>
+            </td>
+            <td width="45%" class="text-right">
                 <div class="bill-to-title">Billed To</div>
                 <div class="client-name">{{ $payment->user->name ?? $payment->user->first_name }}</div>
-                
+
                 <div class="text-gray text-sm">
                     @if(isset($data['customer_billing_information']))
                         {{ $data['customer_billing_information']['address'] ?? '' }}<br>
@@ -147,22 +162,22 @@
                     @endif
                 </div>
             </td>
+        </tr>
+    </table>
 
-            <td width="40%" class="text-right">
-                <table width="100%">
-                    <tr>
-                        <td class="text-right text-sm font-bold text-gray" style="padding-bottom: 5px;">Invoice ID:</td>
-                        <td class="text-right text-sm" style="padding-bottom: 5px;">#{{ $payment->invoice_id ?? str_pad((string)$payment->id, 6, '0', STR_PAD_LEFT) }}</td>
-                    </tr>
-                    <tr>
-                        <td class="text-right text-sm font-bold text-gray" style="padding-bottom: 5px;">Date:</td>
-                        <td class="text-right text-sm" style="padding-bottom: 5px;">{{ \Carbon\Carbon::parse($payment->created_at)->format('M d, Y') }}</td>
-                    </tr>
-                    <tr>
-                        <td class="text-right text-sm font-bold text-gray">Trans. ID:</td>
-                        <td class="text-right text-sm">{{ substr($payment->transaction_id ?? $payment->payment_id, 0, 18) }}...</td>
-                    </tr>
-                </table>
+    <table width="100%" style="margin-bottom: 30px; background-color: #f8f9fa; padding: 15px; border-radius: 8px;">
+        <tr>
+            <td width="25%">
+                <div class="text-xs uppercase font-bold text-light">Invoice No.</div>
+                <div class="font-bold text-brand">#{{ $payment->invoice_id ?? str_pad((string)$payment->id, 6, '0', STR_PAD_LEFT) }}</div>
+            </td>
+            <td width="25%">
+                <div class="text-xs uppercase font-bold text-light">Issue Date</div>
+                <div class="font-bold">{{\Carbon\Carbon::parse($payment->created_at)->format('M d, Y') }}</div>
+            </td>
+            <td width="50%" class="text-right">
+                <div class="text-xs uppercase font-bold text-light">Transaction ID</div>
+                <div class="font-bold">{{ substr($payment->transaction_id ?? $payment->payment_id, 0, 24) }}</div>
             </td>
         </tr>
     </table>
