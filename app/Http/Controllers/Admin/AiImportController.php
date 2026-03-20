@@ -56,296 +56,234 @@ class AiImportController extends Controller
     }
 
     /**
-     * STEP 1: Upload PDF, parse text, and prepare chunks for processing.
+     * STEP 1: Upload PDF and process via Gemini AI.
      *
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function uploadAndPrepare(Request $request)
+    public function uploadAndProcess(Request $request)
     {
         $request->validate([
             'topic_id' => 'required|exists:topics,id',
-            'total_chunks' => 'required|integer|min:1'
+            'pdf_file' => 'required|mimes:pdf|max:102400' // 100MB
         ]);
 
         try {
             $topicId = $request->topic_id;
-
-            // 1. Capture User ID then UNLOCK SESSION immediately
             $userId = Auth::id();
-            session()->save(); // FIX: Page loading issue resolved
-
-            $totalChunks = (int) $request->total_chunks;
             $batchId = Str::random(20);
 
-            // Save Batch Data to JSON
+            // Save PDF temporarily
+            $pdfFile = $request->file('pdf_file');
+            $pdfPath = $pdfFile->storeAs('temp', 'ai_import_' . $batchId . '.pdf');
+
+            // Save Batch Data
             $batchData = [
                 'topic_id' => $topicId,
                 'user_id' => $userId,
-                'total_chunks' => $totalChunks,
+                'pdf_path' => $pdfPath,
                 'start_time' => Carbon::now('Asia/Kolkata')->format('d-M-Y h:i:s A')
             ];
-
             Storage::put('temp/ai_batch_' . $batchId . '.json', json_encode($batchData));
+
+            // Call Gemini API
+            $questions = $this->callGeminiApi(storage_path('app/' . $pdfPath));
+
+            if (empty($questions)) {
+                throw new \Exception("AI could not extract any questions. Please check the PDF quality.");
+            }
+
+            // Save extracted questions to temp JSON
+            Storage::put('temp/ai_batch_' . $batchId . '_questions.json', json_encode($questions));
 
             return response()->json([
                 'success' => true,
                 'batch_id' => $batchId,
-                'total_chunks' => $totalChunks,
+                'questions' => $questions,
                 'start_time' => $batchData['start_time']
             ]);
 
         } catch (\Exception $e) {
+            Log::error("Gemini Import Error: " . $e->getMessage());
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
 
     /**
-     * STEP 2: Process a single chunk via AI (AJAX).
-     * Now accepts an image_base64 parameter containing the rendered PDF page.
-     *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * Call Gemini API to extract questions.
      */
-    public function processChunk(Request $request)
+    private function callGeminiApi($pdfPath)
     {
-        // 1. PERFORMANCE: Close session immediately so other tabs work
-        if (session()->isStarted()) {
-            session()->save();
+        $apiKey = env('GEMINI_API_KEY');
+        if (!$apiKey) throw new \Exception("GEMINI_API_KEY not found in .env");
+
+        $pdfBase64 = base64_encode(file_get_contents($pdfPath));
+
+        /** @var \Illuminate\Http\Client\Response $response */
+        $response = Http::timeout(600)->post("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key={$apiKey}", [
+            'contents' => [
+                [
+                    'parts' => [
+                        ['text' => $this->getGeminiPrompt()],
+                        [
+                            'inline_data' => [
+                                'mime_type' => 'application/pdf',
+                                'data' => $pdfBase64
+                            ]
+                        ]
+                    ]
+                ]
+            ],
+            'generationConfig' => [
+                'responseMimeType' => 'application/json',
+                'temperature' => 0.0, // Set to 0 for maximum deterministic accuracy
+            ]
+        ]);
+
+        if (!$response->successful()) {
+            $errorBody = $response->body() ?: "Unknown error";
+            Log::error("Gemini Pro API Error: " . $errorBody);
+            throw new \Exception("Gemini Pro API Error: " . $errorBody);
         }
 
-        set_time_limit(0);
+        $result = $response->json();
+        $content = $result['candidates'][0]['content']['parts'][0]['text'] ?? null;
 
+        if (!$content) throw new \Exception("Empty response from Gemini.");
+
+        return json_decode($content, true);
+    }
+
+    /**
+     * Handle uploaded cropped images from the frontend.
+     */
+    public function uploadCroppedImage(Request $request)
+    {
         $request->validate([
             'batch_id' => 'required|string',
-            'chunk_index' => 'required|integer',
+            'question_index' => 'required|integer',
             'image_base64' => 'required|string'
         ]);
 
         $batchId = $request->batch_id;
-        $index = $request->chunk_index;
-        $imageBase64 = $request->image_base64; // e.g., data:image/jpeg;base64,...
+        $qIndex = $request->question_index;
+        $imageBase64 = $request->image_base64;
 
-        $fileName = 'temp/ai_batch_' . $batchId . '.json';
-
-        if (!Storage::exists($fileName)) {
-            // Returns 404 to trigger client-side stop
-            return response()->json(['success' => false, 'message' => 'STOPPED'], 404);
+        $jsonFile = 'temp/ai_batch_' . $batchId . '_questions.json';
+        if (!Storage::exists($jsonFile)) {
+            return response()->json(['success' => false, 'message' => 'Batch not found.'], 404);
         }
 
-        $batchData = json_decode(Storage::get($fileName), true);
-
-        $topicId = $batchData['topic_id'];
-        $creatorId = $batchData['user_id'] ?? 1;
-
-        try {
-            // 2. TIMEOUT FIX: Increased to 240 seconds
-            /** @var \Illuminate\Http\Client\Response $response */
-            $response = Http::timeout(240)
-                ->withHeaders([
-                    'Authorization' => 'Bearer ' . env('OPENROUTER_API_KEY'),
-                    'Content-Type' => 'application/json',
-                    'HTTP-Referer' => url('/'),
-                    'X-Title' => env('APP_NAME', 'Exam Babu'),
-                ])->post('https://openrouter.ai/api/v1/chat/completions', [
-                    'model' => 'google/gemini-2.5-flash',
-                    'messages' => [
-                        [
-                            'role' => 'user',
-                            'content' => [
-                                ['type' => 'text', 'text' => $this->getPrompt()],
-                                ['type' => 'image_url', 'image_url' => ['url' => $imageBase64]]
-                            ]
-                        ]
-                    ],
-                    'max_tokens' => 3000,
-                    'temperature' => 0.1
-                ]);
-
-            if ($response->failed()) {
-                // Rate Limit Handling
-                if ($response->status() == 429) {
-                    throw new \Exception("Rate Limit Exceeded. Please stop and wait.");
-                }
-                // Server Error
-                if ($response->serverError()) {
-                    throw new \Exception("AI Server Error (5xx). Trying next chunk...");
-                }
-            }
-
-            $jsonResponse = $response->json();
-
-            // DEBUG: Log the raw response to understand why it's empty
-            if (!isset($jsonResponse['choices'][0]['message']['content'])) {
-                 Log::error('AI Import Error - Raw Response:', ['body' => $response->body(), 'status' => $response->status()]);
-            }
-
-            $aiContent = $jsonResponse['choices'][0]['message']['content'] ?? null;
-
-            if (!$aiContent) throw new \Exception("Empty Response from AI - Check Logs");
-
-            // Robust JSON Extraction
-            $firstBracket = strpos($aiContent, '[');
-            $lastBracket = strrpos($aiContent, ']');
-
-            if ($firstBracket !== false && $lastBracket !== false && $lastBracket > $firstBracket) {
-                $cleanedJson = substr($aiContent, $firstBracket, $lastBracket - $firstBracket + 1);
-            } else {
-                // Fallback: Try to clean markdown code blocks
-                 $cleanedJson = preg_replace('/```json|```/', '', $aiContent);
-            }
-
-            $questionsArray = json_decode($cleanedJson, true);
-
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                 Log::error("AI Import JSON Error: " . json_last_error_msg() . " Content: " . substr($cleanedJson, 0, 500));
-                 return response()->json(['success' => true, 'processed_count' => 0, 'warning' => 'Invalid JSON Structure from AI.']);
-            }
-
-            // Image clipping if bounding box exists
-            $imgBase64Raw = preg_replace('#^data:image/\w+;base64,#i', '', $imageBase64);
-            $imgData = base64_decode($imgBase64Raw);
-            $imgResource = @imagecreatefromstring($imgData);
-
-            if ($imgResource !== false) {
-                $imgWidth = imagesx($imgResource);
-                $imgHeight = imagesy($imgResource);
-
-                foreach ($questionsArray as &$q) {
-                    if (isset($q['image_box']) && is_array($q['image_box']) && count($q['image_box']) === 4) {
-                        try {
-                            $box = $q['image_box'];
-                            $ymin = max(0, min(1000, $box[0])) / 1000 * $imgHeight;
-                            $xmin = max(0, min(1000, $box[1])) / 1000 * $imgWidth;
-                            $ymax = max(0, min(1000, $box[2])) / 1000 * $imgHeight;
-                            $xmax = max(0, min(1000, $box[3])) / 1000 * $imgWidth;
-
-                            $cW = $xmax - $xmin;
-                            $cH = $ymax - $ymin;
-
-                            if ($cW > 0 && $cH > 0) {
-                                $cropped = imagecrop($imgResource, ['x' => $xmin, 'y' => $ymin, 'width' => $cW, 'height' => $cH]);
-                                if ($cropped !== false) {
-                                    ob_start();
-                                    imagejpeg($cropped, null, 85);
-                                    $cBase64 = base64_encode(ob_get_clean());
-                                    $q['cropped_image_base64'] = 'data:image/jpeg;base64,' . $cBase64;
-                                    imagedestroy($cropped);
-
-                                    // Append image to question text
-                                    $q['question'] .= '<br><img src="' . $q['cropped_image_base64'] . '" class="my-2 border rounded shadow-sm max-w-full" alt="Extracted Image" />';
-                                }
-                            }
-                        } catch (\Exception $e) {
-                            Log::error("Failed to crop image for question", ['err' => $e->getMessage()]);
-                        }
-                    }
-                }
-                imagedestroy($imgResource);
-            }
-
-            // Save to temp JSON instead of inserting immediately
-            $jsonFile = 'temp/ai_batch_' . $batchId . '_questions.json';
-            $existing = [];
-            if (Storage::exists($jsonFile)) {
-                $existing = json_decode(Storage::get($jsonFile), true) ?? [];
-            }
-            $existing = array_merge($existing, $questionsArray);
-            Storage::put($jsonFile, json_encode($existing));
-
-            return response()->json([
-                'success' => true,
-                'processed_count' => count($questionsArray)
-            ]);
-
-        } catch (\Illuminate\Http\Client\ConnectionException $e) {
-            // Handle Timeout specifically
-            return response()->json(['success' => false, 'message' => 'Timeout: AI took too long.'], 504);
-        } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
-        }
-    }
-
-    /**
-     * STEP 3: Cancel or Stop the import process.
-     * Deletes the temporary batch file.
-     *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function cancelImport(Request $request)
-    {
-        $batchId = $request->batch_id;
-        $fileName = 'temp/ai_batch_' . $batchId . '.json';
-
-        if (Storage::exists($fileName)) {
-            Storage::delete($fileName); // Delete file so next chunks fail gracefully
+        $questions = json_decode(Storage::get($jsonFile), true);
+        if (isset($questions[$qIndex])) {
+            // Prepend image to question text (matching original logic)
+            $questions[$qIndex]['question'] .= '<br><img src="' . $imageBase64 . '" class="my-2 border rounded shadow-sm max-w-full" alt="Extracted Image" />';
+            Storage::put($jsonFile, json_encode($questions));
         }
 
         return response()->json(['success' => true]);
     }
 
     /**
-     * Generates the system prompt for the AI.
-     *
-     * @return string
+     * STEP 3: Cancel or Stop the import process.
      */
-    private function getPrompt() {
-        return <<<EOT
-        You are an expert academic assistant used to digitize exam questions from PDF pages.
+    public function cancelImport(Request $request)
+    {
+        $batchId = $request->batch_id;
+        $metaFile = 'temp/ai_batch_' . $batchId . '.json';
+        $jsonFile = 'temp/ai_batch_' . $batchId . '_questions.json';
 
-        YOUR TASK:
-        1. Analyze the provided image of a question paper and extract all multiple-choice questions (MSA).
-        2. KEEP QUESTIONS IN THE EXACT SAME ORDER as they appear in the original document.
-        3. Extract the Question Stem and Options (A, B, C, D).
-        4. If a question contains a diagram, graph, equation, or picture as part of the question itself, output its bounding box as a 4-element array [ymin, xmin, ymax, xmax] normalized to 0-1000 scale in the `image_box` field. E.g., `[250, 100, 450, 900]`. If there's no image, set `image_box` to `null`.
-        5. ACCURACY IS CRITICAL. If options are jumbled, use logic to separate them. Ignore unrelated text like page numbers or headers.
-        6. FIND THE CORRECT ANSWER.
-           - If the answer key is present in the text, use it.
-           - If NO answer key is found, you MUST SOLVE the question yourself and provide the correct option index (0-3).
-        7. GENERATE A HINT/EXPLANATION.
-           - Provide a short "hint" or "solution" explanation for the student.
-
-        OUTPUT FORMAT:
-        Return ONLY a raw JSON array of objects. Do not output markdown code blocks (```json).
-
-        JSON STRUCTURE:
-        [
-            {
-                "question": "The question text here...",
-                "options": ["Option A", "Option B", "Option C", "Option D"],
-                "image_box": [100, 200, 300, 400],
-                "correct_option_index": 0,  // Integer: 0 for A, 1 for B, 2 for C, 3 for D
-                "solution": "Detailed explanation of why this option is correct.",
-                "hint": "A short clue to help the student."
+        if (Storage::exists($metaFile)) {
+            $batchData = json_decode(Storage::get($metaFile), true);
+            if (isset($batchData['pdf_path'])) {
+                Storage::delete($batchData['pdf_path']);
             }
-        ]
+            Storage::delete($metaFile);
+        }
+        if (Storage::exists($jsonFile)) {
+            Storage::delete($jsonFile);
+        }
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Updated Gemini Prompt.
+     */
+    private function getGeminiPrompt() {
+        return <<<EOT
+        You are a highly precise academic digitization system. Your goal is to extract questions from the provided PDF document with 100% accuracy.
+
+        SUPPORTED QUESTION TYPES:
+        - `MSA`: Multiple Choice Single Answer (Exactly one correct option).
+        - `MMA`: Multiple Choice Multiple Answer (One or more correct options).
+        - `TOF`: True/False (Exactly two options: True and False).
+        - `FIB`: Fill in the Blanks (No options, just the question text with blanks like ___).
+        - `SAQ`: Short Answer Question (No options, requires a brief text response).
+
+        STRICT RULES:
+        1. SEQUENTIAL EXTRACTION: Extract questions in the EXACT ORDER they appear in the PDF. Do NOT skip any questions.
+        2. TYPE DETECTION: Categorize each question into one of the types above based on its structure in the PDF.
+        3. CONTENT PRECISION:
+           - Extract the full question text.
+           - For `MSA` and `MMA`: Extract 4 options (A, B, C, D).
+           - For `TOF`: The options must be exactly ["True", "False"].
+           - For `FIB` and `SAQ`: Set `options` to an empty array.
+        4. CORRECT ANSWER:
+           - For `MSA` and `TOF`: `correct_option_index` is a single integer (0-indexed).
+           - For `MMA`: `correct_option_indices` is an array of integers (e.g., [0, 2]).
+           - For `FIB` and `SAQ`: `correct_answer_text` is the expected string answer.
+        5. IMAGE/DIAGRAM DETECTION:
+           - For any type, if visual elements are required:
+             - Provide the 1-indexed `page_number`.
+             - Provide a precise `image_box` [ymin, xmin, ymax, xmax] (normalized 0-1000).
+        6. LANGUAGE: Preserve scripts (Hindi, Marathi, etc.) exactly.
+        7. EXPLANATION: Provide a clear `solution`.
+
+        OUTPUT FORMAT: A JSON array of objects.
+
+        JSON SCHEMA:
+        {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {"type": "string", "enum": ["MSA", "MMA", "TOF", "FIB", "SAQ"]},
+              "question": {"type": "string"},
+              "options": {"type": "array", "items": {"type": "string"}},
+              "image_box": {"type": "array", "items": {"type": "number"}, "minItems": 4, "maxItems": 4},
+              "page_number": {"type": "integer"},
+              "correct_option_index": {"type": "integer", "minimum": 0, "maximum": 3},
+              "correct_option_indices": {"type": "array", "items": {"type": "integer"}},
+              "correct_answer_text": {"type": "string"},
+              "solution": {"type": "string"},
+              "hint": {"type": "string"}
+            },
+            "required": ["type", "question", "options", "image_box", "page_number", "solution", "hint"]
+          }
+        }
         EOT;
     }
 
     /**
      * Inserts the parsed questions into the database.
-     *
-     * @param array $questionsData Array of questions from AI
-     * @param int $topicId
-     * @param int $userId
-     * @return int Number of inserted questions
      */
     private function insertQuestionsToDB($questionsData, $topicId, $userId) {
         $insertedCount = 0;
-        $topic = Topic::find($topicId);
-        $skill = $topic ? $topic->skill : Skill::first();
-        $defaultType = QuestionType::where('code', 'MSA')->first();
+        $topic = Topic::with('skill')->find($topicId);
+        if (!$topic) return 0;
+
+        $skill = $topic->skill ?? Skill::first();
         $defaultDiff = DifficultyLevel::where('code', 'EASY')->first();
 
-        // Row number simulator for uniqueness
-        $rowNum = rand(100, 999);
+        // Cache question types
+        $qTypes = QuestionType::all()->keyBy('code');
 
         foreach ($questionsData as $qData) {
-            // Basic Validation
-            if (empty($qData['question']) || empty($qData['options']) || !is_array($qData['options'])) {
-                continue;
-            }
+            if (empty($qData['question'])) continue;
+
+            $typeCode = $qData['type'] ?? 'MSA';
+            $type = $qTypes->get($typeCode) ?: $qTypes->get('MSA');
 
             // Duplicate Check
             $exists = Question::where('topic_id', $topic->id)
@@ -357,19 +295,36 @@ class AiImportController extends Controller
             DB::beginTransaction();
             try {
                 $formattedOptions = [];
-                foreach ($qData['options'] as $optText) {
-                    $formattedOptions[] = ['option' => $optText, 'partial_weightage' => 0];
+                $correctAnswer = null;
+
+                switch ($typeCode) {
+                    case 'MMA':
+                        foreach ($qData['options'] as $optText) {
+                            $formattedOptions[] = ['option' => $optText, 'partial_weightage' => 0];
+                        }
+                        $indices = is_array($qData['correct_option_indices']) ? $qData['correct_option_indices'] : [];
+                        $correctAnswer = array_map(fn($i) => (int)$i + 1, $indices);
+                        break;
+                    case 'TOF':
+                    case 'MSA':
+                        foreach ($qData['options'] as $optText) {
+                            $formattedOptions[] = ['option' => $optText, 'partial_weightage' => 0];
+                        }
+                        $correctAnswer = (isset($qData['correct_option_index']) ? (int)$qData['correct_option_index'] : 0) + 1;
+                        break;
+                    case 'FIB':
+                    case 'SAQ':
+                        $formattedOptions = []; // Logic derived from QuestionRepository::setDefaultOptions
+                        $correctAnswer = $qData['correct_answer_text'] ?? '';
+                        break;
+                    default:
+                        $correctAnswer = $qData['correct_answer_text'] ?? '';
                 }
 
-                // Generate Code: que_ai_{TIMESTAMP}_{SKILL_ID}_{ROW_NUM}
-                $code = 'que_ai_' . now()->setTimezone('Asia/Kolkata')->format('Ymd_His') . '_' . $skill->id . '_' . $rowNum;
-
-                // Determine Correct Answer (1-based index for DB)
-                $correctIndex = isset($qData['correct_option_index']) ? (int)$qData['correct_option_index'] : 0;
-                $correctAnswer = $correctIndex + 1; // Convert 0-based to 1-based
+                $code = 'que_ai_' . now()->setTimezone('Asia/Kolkata')->format('Ymd_His') . '_' . $skill->id . '_' . rand(100, 999);
 
                 Question::create([
-                    'question_type_id' => $defaultType->id,
+                    'question_type_id' => $type->id,
                     'skill_id' => $skill->id,
                     'topic_id' => $topic->id,
                     'difficulty_level_id' => $defaultDiff->id,
@@ -377,10 +332,10 @@ class AiImportController extends Controller
                     'options' => $formattedOptions,
                     'correct_answer' => $correctAnswer,
                     'solution' => $qData['solution'] ?? '',
-                    'hint' => $qData['hint'] ?? '', // Added Hint mapping
+                    'hint' => $qData['hint'] ?? '',
                     'default_marks' => 1,
                     'default_time' => 60,
-                    'preferences' => $this->repository->setDefaultPreferences('MSA'),
+                    'preferences' => $this->repository->setDefaultPreferences($typeCode),
                     'created_by' => $userId,
                     'is_active' => 1,
                     'code' => $code
@@ -388,25 +343,22 @@ class AiImportController extends Controller
 
                 DB::commit();
                 $insertedCount++;
-                $rowNum++;
             } catch (\Exception $e) {
                 DB::rollBack();
-                // Log error if needed, but continue processing matches
-                continue;
+                Log::error("Failed to insert question: " . $e->getMessage());
             }
         }
         return $insertedCount;
     }
 
     /**
-     * Preview the imported questions before saving them.
+     * Preview the imported questions.
      */
     public function preview($batchId)
     {
-        $metaFile = 'temp/ai_batch_' . $batchId . '.json';
         $jsonFile = 'temp/ai_batch_' . $batchId . '_questions.json';
 
-        if (!Storage::exists($metaFile) || !Storage::exists($jsonFile)) {
+        if (!Storage::exists($jsonFile)) {
             return redirect()->route('admin.ai-import.index')->with('error', 'Batch not found or expired.');
         }
 
@@ -429,12 +381,11 @@ class AiImportController extends Controller
         $batchData = json_decode(Storage::get($metaFile), true);
         $questions = json_decode(Storage::get($jsonFile), true) ?? [];
 
-        $topicId = $batchData['topic_id'];
-        $creatorId = $batchData['user_id'] ?? 1;
+        $count = $this->insertQuestionsToDB($questions, $batchData['topic_id'], $batchData['user_id'] ?? 1);
 
-        $count = $this->insertQuestionsToDB($questions, $topicId, $creatorId);
-
-        // Delete temp files
+        if (isset($batchData['pdf_path'])) {
+            Storage::delete($batchData['pdf_path']);
+        }
         Storage::delete([$metaFile, $jsonFile]);
 
         $request->session()->flash('success', "Successfully imported {$count} questions!");

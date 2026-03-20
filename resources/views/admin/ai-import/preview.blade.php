@@ -34,16 +34,28 @@
                 @foreach($questions as $index => $q)
                     <div class="p-6 bg-white rounded-xl shadow relative overflow-hidden border border-gray-100">
                         <div class="absolute top-0 left-0 w-1 h-full bg-indigo-500"></div>
-                        <h4 class="font-bold text-lg mb-4 text-gray-800">
-                            <span class="text-indigo-600 mr-2">Q{{ $index + 1 }}.</span>
-                            {!! $q['question'] ?? 'N/A' !!}
-                        </h4>
+                        
+                        <div class="flex justify-between items-start mb-4">
+                            <h4 class="font-bold text-lg text-gray-800 flex-1">
+                                <span class="text-indigo-600 mr-2">Q{{ $index + 1 }}.</span>
+                                {!! $q['question'] ?? 'N/A' !!}
+                            </h4>
+                            <span class="px-2 py-1 text-[10px] font-bold uppercase rounded bg-indigo-100 text-indigo-700 border border-indigo-200 ml-2">
+                                {{ $q['type'] ?? 'MSA' }}
+                            </span>
+                        </div>
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                            @if(isset($q['options']) && is_array($q['options']))
+                            @if(isset($q['options']) && is_array($q['options']) && count($q['options']) > 0)
                                 @foreach($q['options'] as $optIndex => $opt)
                                     @php
-                                        $isCorrect = (isset($q['correct_option_index']) && $q['correct_option_index'] == $optIndex);
+                                        $type = $q['type'] ?? 'MSA';
+                                        $isCorrect = false;
+                                        if ($type === 'MMA' && isset($q['correct_option_indices'])) {
+                                            $isCorrect = in_array($optIndex, $q['correct_option_indices']);
+                                        } else {
+                                            $isCorrect = (isset($q['correct_option_index']) && $q['correct_option_index'] == $optIndex);
+                                        }
                                         $letter = chr(65 + $optIndex);
                                     @endphp
                                     <div class="p-3 border rounded-lg {{ $isCorrect ? 'bg-green-50 border-green-300 shadow-sm' : 'bg-gray-50 border-gray-200' }} transition-colors">
@@ -54,6 +66,11 @@
                                         @endif
                                     </div>
                                 @endforeach
+                            @elseif(isset($q['correct_answer_text']))
+                                <div class="col-span-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                    <strong class="text-blue-700 mr-2">Correct Answer:</strong>
+                                    <span class="text-blue-900">{{ $q['correct_answer_text'] }}</span>
+                                </div>
                             @endif
                         </div>
 
