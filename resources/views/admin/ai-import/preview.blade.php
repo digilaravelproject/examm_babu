@@ -9,7 +9,7 @@
                 <h2 class="text-2xl font-bold text-gray-800">
                     <i class="fas fa-eye text-indigo-600 mr-2"></i> Preview Extracted Questions
                 </h2>
-                <p class="text-sm text-gray-500 mt-1">Review the questions extracted by AI. Images and graphs are included if they were detected.</p>
+                <p class="text-sm text-gray-500 mt-1">Review the questions extracted by AI. Images will be displayed if available.</p>
             </div>
 
             @if(count($questions) > 0)
@@ -26,7 +26,7 @@
                 <div class="w-20 h-20 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-4 text-gray-400">
                     <i class="fas fa-folder-open text-3xl"></i>
                 </div>
-                <p class="text-gray-600 text-lg font-medium">No questions could be extracted seamlessly.</p>
+                <p class="text-gray-600 text-lg font-medium">No questions could be safely extracted.</p>
                 <a href="{{ route('admin.ai-import.index') }}" class="mt-4 inline-block px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 transition font-medium">Try Another File</a>
             </div>
         @else
@@ -34,10 +34,11 @@
                 @foreach($questions as $index => $q)
                     <div class="p-6 bg-white rounded-xl shadow relative overflow-hidden border border-gray-100">
                         <div class="absolute top-0 left-0 w-1 h-full bg-indigo-500"></div>
-                        
+
                         <div class="flex justify-between items-start mb-4">
                             <h4 class="font-bold text-lg text-gray-800 flex-1">
                                 <span class="text-indigo-600 mr-2">Q{{ $index + 1 }}.</span>
+                                {{-- Ye HTML allow karega taaki <img> tags correctly render ho --}}
                                 {!! $q['question'] ?? 'N/A' !!}
                             </h4>
                             <span class="px-2 py-1 text-[10px] font-bold uppercase rounded bg-indigo-100 text-indigo-700 border border-indigo-200 ml-2">
@@ -76,7 +77,7 @@
 
                         @if(!empty($q['solution']) || !empty($q['hint']))
                             <div class="mt-4 p-4 bg-indigo-50 text-indigo-900 text-sm rounded-lg border border-indigo-100">
-                                <strong><i class="fas fa-lightbulb text-yellow-500 mr-1"></i> Explanation/Hint:</strong> {!! $q['solution'] ?? $q['hint'] !!}
+                                <strong><i class="fas fa-lightbulb text-yellow-500 mr-1"></i> Explanation & Hint:</strong> {!! $q['solution'] ?? $q['hint'] !!}
                             </div>
                         @endif
                     </div>
@@ -93,10 +94,10 @@
 
         if(approveBtn) {
             approveBtn.addEventListener('click', async function() {
-                if(!confirm("Are you sure you want to approve and complete the import?")) return;
+                if(!confirm("Are you sure you want to save all questions to the database?")) return;
 
                 approveBtn.disabled = true;
-                approveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Importing...';
+                approveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Saving to Database...';
                 approveBtn.classList.add('opacity-75', 'cursor-not-allowed');
 
                 try {
@@ -112,14 +113,14 @@
 
                     if(data.success) {
                         statusMsg.className = "p-4 mb-6 rounded-md shadow-sm bg-green-50 text-green-700 border-l-4 border-green-500";
-                        statusMsg.innerHTML = '<i class="fas fa-check-circle mr-2"></i>Import successfully completed. Redirecting...';
+                        statusMsg.innerHTML = '<i class="fas fa-check-circle mr-2"></i>' + (data.message || 'Import completed successfully. Redirecting...');
                         statusMsg.classList.remove('hidden');
 
                         setTimeout(() => {
                             window.location.href = data.redirect || "{{ route('admin.ai-import.index') }}";
                         }, 1000);
                     } else {
-                        throw new Error(data.message || 'Failed to approve batch. Please check logs.');
+                        throw new Error(data.message || 'Error approving batch. Please check logs.');
                     }
                 } catch (error) {
                     approveBtn.disabled = false;

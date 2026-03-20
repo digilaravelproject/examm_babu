@@ -15,12 +15,12 @@
                             <i class="mr-2 fas fa-robot"></i> AI Smart Import
                         </h2>
                         <p class="mt-1 text-sm text-indigo-100 opacity-90">
-                            Upload PDF -> AI Extracts Questions -> Auto Save
+                            Upload PDF -> AI Extract Questions -> Auto Save
                         </p>
                     </div>
                     <div class="hidden sm:block">
                         <span class="px-3 py-1 text-xs font-semibold text-white uppercase border rounded-full bg-white/20 border-white/30 backdrop-blur-sm">
-                            Gemini 1.5 Pro
+                            Gemini 2.5 Flash
                         </span>
                     </div>
                 </div>
@@ -34,7 +34,7 @@
                         <i class="mr-3 text-xl fas fa-check-circle"></i>
                         <div>
                             <h4 class="font-bold">Process Completed!</h4>
-                            <p id="success-msg" class="text-sm">Questions have been imported successfully.</p>
+                            <p id="success-msg" class="text-sm">Questions have been successfully extracted.</p>
                         </div>
                     </div>
                 </div>
@@ -94,7 +94,7 @@
                             </label>
                             <div class="relative">
                                 <select name="topic_id" id="topicSelect" class="w-full px-4 py-3 text-gray-700 transition border border-gray-300 rounded-lg outline-none appearance-none bg-gray-50 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-                                    <option value="">-- Choose a Topic --</option>
+                                    <option value="">-- Select a Topic --</option>
                                     @foreach($topics as $topic)
                                         <option value="{{ $topic->id }}">{{ $topic->name }}</option>
                                     @endforeach
@@ -108,7 +108,7 @@
                         {{-- Step 2 --}}
                         <div>
                             <label class="block mb-2 text-sm font-bold tracking-wide text-gray-700 uppercase">
-                                2. Upload Question Paper
+                                2. Upload Question Paper (PDF)
                             </label>
 
                             <div id="dropZone" class="relative px-4 py-10 text-center transition-all border-2 border-indigo-200 border-dashed cursor-pointer group rounded-xl bg-indigo-50/50 hover:bg-indigo-50 hover:border-indigo-400">
@@ -138,7 +138,8 @@
                         <div class="pt-4">
                             <button type="submit" id="startBtn" disabled
                                 class="flex items-center justify-center w-full gap-2 py-4 text-lg font-bold text-gray-400 transition-all bg-gray-200 shadow-none cursor-not-allowed rounded-xl">
-                                <span>Select Topic & File to Start</span>
+                                <i id="btnIcon" class="fas fa-magic"></i>
+                                <span id="btnText">Select Topic and PDF to Start</span>
                             </button>
                         </div>
                     </div>
@@ -177,7 +178,7 @@
 
         function updateButtonState() {
             startBtn.disabled = !(topicSelect.value && fileInput.files.length);
-            startBtn.className = startBtn.disabled ? 
+            startBtn.className = startBtn.disabled ?
                 "flex items-center justify-center w-full gap-2 py-4 text-lg font-bold text-gray-400 bg-gray-200 rounded-xl cursor-not-allowed" :
                 "flex items-center justify-center w-full gap-2 py-4 text-lg font-bold text-white bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl hover:shadow-xl cursor-pointer";
         }
@@ -189,7 +190,7 @@
                 document.getElementById('emptyState').classList.add('hidden');
                 document.getElementById('fileInfo').classList.remove('hidden');
                 document.getElementById('fileName').innerText = 'Loading PDF...';
-                
+
                 const arrayBuffer = await file.arrayBuffer();
                 pdfDoc = await pdfjsLib.getDocument(arrayBuffer).promise;
                 document.getElementById('fileName').innerText = `${file.name} (${pdfDoc.numPages} pages)`;
@@ -199,7 +200,7 @@
         topicSelect.addEventListener('change', updateButtonState);
 
         stopBtn.addEventListener('click', async () => {
-            if (confirm("Stop processing?")) {
+            if (confirm("Are you sure you want to stop the process?")) {
                 isStopped = true;
                 if (currentBatchId) fetch(URL_CANCEL, { method: 'POST', body: JSON.stringify({ batch_id: currentBatchId }), headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' } });
                 location.reload();
@@ -209,48 +210,100 @@
         document.getElementById('aiImportForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             isStopped = false;
+
+            // Show loading state on button
             startBtn.disabled = true;
+            document.getElementById('btnIcon').className = "fas fa-spinner fa-spin";
+            document.getElementById('btnText').innerText = "AI is Processing... Please wait";
+            startBtn.classList.add('opacity-75');
+
             progressContainer.classList.remove('hidden');
             errorBox.classList.add('hidden');
 
             try {
-                progressStatusEl.innerText = "Step 1: AI Reading PDF (This may take a minute)...";
-                progressBar.style.width = "20%";
-                percentText.innerText = "20%";
+                const chunkSize = 1; // ULTRA-SAFE: process 1 page at a time to guarantee NO truncation even for dense visual pages
+                const numPages = pdfDoc.numPages;
+                let allQuestions = [];
+                currentBatchId = null;
 
-                const formData = new FormData();
-                formData.append('topic_id', topicSelect.value);
-                formData.append('pdf_file', fileInput.files[0]);
+                for (let i = 1; i <= numPages; i += chunkSize) {
+                    if (isStopped) break;
 
-                const res = await fetch(URL_PROCESS, {
-                    method: 'POST',
-                    body: formData,
-                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
-                });
+                    const startPage = i;
+                    const endPage = Math.min(i + chunkSize - 1, numPages);
 
-                const data = await res.json();
-                if (!data.success) throw new Error(data.message);
+                    progressStatusEl.innerText = `Step 1: AI Reading Page ${startPage} of ${numPages} (Processing chunk)...`;
+                    let progress = 10 + ((endPage / numPages) * 30); // scale 10% to 40% for step 1
+                    progressBar.style.width = `${progress}%`;
+                    percentText.innerText = `${Math.round(progress)}%`;
 
-                currentBatchId = data.batch_id;
-                const questions = data.questions;
+                    const formData = new FormData();
+                    formData.append('topic_id', topicSelect.value);
+                    if (!currentBatchId) {
+                        formData.append('pdf_file', fileInput.files[0]);
+                    } else {
+                        formData.append('batch_id', currentBatchId);
+                    }
+                    formData.append('start_page', startPage);
+                    formData.append('end_page', endPage);
 
-                progressStatusEl.innerText = "Step 2: Processing Images & Formatting...";
+                    const res = await fetch(URL_PROCESS, {
+                        method: 'POST',
+                        body: formData,
+                        headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
+                    });
+
+                    const data = await res.json();
+                    if (!data.success) throw new Error(data.message);
+
+                    currentBatchId = data.batch_id;
+                    allQuestions = data.questions;
+
+                    // RATE LIMIT PREVENTER: Wait 5 seconds between requests (Gemini Free Tier limit)
+                    if (i + chunkSize <= numPages && !isStopped) {
+                        progressStatusEl.innerText = `Waiting 5 seconds for API quota...`;
+                        await new Promise(r => setTimeout(r, 5000));
+                    }
+                }
+                
+                if (isStopped) return;
+                
+                if (allQuestions.length === 0) {
+                    throw new Error("AI failed to extract questions from any page. Please check the document quality.");
+                }
+
+                const questions = allQuestions;
+
+                progressStatusEl.innerText = "Step 2: Cropping and uploading images...";
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
+
+                // Array to store all upload promises for parallel execution
+                const uploadPromises = [];
 
                 for (let i = 0; i < questions.length; i++) {
                     if (isStopped) break;
                     const q = questions[i];
-                    
-                    if (q.image_box && q.page_number) {
-                        progressStatusEl.innerText = `Cropping Image for Question ${i+1}...`;
-                        
-                        const page = await pdfDoc.getPage(q.page_number);
-                        const viewport = page.getViewport({ scale: 2.0 });
-                        canvas.width = viewport.width;
-                        canvas.height = viewport.height;
-                        
-                        await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+
+                    if (!q.page_number) continue;
+
+                    let page = null;
+                    let viewport = null;
+
+                    // Helper function to load page only once per question if needed
+                    const loadPageIfNeeded = async () => {
+                        if (!page) {
+                            page = await pdfDoc.getPage(q.page_number);
+                            viewport = page.getViewport({ scale: 2.0 });
+                            canvas.width = viewport.width;
+                            canvas.height = viewport.height;
+                            await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+                        }
+                    };
+
+                    // Process main question image
+                    if (q.image_box && q.image_box.length === 4) {
+                        await loadPageIfNeeded();
 
                         const [ymin, xmin, ymax, xmax] = q.image_box;
                         const cropX = (xmin / 1000) * canvas.width;
@@ -261,30 +314,92 @@
                         const cropCanvas = document.createElement('canvas');
                         cropCanvas.width = cropW;
                         cropCanvas.height = cropH;
-                        cropCanvas.getContext('2d').drawImage(canvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
                         
+                        const cropCtx = cropCanvas.getContext('2d');
+                        cropCtx.fillStyle = '#FFFFFF';
+                        cropCtx.fillRect(0, 0, cropW, cropH);
+                        cropCtx.drawImage(canvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+
                         const base64 = cropCanvas.toDataURL('image/jpeg', 0.85);
 
-                        await fetch(URL_UPLOAD_CROP, {
+                        const uploadPromise = fetch(URL_UPLOAD_CROP, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-                            body: JSON.stringify({ batch_id: currentBatchId, question_index: i, image_base64: base64 })
+                            body: JSON.stringify({ batch_id: currentBatchId, question_index: i, image_base64: base64, image_type: 'question' })
                         });
+                        uploadPromises.push(uploadPromise);
                     }
 
-                    let percent = 20 + Math.round(((i + 1) / questions.length) * 80);
+                    // Process option images
+                    if (q.option_image_boxes && typeof q.option_image_boxes === 'object') {
+                        for (const optIndex in q.option_image_boxes) {
+                            const box = q.option_image_boxes[optIndex];
+                            if (box && box.length === 4) {
+                                await loadPageIfNeeded();
+
+                                const [ymin, xmin, ymax, xmax] = box;
+                                const cropX = (xmin / 1000) * canvas.width;
+                                const cropY = (ymin / 1000) * canvas.height;
+                                const cropW = ((xmax - xmin) / 1000) * canvas.width;
+                                const cropH = ((ymax - ymin) / 1000) * canvas.height;
+
+                                const cropCanvas = document.createElement('canvas');
+                                cropCanvas.width = cropW;
+                                cropCanvas.height = cropH;
+                                
+                                const cropCtx = cropCanvas.getContext('2d');
+                                cropCtx.fillStyle = '#FFFFFF';
+                                cropCtx.fillRect(0, 0, cropW, cropH);
+                                cropCtx.drawImage(canvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+
+                                const base64 = cropCanvas.toDataURL('image/jpeg', 0.85);
+
+                                const uploadPromise = fetch(URL_UPLOAD_CROP, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                                    body: JSON.stringify({ batch_id: currentBatchId, question_index: i, image_base64: base64, image_type: 'option_' + optIndex })
+                                });
+                                uploadPromises.push(uploadPromise);
+                                
+                                // OPTION COOLING: wait 2s after each option image
+                                await new Promise(r => setTimeout(r, 2000));
+                            }
+                        }
+                    }
+
+                    // QUESTION COOLING: Always wait 2s after every question to keep API/Server steady
+                    if (questions.length > 1 && !isStopped) {
+                        progressStatusEl.innerText = `Cooling down (Debouncing)...`;
+                        await new Promise(r => setTimeout(r, 2000));
+                    }
+
+                    // Progress update
+                    let percent = 40 + Math.round(((i + 1) / questions.length) * 30);
                     progressBar.style.width = `${percent}%`;
                     percentText.innerText = `${percent}%`;
                 }
 
                 if (!isStopped) {
+                    progressStatusEl.innerText = "Saving images on server...";
+                    // Wait for all image uploads to finish simultaneously!
+                    await Promise.all(uploadPromises);
+
+                    progressBar.style.width = `100%`;
+                    percentText.innerText = `100%`;
+
+                    // Redirect to preview
                     window.location.href = "{{ url('admin/ai-import/preview') }}/" + currentBatchId;
                 }
 
             } catch (err) {
                 errorBox.classList.remove('hidden');
                 errorMsg.innerText = err.message;
+
+                // Reset button state on error
                 startBtn.disabled = false;
+                document.getElementById('btnIcon').className = "fas fa-magic";
+                document.getElementById('btnText').innerText = "Start Extraction";
+                startBtn.classList.remove('opacity-75');
             }
         });
     });
