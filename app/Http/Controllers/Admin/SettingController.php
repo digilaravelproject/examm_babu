@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Settings\AiSettings;
 use App\Settings\BillingSettings;
 use App\Settings\EmailSettings;
 use App\Settings\PaymentSettings;
@@ -195,5 +196,29 @@ class SettingController extends Controller
         $settings->save();
 
         return redirect()->back()->with('success', 'Billing settings updated.');
+    }
+
+    /**
+     * AI Settings View
+     */
+    public function ai(AiSettings $settings)
+    {
+        return view('admin.settings.ai', compact('settings'));
+    }
+
+    public function updateAiSettings(Request $request, AiSettings $settings)
+    {
+        $validated = $request->validate([
+            'gemini_api_key' => 'required|string',
+            'model_name' => 'required|string',
+            'custom_model' => 'nullable|string',
+        ]);
+
+        $settings->gemini_api_key = $validated['gemini_api_key'];
+        $settings->model_name = $validated['model_name'];
+        $settings->custom_model = $validated['custom_model'];
+        $settings->save();
+
+        return redirect()->back()->with('success', 'AI settings updated.');
     }
 }

@@ -1,410 +1,341 @@
 @extends('layouts.admin')
 
 @section('content')
-<div class="min-h-screen py-10 bg-gray-100">
-    <div class="max-w-3xl mx-auto">
+<div class="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-4xl mx-auto">
+        {{-- Glassmorphism Header --}}
+        <div class="mb-10 text-center">
+            <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight sm:text-5xl mb-4">
+                <span class="bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-violet-600">
+                    AI Smart Import
+                </span>
+            </h1>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">
+                Digitize your question papers in seconds using advanced Vision AI.
+            </p>
+        </div>
 
-        {{-- Main Card --}}
-        <div class="overflow-hidden bg-white shadow-xl rounded-2xl">
-
-            {{-- Header --}}
-            <div class="px-8 py-6 bg-gradient-to-br from-indigo-600 to-purple-700">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h2 class="text-2xl font-bold text-white">
-                            <i class="mr-2 fas fa-robot"></i> AI Smart Import
-                        </h2>
-                        <p class="mt-1 text-sm text-indigo-100 opacity-90">
-                            Upload PDF -> AI Extract Questions -> Auto Save
-                        </p>
+        {{-- Stepper UI --}}
+        <div class="bg-white rounded-3xl shadow-2xl shadow-indigo-100 overflow-hidden border border-slate-100">
+            {{-- Progress Header --}}
+            <nav aria-label="Progress" class="bg-slate-50/50 border-b border-slate-100">
+                <ol role="list" class="flex items-center justify-center py-6">
+                  <li class="relative pr-8 sm:pr-20 group" id="step1-header">
+                    <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                      <div class="h-0.5 w-full bg-slate-200 group-data-[active=true]:bg-indigo-600"></div>
                     </div>
-                    <div class="hidden sm:block">
-                        <span class="px-3 py-1 text-xs font-semibold text-white uppercase border rounded-full bg-white/20 border-white/30 backdrop-blur-sm">
-                            Gemini 2.5 Flash
-                        </span>
+                    <div class="relative flex h-10 w-10 items-center justify-center rounded-full bg-indigo-600 text-white ring-8 ring-white shadow-lg shadow-indigo-200">
+                      <span class="text-sm font-bold">1</span>
                     </div>
-                </div>
-            </div>
-
-            <div class="p-8">
-
-                {{-- ALERTS AREA --}}
-                <div id="success-box" class="hidden p-4 mb-6 text-green-700 border-l-4 border-green-500 rounded-md shadow-sm bg-green-50">
-                    <div class="flex items-center">
-                        <i class="mr-3 text-xl fas fa-check-circle"></i>
-                        <div>
-                            <h4 class="font-bold">Process Completed!</h4>
-                            <p id="success-msg" class="text-sm">Questions have been successfully extracted.</p>
-                        </div>
+                    <span class="absolute -bottom-8 left-1/2 -translate-x-1/2 text-xs font-bold text-indigo-600 uppercase tracking-wider">Configure</span>
+                  </li>
+                  <li class="relative" id="step2-header">
+                    <div class="relative flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-400 border-2 border-slate-200 ring-8 ring-white">
+                      <span class="text-sm font-bold">2</span>
                     </div>
-                </div>
+                    <span class="absolute -bottom-8 left-1/2 -translate-x-1/2 text-xs font-bold text-slate-400 uppercase tracking-wider">Processing</span>
+                  </li>
+                </ol>
+            </nav>
 
-                <div id="error-box" class="hidden p-4 mb-6 text-red-700 border-l-4 border-red-500 rounded-md shadow-sm bg-red-50">
-                    <div class="flex items-center">
-                        <i class="mr-3 text-xl fas fa-exclamation-triangle"></i>
-                        <span id="error-msg">Something went wrong.</span>
-                    </div>
-                </div>
-
-                {{-- PROGRESS BAR AREA (Hidden by default) --}}
-                <div id="progress-container" class="hidden mb-8">
-
-                    {{-- Top Labels --}}
-                    <div class="flex justify-between mb-2 align-bottom">
-                        <span id="progress-status" class="text-sm font-bold text-indigo-700 animate-pulse">
-                            <i class="mr-1 fas fa-circle-notch fa-spin"></i> Initializing...
-                        </span>
-                        <span id="percent-text" class="text-sm font-bold text-gray-700">0%</span>
-                    </div>
-
-                    {{-- The Bar --}}
-                    <div class="relative w-full h-5 mb-3 overflow-hidden bg-gray-200 rounded-full shadow-inner">
-                        <div id="progress-bar"
-                             class="h-full transition-all duration-300 ease-out bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"
-                             style="width: 0%;">
-                        </div>
-                    </div>
-
-                    {{-- Stats & Stop Button --}}
-                    <div class="flex items-center justify-between mt-2">
-                        <div class="text-xs text-gray-500">
-                            <span class="mr-3">Batch: <span id="current-chunk" class="font-mono font-bold text-gray-700">0</span>/<span id="total-chunks" class="font-mono">0</span></span>
-                            <span class="hidden sm:inline">Started: <span id="time-started" class="font-mono">--:--</span></span>
-                        </div>
-
-                        {{-- STOP BUTTON --}}
-                        <button type="button" id="stopBtn" class="px-3 py-1 text-xs font-bold text-red-600 transition border border-red-200 rounded-lg hover:bg-red-50 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-500">
-                            <i class="mr-1 fas fa-stop-circle"></i> Stop Process
-                        </button>
-                    </div>
-
-                    <p class="mt-2 text-[10px] text-center text-gray-400">Please do not refresh or close the page.</p>
-                </div>
-
-                {{-- FORM --}}
-                <form id="aiImportForm" enctype="multipart/form-data">
-                    @csrf
-
-                    <div class="space-y-6">
-
-                        {{-- Step 1 --}}
-                        <div>
-                            <label class="block mb-2 text-sm font-bold tracking-wide text-gray-700 uppercase">
-                                1. Select Topic
+            <div class="p-8 sm:p-12">
+                {{-- STEP 1: CONFIGURATION --}}
+                <div id="step-config" class="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <form id="aiImportForm" class="space-y-8">
+                        @csrf
+                        {{-- Topic Selection --}}
+                        <div class="space-y-4">
+                            <label class="block text-sm font-bold text-slate-700 uppercase tracking-widest">
+                                Target Knowledge Area
                             </label>
-                            <div class="relative">
-                                <select name="topic_id" id="topicSelect" class="w-full px-4 py-3 text-gray-700 transition border border-gray-300 rounded-lg outline-none appearance-none bg-gray-50 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-                                    <option value="">-- Select a Topic --</option>
+                            <div class="relative group">
+                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                    <i class="fas fa-tags text-indigo-400"></i>
+                                </div>
+                                <select name="topic_id" id="topicSelect" class="block w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-slate-900 font-medium focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all appearance-none">
+                                    <option value="">Choose a Topic...</option>
                                     @foreach($topics as $topic)
                                         <option value="{{ $topic->id }}">{{ $topic->name }}</option>
                                     @endforeach
                                 </select>
-                                <div class="absolute inset-y-0 right-0 flex items-center px-4 text-gray-500 pointer-events-none">
-                                    <i class="text-xs fas fa-chevron-down"></i>
+                                <div class="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
+                                    <i class="fas fa-chevron-down text-slate-400 text-sm"></i>
                                 </div>
                             </div>
                         </div>
 
-                        {{-- Step 2 --}}
-                        <div>
-                            <label class="block mb-2 text-sm font-bold tracking-wide text-gray-700 uppercase">
-                                2. Upload Question Paper (PDF)
+                        {{-- File Upload --}}
+                        <div class="space-y-4">
+                            <label class="block text-sm font-bold text-slate-700 uppercase tracking-widest">
+                                Document (PDF)
                             </label>
-
-                            <div id="dropZone" class="relative px-4 py-10 text-center transition-all border-2 border-indigo-200 border-dashed cursor-pointer group rounded-xl bg-indigo-50/50 hover:bg-indigo-50 hover:border-indigo-400">
+                            <div id="dropZone" class="group relative flex flex-col items-center justify-center py-16 px-6 border-3 border-dashed border-slate-200 rounded-3xl bg-slate-50/50 hover:bg-slate-50 hover:border-indigo-400 transition-all cursor-pointer overflow-hidden">
+                                <div class="absolute inset-0 bg-gradient-to-tr from-indigo-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
                                 <input type="file" name="pdf_file" id="fileInput" accept=".pdf" class="hidden">
-
-                                {{-- State 1: Empty --}}
-                                <div id="emptyState" class="transition-transform duration-200 group-hover:scale-105">
-                                    <div class="flex items-center justify-center w-16 h-16 mx-auto mb-3 bg-white rounded-full shadow-sm">
-                                        <i class="text-3xl text-indigo-500 fas fa-cloud-upload-alt"></i>
+                                
+                                <div id="emptyState" class="text-center space-y-4 z-10">
+                                    <div class="w-20 h-20 bg-white rounded-2xl shadow-xl flex items-center justify-center mx-auto group-hover:scale-110 transition-transform duration-300">
+                                        <i class="fas fa-file-pdf text-4xl text-indigo-500"></i>
                                     </div>
-                                    <h3 class="font-semibold text-indigo-900">Click to upload PDF</h3>
-                                    <p class="mt-1 text-xs text-indigo-400">Maximum size 100MB</p>
+                                    <div>
+                                        <p class="text-xl font-bold text-slate-900">Drop PDF paper here</p>
+                                        <p class="text-sm text-slate-500 mt-1">or click to browse local files (Max 50MB)</p>
+                                    </div>
                                 </div>
 
-                                {{-- State 2: Selected --}}
-                                <div id="fileInfo" class="hidden">
-                                    <div class="flex items-center justify-center w-16 h-16 mx-auto mb-3 bg-red-100 rounded-full">
-                                        <i class="text-3xl text-red-500 fas fa-file-pdf"></i>
+                                <div id="fileInfo" class="hidden text-center space-y-4 z-10">
+                                    <div class="w-20 h-20 bg-emerald-500 rounded-2xl shadow-xl shadow-emerald-200 flex items-center justify-center mx-auto">
+                                        <i class="fas fa-check text-4xl text-white"></i>
                                     </div>
-                                    <p id="fileName" class="text-lg font-bold text-gray-800 break-all">filename.pdf</p>
-                                    <p class="mt-1 text-sm font-medium text-green-600"><i class="fas fa-check"></i> Ready</p>
+                                    <div>
+                                        <p id="fileName" class="text-xl font-bold text-emerald-600 truncate max-w-xs mx-auto">file.pdf</p>
+                                        <button type="button" onclick="resetFile()" class="text-sm font-bold text-rose-500 hover:text-rose-600 mt-2 uppercase tracking-tight">Remove File</button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        {{-- Submit Button --}}
-                        <div class="pt-4">
-                            <button type="submit" id="startBtn" disabled
-                                class="flex items-center justify-center w-full gap-2 py-4 text-lg font-bold text-gray-400 transition-all bg-gray-200 shadow-none cursor-not-allowed rounded-xl">
-                                <i id="btnIcon" class="fas fa-magic"></i>
-                                <span id="btnText">Select Topic and PDF to Start</span>
+                        {{-- Footer Buttons --}}
+                        <div class="pt-6">
+                            <button type="submit" id="startBtn" disabled class="w-full py-5 px-8 rounded-2xl bg-slate-200 text-slate-400 font-black text-lg uppercase tracking-widest shadow-xl transition-all disabled:cursor-not-allowed">
+                                Analyze Document
                             </button>
                         </div>
-                    </div>
-                </form>
+                    </form>
+                </div>
 
+                {{-- STEP 2: PROCESSING (Hidden) --}}
+                <div id="step-processing" class="hidden space-y-12 animate-in fade-in zoom-in-95 duration-500">
+                    <div class="text-center space-y-4">
+                        <div class="relative inline-block">
+                            <i class="fas fa-brain text-6xl text-indigo-500 animate-pulse"></i>
+                            <div class="absolute -top-1 -right-1 flex h-4 w-4">
+                              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                              <span class="relative inline-flex rounded-full h-4 w-4 bg-indigo-500"></span>
+                            </div>
+                        </div>
+                        <h2 class="text-2xl font-black text-slate-900">AI is Digitizing Content</h2>
+                        <p class="text-slate-500">Please keep this window open while our AI extracts questions and diagrams.</p>
+                    </div>
+
+                    <div class="space-y-4 max-w-md mx-auto">
+                        <div class="flex justify-between items-end">
+                            <span id="progress-status" class="text-sm font-bold text-indigo-600">Analyzing pages...</span>
+                            <span id="percent-text" class="text-2xl font-black text-slate-900 tabular-nums">0%</span>
+                        </div>
+                        <div class="h-4 w-full bg-slate-100 rounded-full overflow-hidden shadow-inner">
+                            <div id="progress-bar" class="h-full bg-gradient-to-r from-indigo-600 via-violet-600 to-indigo-600 transition-all duration-700 ease-out" style="width: 0%"></div>
+                        </div>
+                        <div class="flex justify-between text-[10px] font-bold text-slate-400 uppercase tracking-tighter pt-2">
+                            <span>Batch Processing System v2.0</span>
+                            <span>Est. Time remaining: <span id="est-time">Calculating...</span></span>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-center">
+                        <button type="button" id="stopBtn" class="px-6 py-3 rounded-xl border-2 border-slate-200 text-slate-500 font-bold hover:bg-slate-50 transition-colors">
+                            <i class="fas fa-stop-circle mr-2 text-rose-500"></i> Abort Extraction
+                        </button>
+                    </div>
+                </div>
+
+                <div id="error-box" class="hidden mt-8 p-6 bg-rose-50 rounded-2xl border-2 border-rose-100 border-l-rose-500 border-l-8">
+                    <div class="flex items-start">
+                        <i class="fas fa-bomb text-2xl text-rose-500 mt-1"></i>
+                        <div class="ml-4">
+                            <h4 class="font-black text-rose-900 uppercase text-sm tracking-widest">Process Failed</h4>
+                            <p id="error-msg" class="text-rose-700 text-sm mt-1">Internal system error occurred.</p>
+                            <button onclick="window.location.reload()" class="mt-4 text-xs font-bold text-white bg-rose-500 px-4 py-2 rounded-lg hover:bg-rose-600 uppercase">Retry Session</button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-{{-- Scripts --}}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-    document.addEventListener('DOMContentLoaded', function() {
-        const topicSelect = document.getElementById('topicSelect');
-        const fileInput = document.getElementById('fileInput');
-        const dropZone = document.getElementById('dropZone');
-        const startBtn = document.getElementById('startBtn');
-        const stopBtn = document.getElementById('stopBtn');
-        const progressContainer = document.getElementById('progress-container');
-        const progressBar = document.getElementById('progress-bar');
-        const percentText = document.getElementById('percent-text');
-        const progressStatusEl = document.getElementById('progress-status');
-        const errorBox = document.getElementById('error-box');
-        const errorMsg = document.getElementById('error-msg');
+    let pdfDoc = null;
+    let isStopped = false;
+    let currentBatchId = null;
 
-        const URL_PROCESS = "{{ route('admin.ai-import.process') }}";
-        const URL_UPLOAD_CROP = "{{ route('admin.ai-import.upload-cropped-image') }}";
-        const URL_CANCEL = "{{ route('admin.ai-import.cancel') }}";
+    const topicSelect = document.getElementById('topicSelect');
+    const fileInput = document.getElementById('fileInput');
+    const dropZone = document.getElementById('dropZone');
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const progressBar = document.getElementById('progress-bar');
+    const percentText = document.getElementById('percent-text');
+    const statusText = document.getElementById('progress-status');
 
-        let isStopped = false;
-        let currentBatchId = null;
-        let pdfDoc = null;
+    dropZone.addEventListener('click', () => fileInput.click());
 
-        function updateButtonState() {
-            startBtn.disabled = !(topicSelect.value && fileInput.files.length);
-            startBtn.className = startBtn.disabled ?
-                "flex items-center justify-center w-full gap-2 py-4 text-lg font-bold text-gray-400 bg-gray-200 rounded-xl cursor-not-allowed" :
-                "flex items-center justify-center w-full gap-2 py-4 text-lg font-bold text-white bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl hover:shadow-xl cursor-pointer";
-        }
-
-        dropZone.addEventListener('click', () => fileInput.click());
-        fileInput.addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if (file && file.type === "application/pdf") {
-                document.getElementById('emptyState').classList.add('hidden');
-                document.getElementById('fileInfo').classList.remove('hidden');
-                document.getElementById('fileName').innerText = 'Loading PDF...';
-
-                const arrayBuffer = await file.arrayBuffer();
-                pdfDoc = await pdfjsLib.getDocument(arrayBuffer).promise;
-                document.getElementById('fileName').innerText = `${file.name} (${pdfDoc.numPages} pages)`;
-                updateButtonState();
-            }
-        });
-        topicSelect.addEventListener('change', updateButtonState);
-
-        stopBtn.addEventListener('click', async () => {
-            if (confirm("Are you sure you want to stop the process?")) {
-                isStopped = true;
-                if (currentBatchId) fetch(URL_CANCEL, { method: 'POST', body: JSON.stringify({ batch_id: currentBatchId }), headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' } });
-                location.reload();
-            }
-        });
-
-        document.getElementById('aiImportForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            isStopped = false;
-
-            // Show loading state on button
-            startBtn.disabled = true;
-            document.getElementById('btnIcon').className = "fas fa-spinner fa-spin";
-            document.getElementById('btnText').innerText = "AI is Processing... Please wait";
-            startBtn.classList.add('opacity-75');
-
-            progressContainer.classList.remove('hidden');
-            errorBox.classList.add('hidden');
+    fileInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (file && file.type === "application/pdf") {
+            document.getElementById('emptyState').classList.add('hidden');
+            document.getElementById('fileInfo').classList.remove('hidden');
+            document.getElementById('fileName').innerText = 'Validating PDF...';
 
             try {
-                const chunkSize = 1; // ULTRA-SAFE: process 1 page at a time to guarantee NO truncation even for dense visual pages
-                const numPages = pdfDoc.numPages;
-                let allQuestions = [];
-                currentBatchId = null;
-
-                for (let i = 1; i <= numPages; i += chunkSize) {
-                    if (isStopped) break;
-
-                    const startPage = i;
-                    const endPage = Math.min(i + chunkSize - 1, numPages);
-
-                    progressStatusEl.innerText = `Step 1: AI Reading Page ${startPage} of ${numPages} (Processing chunk)...`;
-                    let progress = 10 + ((endPage / numPages) * 30); // scale 10% to 40% for step 1
-                    progressBar.style.width = `${progress}%`;
-                    percentText.innerText = `${Math.round(progress)}%`;
-
-                    const formData = new FormData();
-                    formData.append('topic_id', topicSelect.value);
-                    if (!currentBatchId) {
-                        formData.append('pdf_file', fileInput.files[0]);
-                    } else {
-                        formData.append('batch_id', currentBatchId);
-                    }
-                    formData.append('start_page', startPage);
-                    formData.append('end_page', endPage);
-
-                    const res = await fetch(URL_PROCESS, {
-                        method: 'POST',
-                        body: formData,
-                        headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
-                    });
-
-                    const data = await res.json();
-                    if (!data.success) throw new Error(data.message);
-
-                    currentBatchId = data.batch_id;
-                    allQuestions = data.questions;
-
-                    // RATE LIMIT PREVENTER: Wait 5 seconds between requests (Gemini Free Tier limit)
-                    if (i + chunkSize <= numPages && !isStopped) {
-                        progressStatusEl.innerText = `Waiting 5 seconds for API quota...`;
-                        await new Promise(r => setTimeout(r, 5000));
-                    }
-                }
-                
-                if (isStopped) return;
-                
-                if (allQuestions.length === 0) {
-                    throw new Error("AI failed to extract questions from any page. Please check the document quality.");
-                }
-
-                const questions = allQuestions;
-
-                progressStatusEl.innerText = "Step 2: Cropping and uploading images...";
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-
-                // Array to store all upload promises for parallel execution
-                const uploadPromises = [];
-
-                for (let i = 0; i < questions.length; i++) {
-                    if (isStopped) break;
-                    const q = questions[i];
-
-                    if (!q.page_number) continue;
-
-                    let page = null;
-                    let viewport = null;
-
-                    // Helper function to load page only once per question if needed
-                    const loadPageIfNeeded = async () => {
-                        if (!page) {
-                            page = await pdfDoc.getPage(q.page_number);
-                            viewport = page.getViewport({ scale: 2.0 });
-                            canvas.width = viewport.width;
-                            canvas.height = viewport.height;
-                            await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-                        }
-                    };
-
-                    // Process main question image
-                    if (q.image_box && q.image_box.length === 4) {
-                        await loadPageIfNeeded();
-
-                        const [ymin, xmin, ymax, xmax] = q.image_box;
-                        const cropX = (xmin / 1000) * canvas.width;
-                        const cropY = (ymin / 1000) * canvas.height;
-                        const cropW = ((xmax - xmin) / 1000) * canvas.width;
-                        const cropH = ((ymax - ymin) / 1000) * canvas.height;
-
-                        const cropCanvas = document.createElement('canvas');
-                        cropCanvas.width = cropW;
-                        cropCanvas.height = cropH;
-                        
-                        const cropCtx = cropCanvas.getContext('2d');
-                        cropCtx.fillStyle = '#FFFFFF';
-                        cropCtx.fillRect(0, 0, cropW, cropH);
-                        cropCtx.drawImage(canvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
-
-                        const base64 = cropCanvas.toDataURL('image/jpeg', 0.85);
-
-                        const uploadPromise = fetch(URL_UPLOAD_CROP, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-                            body: JSON.stringify({ batch_id: currentBatchId, question_index: i, image_base64: base64, image_type: 'question' })
-                        });
-                        uploadPromises.push(uploadPromise);
-
-                        // IMAGE COOLING: 2-second delay between individual uploads
-                        await new Promise(r => setTimeout(r, 2000));
-                    }
-
-                    // Process option images
-                    if (q.option_image_boxes && typeof q.option_image_boxes === 'object') {
-                        for (const optIndex in q.option_image_boxes) {
-                            const box = q.option_image_boxes[optIndex];
-                            if (box && box.length === 4) {
-                                await loadPageIfNeeded();
-
-                                const [ymin, xmin, ymax, xmax] = box;
-                                const cropX = (xmin / 1000) * canvas.width;
-                                const cropY = (ymin / 1000) * canvas.height;
-                                const cropW = ((xmax - xmin) / 1000) * canvas.width;
-                                const cropH = ((ymax - ymin) / 1000) * canvas.height;
-
-                                const cropCanvas = document.createElement('canvas');
-                                cropCanvas.width = cropW;
-                                cropCanvas.height = cropH;
-                                
-                                const cropCtx = cropCanvas.getContext('2d');
-                                cropCtx.fillStyle = '#FFFFFF';
-                                cropCtx.fillRect(0, 0, cropW, cropH);
-                                cropCtx.drawImage(canvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
-
-                                const base64 = cropCanvas.toDataURL('image/jpeg', 0.85);
-
-                                const uploadPromise = fetch(URL_UPLOAD_CROP, {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-                                    body: JSON.stringify({ batch_id: currentBatchId, question_index: i, image_base64: base64, image_type: 'option_' + optIndex })
-                                });
-                                uploadPromises.push(uploadPromise);
-                                
-                                // OPTION COOLING: wait 2s after each option image
-                                await new Promise(r => setTimeout(r, 2000));
-                            }
-                        }
-                    }
-
-                    // QUESTION COOLING: Always wait 2s after every question to keep API/Server steady
-                    if (questions.length > 1 && !isStopped) {
-                        progressStatusEl.innerText = `Cooling down (Debouncing)...`;
-                        await new Promise(r => setTimeout(r, 2000));
-                    }
-
-                    // Progress update
-                    let percent = 40 + Math.round(((i + 1) / questions.length) * 30);
-                    progressBar.style.width = `${percent}%`;
-                    percentText.innerText = `${percent}%`;
-                }
-
-                if (!isStopped) {
-                    progressStatusEl.innerText = "Saving images on server...";
-                    // Wait for all image uploads to finish simultaneously!
-                    await Promise.all(uploadPromises);
-
-                    progressBar.style.width = `100%`;
-                    percentText.innerText = `100%`;
-
-                    // Redirect to preview
-                    window.location.href = "{{ url('admin/ai-import/preview') }}/" + currentBatchId;
-                }
-
-            } catch (err) {
-                errorBox.classList.remove('hidden');
-                errorMsg.innerText = err.message;
-
-                // Reset button state on error
-                startBtn.disabled = false;
-                document.getElementById('btnIcon').className = "fas fa-magic";
-                document.getElementById('btnText').innerText = "Start Extraction";
-                startBtn.classList.remove('opacity-75');
+                const arrayBuffer = await file.arrayBuffer();
+                pdfDoc = await pdfjsLib.getDocument(arrayBuffer).promise;
+                document.getElementById('fileName').innerText = `${file.name} (${pdfDoc.numPages} Pages)`;
+                updateButton();
+            } catch(e) {
+                alert("Only valid PDF files are allowed.");
+                resetFile();
             }
-        });
+        }
     });
+
+    topicSelect.addEventListener('change', updateButton);
+
+    function updateButton() {
+        const isValid = topicSelect.value && pdfDoc;
+        startBtn.disabled = !isValid;
+        if (isValid) {
+            startBtn.classList.replace('bg-slate-200', 'bg-gradient-to-r');
+            startBtn.classList.add('from-indigo-600', 'to-violet-600', 'bg-indigo-600', 'text-white', 'hover:scale-[1.02]');
+        } else {
+            startBtn.classList.remove('from-indigo-600', 'to-violet-600', 'bg-indigo-600', 'text-white', 'hover:scale-[1.02]');
+            startBtn.classList.add('bg-slate-200', 'text-slate-400');
+        }
+    }
+
+    function resetFile() {
+        fileInput.value = "";
+        pdfDoc = null;
+        document.getElementById('fileInfo').classList.add('hidden');
+        document.getElementById('emptyState').classList.remove('hidden');
+        updateButton();
+    }
+
+    document.getElementById('aiImportForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        document.getElementById('step-config').classList.add('hidden');
+        document.getElementById('step-processing').classList.remove('hidden');
+        document.getElementById('step2-header').querySelector('div').classList.replace('bg-white', 'bg-indigo-600');
+        document.getElementById('step2-header').querySelector('div').classList.replace('text-slate-400', 'text-white');
+        document.getElementById('step2-header').querySelector('div').classList.add('shadow-lg', 'shadow-indigo-200');
+        document.getElementById('step2-header').querySelector('span').classList.replace('text-slate-400', 'text-indigo-600');
+
+        try {
+            const numPages = pdfDoc.numPages;
+            let allQuestions = [];
+            const chunkSize = 1;
+
+            for (let i = 1; i <= numPages; i += chunkSize) {
+                if (isStopped) break;
+
+                statusText.innerText = `AI Reading Page ${i} of ${numPages}...`;
+                let progress = Math.round((i / numPages) * 70); 
+                progressBar.style.width = `${progress}%`;
+                percentText.innerText = `${progress}%`;
+
+                const fd = new FormData();
+                fd.append('topic_id', topicSelect.value);
+                if (!currentBatchId) fd.append('pdf_file', fileInput.files[0]);
+                else fd.append('batch_id', currentBatchId);
+                fd.append('start_page', i);
+                fd.append('end_page', i);
+
+                const res = await fetch("{{ route('admin.ai-import.process') }}", {
+                    method: 'POST',
+                    body: fd,
+                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
+                });
+
+                const data = await res.json();
+                if (!data.success) throw new Error(data.message);
+
+                currentBatchId = data.batch_id;
+                allQuestions = data.questions;
+
+                // Rate limiting pause
+                if (i < numPages) await new Promise(r => setTimeout(r, 2000));
+            }
+
+            if (isStopped) return;
+
+            // STEP 2: Vision Extraction (Images)
+            statusText.innerText = `Vision AI: Extracting Diagrams...`;
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+
+            for (let i = 0; i < allQuestions.length; i++) {
+                if (isStopped) break;
+                const q = allQuestions[i];
+                if (!q.image_box && !q.option_image_boxes) continue;
+
+                const page = await pdfDoc.getPage(q.page_number_extracted || 1);
+                const viewport = page.getViewport({ scale: 2.0 });
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+                await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+
+                // Process Question Image
+                if (q.image_box) {
+                    const imgBase64 = crop(canvas, q.image_box);
+                    await uploadImg(currentBatchId, i, imgBase64, 'question');
+                }
+
+                // Process Options Images
+                if (q.option_image_boxes) {
+                    for (const key in q.option_image_boxes) {
+                        const imgBase64 = crop(canvas, q.option_image_boxes[key]);
+                        await uploadImg(currentBatchId, i, imgBase64, 'option_'+key);
+                    }
+                }
+
+                let p = 70 + Math.round(((i+1)/allQuestions.length) * 30);
+                progressBar.style.width = `${p}%`;
+                percentText.innerText = `${p}%`;
+            }
+
+            if (!isStopped) {
+                window.location.href = "{{ url('admin/ai-import/preview') }}/" + currentBatchId;
+            }
+
+        } catch (err) {
+            document.getElementById('error-box').classList.remove('hidden');
+            document.getElementById('error-msg').innerText = err.message;
+        }
+    });
+
+    function crop(sourceCanvas, box) {
+        const [ymin, xmin, ymax, xmax] = box;
+        const cX = (xmin / 1000) * sourceCanvas.width;
+        const cY = (ymin / 1000) * sourceCanvas.height;
+        const cW = ((xmax - xmin) / 1000) * sourceCanvas.width;
+        const cH = ((ymax - ymin) / 1000) * sourceCanvas.height;
+
+        const cropCanvas = document.createElement('canvas');
+        cropCanvas.width = cW;
+        cropCanvas.height = cH;
+        const cropCtx = cropCanvas.getContext('2d');
+        cropCtx.fillStyle = '#FFFFFF';
+        cropCtx.fillRect(0, 0, cW, cH);
+        cropCtx.drawImage(sourceCanvas, cX, cY, cW, cH, 0, 0, cW, cH);
+        return cropCanvas.toDataURL('image/jpeg', 0.9);
+    }
+
+    async function uploadImg(batchId, qIdx, base64, type) {
+        await fetch("{{ route('admin.ai-import.upload-cropped-image') }}", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+            body: JSON.stringify({ batch_id: batchId, question_index: qIdx, image_base64: base64, image_type: type })
+        });
+        await new Promise(r => setTimeout(r, 500)); // Minor debounce
+    }
+
+    stopBtn.addEventListener('click', () => { if(confirm("Abort process?")) { isStopped = true; location.reload(); }});
 </script>
+
+<style>
+    .border-3 { border-width: 3px; }
+</style>
 @endsection

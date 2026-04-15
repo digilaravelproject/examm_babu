@@ -44,5 +44,15 @@
             </svg>
             Billing & Invoice
         </a>
+
+        <a href="{{ route('admin.settings.ai') }}"
+            class="{{ request()->routeIs('admin.settings.ai') ? 'bg-[#0777be] text-white shadow' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100' }}
+                  px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 whitespace-nowrap">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+            </svg>
+            AI Settings
+        </a>
     </nav>
 </div>

@@ -1,84 +1,140 @@
 @extends('layouts.admin')
 
 @section('content')
-<div class="min-h-screen py-10 bg-gray-100">
-    <div class="max-w-5xl mx-auto">
-        <div class="mb-6 flex flex-col md:flex-row justify-between md:items-center gap-4">
+<div class="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto">
+        
+        {{-- Header Section --}}
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
             <div>
-                <a href="{{ route('admin.ai-import.index') }}" class="text-indigo-600 hover:underline mb-2 inline-block"><i class="fas fa-arrow-left"></i> Back to Import</a>
-                <h2 class="text-2xl font-bold text-gray-800">
-                    <i class="fas fa-eye text-indigo-600 mr-2"></i> Preview Extracted Questions
-                </h2>
-                <p class="text-sm text-gray-500 mt-1">Review the questions extracted by AI. Images will be displayed if available.</p>
+                <nav class="flex mb-4" aria-label="Breadcrumb">
+                    <ol class="inline-flex items-center space-x-1 md:space-x-3">
+                        <li class="inline-flex items-center">
+                            <a href="{{ route('admin.ai-import.index') }}" class="text-sm font-medium text-slate-500 hover:text-indigo-600 transition-colors flex items-center">
+                                <i class="fas fa-magic mr-2"></i> AI Import
+                            </a>
+                        </li>
+                        <li>
+                            <div class="flex items-center">
+                                <i class="fas fa-chevron-right text-slate-300 text-[10px] mx-1"></i>
+                                <span class="text-sm font-bold text-slate-900 ml-1">Verification Gallery</span>
+                            </div>
+                        </li>
+                    </ol>
+                </nav>
+                <h1 class="text-3xl font-black text-slate-900 tracking-tight">
+                    Verify Extracted Content
+                </h1>
+                <p class="text-slate-500 mt-1">Found <span class="text-indigo-600 font-bold tabular-nums">{{ count($questions) }}</span> questions. Please review them carefully before permanent storage.</p>
             </div>
 
             @if(count($questions) > 0)
-            <button id="approveBtn" class="px-6 py-3 bg-green-600 text-white font-bold rounded-lg shadow-lg hover:bg-green-700 hover:scale-105 transition-all focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 flex justify-center items-center">
-                <i class="fas fa-check-circle mr-2"></i> Approve & Import All ({{ count($questions) }})
-            </button>
+            <div class="flex items-center gap-3">
+                <button id="approveBtn" class="inline-flex items-center px-8 py-4 bg-indigo-600 border border-transparent rounded-2xl font-black text-white hover:bg-indigo-700 hover:scale-105 active:scale-95 transition-all shadow-xl shadow-indigo-200 uppercase tracking-widest text-sm">
+                    <i class="fas fa-cloud-upload-alt mr-2"></i> Save to Database
+                </button>
+            </div>
             @endif
         </div>
 
-        <div id="status-message" class="hidden p-4 mb-6 rounded-md shadow-sm"></div>
+        <div id="status-message" class="hidden p-6 mb-8 rounded-2xl border-2 transition-all duration-500 animate-in slide-in-from-top-4"></div>
 
         @if(count($questions) == 0)
-            <div class="p-8 text-center bg-white rounded-xl shadow border border-gray-100">
-                <div class="w-20 h-20 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-4 text-gray-400">
-                    <i class="fas fa-folder-open text-3xl"></i>
+            <div class="bg-white rounded-3xl p-16 text-center border-2 border-dashed border-slate-200 shadow-sm space-y-6">
+                <div class="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto text-slate-300">
+                    <i class="fas fa-ghost text-5xl"></i>
                 </div>
-                <p class="text-gray-600 text-lg font-medium">No questions could be safely extracted.</p>
-                <a href="{{ route('admin.ai-import.index') }}" class="mt-4 inline-block px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 transition font-medium">Try Another File</a>
+                <div>
+                    <h3 class="text-2xl font-bold text-slate-900">Virtual Desert</h3>
+                    <p class="text-slate-500 max-w-sm mx-auto mt-2">AI couldn't find any questions matching our quality standards. This usually happens if the PDF scan is poor or text is unrecognizable.</p>
+                </div>
+                <a href="{{ route('admin.ai-import.index') }}" class="inline-block px-6 py-3 bg-indigo-50 text-indigo-700 rounded-xl font-bold hover:bg-indigo-100 transition">Try a Different Scan</a>
             </div>
         @else
-            <div class="space-y-6">
+            <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
                 @foreach($questions as $index => $q)
-                    <div class="p-6 bg-white rounded-xl shadow relative overflow-hidden border border-gray-100">
-                        <div class="absolute top-0 left-0 w-1 h-full bg-indigo-500"></div>
-
-                        <div class="flex justify-between items-start mb-4">
-                            <h4 class="font-bold text-lg text-gray-800 flex-1">
-                                <span class="text-indigo-600 mr-2">Q{{ $index + 1 }}.</span>
-                                {{-- Ye HTML allow karega taaki <img> tags correctly render ho --}}
-                                {!! $q['question'] ?? 'N/A' !!}
-                            </h4>
-                            <span class="px-2 py-1 text-[10px] font-bold uppercase rounded bg-indigo-100 text-indigo-700 border border-indigo-200 ml-2">
-                                {{ $q['type'] ?? 'MSA' }}
-                            </span>
+                    <div class="group bg-white rounded-3xl shadow-sm hover:shadow-2xl hover:shadow-indigo-100 transition-all duration-500 border border-slate-100 overflow-hidden relative flex flex-col">
+                        {{-- Top Strip --}}
+                        <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-violet-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                        
+                        {{-- ID & Meta --}}
+                        <div class="px-6 py-4 bg-slate-50/50 border-b border-slate-100 flex justify-between items-center">
+                            <div class="flex items-center space-x-3">
+                                <span class="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-600 text-white font-bold text-xs shadow-lg shadow-indigo-100">
+                                    {{ $index + 1 }}
+                                </span>
+                                <span class="text-[10px] font-black uppercase text-slate-400 tracking-widest bg-white px-2 py-1 rounded border border-slate-200">
+                                    {{ $q['type'] ?? 'MSA' }}
+                                </span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-2 py-1 rounded-full border border-indigo-100">
+                                    <i class="fas fa-file-alt mr-1"></i> Page {{ $q['source_page'] ?? '?' }}
+                                </span>
+                            </div>
                         </div>
 
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        {{-- Question Content --}}
+                        <div class="p-8 flex-grow space-y-6">
+                            <div class="prose prose-slate max-w-none">
+                                <h3 class="text-lg font-bold text-slate-800 leading-relaxed">
+                                    {!! $q['question'] ?? '<span class="text-rose-400 italic">No question extracted</span>' !!}
+                                </h3>
+                            </div>
+
                             @if(isset($q['options']) && is_array($q['options']) && count($q['options']) > 0)
-                                @foreach($q['options'] as $optIndex => $opt)
-                                    @php
-                                        $type = $q['type'] ?? 'MSA';
-                                        $isCorrect = false;
-                                        if ($type === 'MMA' && isset($q['correct_option_indices'])) {
-                                            $isCorrect = in_array($optIndex, $q['correct_option_indices']);
-                                        } else {
-                                            $isCorrect = (isset($q['correct_option_index']) && $q['correct_option_index'] == $optIndex);
-                                        }
-                                        $letter = chr(65 + $optIndex);
-                                    @endphp
-                                    <div class="p-3 border rounded-lg {{ $isCorrect ? 'bg-green-50 border-green-300 shadow-sm' : 'bg-gray-50 border-gray-200' }} transition-colors">
-                                        <span class="font-semibold {{ $isCorrect ? 'text-green-700' : 'text-gray-600' }} mr-2">{{ $letter }})</span>
-                                        <span class="{{ $isCorrect ? 'text-green-900 font-medium' : 'text-gray-700' }}">{!! $opt !!}</span>
-                                        @if($isCorrect)
-                                            <i class="fas fa-check-circle text-green-500 float-right mt-1"></i>
-                                        @endif
+                                <div class="grid grid-cols-1 gap-3">
+                                    @foreach($q['options'] as $optIdx => $opt)
+                                        @php
+                                            $isCorrect = false;
+                                            if (($q['type'] ?? 'MSA') === 'MMA') {
+                                                $isCorrect = in_array($optIdx, $q['correct_option_indices'] ?? []);
+                                            } else {
+                                                $isCorrect = (isset($q['correct_option_index']) && $q['correct_option_index'] == $optIdx);
+                                            }
+                                            $letter = chr(65 + $optIdx);
+                                        @endphp
+                                        <div class="relative group/opt p-4 rounded-2xl border-2 transition-all {{ $isCorrect ? 'bg-emerald-50 border-emerald-100' : 'bg-slate-50 border-slate-50' }}">
+                                            <div class="flex items-start gap-4">
+                                                <span class="flex-shrink-0 w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold {{ $isCorrect ? 'bg-emerald-500 text-white' : 'bg-white text-slate-400 border border-slate-200' }}">
+                                                    {{ $letter }}
+                                                </span>
+                                                <div class="text-sm font-medium {{ $isCorrect ? 'text-emerald-900' : 'text-slate-700' }}">
+                                                    {!! $opt !!}
+                                                </div>
+                                                @if($isCorrect)
+                                                    <i class="fas fa-check-circle text-emerald-500 ml-auto self-center opacity-80"></i>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @elseif(isset($q['correct_answer_text']) && $q['correct_answer_text'])
+                                <div class="p-4 bg-blue-50 border-2 border-blue-100 rounded-2xl">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center text-white">
+                                            <i class="fas fa-key text-xs"></i>
+                                        </div>
+                                        <div>
+                                            <label class="block text-[10px] uppercase font-black text-blue-400 tracking-tighter">Verified Answer</label>
+                                            <span class="text-sm font-bold text-blue-900">{{ $q['correct_answer_text'] }}</span>
+                                        </div>
                                     </div>
-                                @endforeach
-                            @elseif(isset($q['correct_answer_text']))
-                                <div class="col-span-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                                    <strong class="text-blue-700 mr-2">Correct Answer:</strong>
-                                    <span class="text-blue-900">{{ $q['correct_answer_text'] }}</span>
                                 </div>
                             @endif
                         </div>
 
+                        {{-- Solution/Hint Footer --}}
                         @if(!empty($q['solution']) || !empty($q['hint']))
-                            <div class="mt-4 p-4 bg-indigo-50 text-indigo-900 text-sm rounded-lg border border-indigo-100">
-                                <strong><i class="fas fa-lightbulb text-yellow-500 mr-1"></i> Explanation & Hint:</strong> {!! $q['solution'] ?? $q['hint'] !!}
+                        <div class="px-8 py-6 bg-slate-50/30 border-t border-slate-100 mt-auto group-hover:bg-indigo-50/30 transition-colors">
+                            <div class="flex items-start gap-3">
+                                <i class="fas fa-info-circle text-indigo-400 mt-0.5"></i>
+                                <div class="text-xs text-slate-500 leading-relaxed italic">
+                                    <strong class="text-slate-700 not-italic uppercase tracking-widest text-[10px]">AI Insight:</strong> 
+                                    {!! $q['solution'] ?: $q['hint'] !!}
+                                </div>
                             </div>
+                        </div>
                         @endif
                     </div>
                 @endforeach
@@ -94,43 +150,38 @@
 
         if(approveBtn) {
             approveBtn.addEventListener('click', async function() {
-                if(!confirm("Are you sure you want to save all questions to the database?")) return;
+                if(!confirm("Ready to integrate these into your database? This action cannot be undone.")) return;
 
                 approveBtn.disabled = true;
-                approveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Saving to Database...';
-                approveBtn.classList.add('opacity-75', 'cursor-not-allowed');
+                const originalContent = approveBtn.innerHTML;
+                approveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Persisting...';
+                approveBtn.classList.replace('bg-indigo-600', 'bg-slate-400');
 
                 try {
-                    const response = await fetch("{{ route('admin.ai-import.approve', $batchId) }}", {
+                    const res = await fetch("{{ route('admin.ai-import.approve', $batchId) }}", {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                        }
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
                     });
 
-                    const data = await response.json();
+                    const data = await res.json();
 
                     if(data.success) {
-                        statusMsg.className = "p-4 mb-6 rounded-md shadow-sm bg-green-50 text-green-700 border-l-4 border-green-500";
-                        statusMsg.innerHTML = '<i class="fas fa-check-circle mr-2"></i>' + (data.message || 'Import completed successfully. Redirecting...');
+                        statusMsg.className = "p-6 mb-8 rounded-2xl border-2 bg-emerald-50 border-emerald-100 text-emerald-800 font-bold flex items-center";
+                        statusMsg.innerHTML = '<i class="fas fa-check-circle text-2xl mr-4 text-emerald-500"></i>' + data.message;
                         statusMsg.classList.remove('hidden');
-
-                        setTimeout(() => {
-                            window.location.href = data.redirect || "{{ route('admin.ai-import.index') }}";
-                        }, 1000);
+                        
+                        setTimeout(() => window.location.href = data.redirect, 1500);
                     } else {
-                        throw new Error(data.message || 'Error approving batch. Please check logs.');
+                        throw new Error(data.message);
                     }
-                } catch (error) {
+                } catch (err) {
                     approveBtn.disabled = false;
-                    approveBtn.innerHTML = '<i class="fas fa-check-circle mr-2"></i> Approve & Import All ({{ count($questions) }})';
-                    approveBtn.classList.remove('opacity-75', 'cursor-not-allowed');
+                    approveBtn.innerHTML = originalContent;
+                    approveBtn.classList.replace('bg-slate-400', 'bg-indigo-600');
 
-                    statusMsg.className = "p-4 mb-6 rounded-md shadow-sm bg-red-50 text-red-700 border-l-4 border-red-500";
-                    statusMsg.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i>' + error.message;
+                    statusMsg.className = "p-6 mb-8 rounded-2xl border-2 bg-rose-50 border-rose-100 text-rose-800 font-bold flex items-center";
+                    statusMsg.innerHTML = '<i class="fas fa-exclamation-triangle text-2xl mr-4 text-rose-500"></i>' + err.message;
                     statusMsg.classList.remove('hidden');
-
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 }
             });
