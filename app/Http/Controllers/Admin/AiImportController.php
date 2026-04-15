@@ -3,21 +3,21 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Str;
+use App\Models\DifficultyLevel;
 use App\Models\Question;
 use App\Models\QuestionType;
-use App\Models\Topic;
 use App\Models\Skill;
-use App\Models\DifficultyLevel;
+use App\Models\Topic;
 use App\Repositories\QuestionRepository;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 /**
  * Class AiImportController
@@ -40,6 +40,7 @@ class AiImportController extends Controller
     public function index()
     {
         $topics = Topic::orderBy('name')->select('id', 'name')->get();
+
         return view('admin.ai-import.index', compact('topics'));
     }
 
@@ -52,16 +53,16 @@ class AiImportController extends Controller
             'topic_id' => 'required|exists:topics,id',
         ]);
 
-        if (!$request->has('batch_id')) {
+        if (! $request->has('batch_id')) {
             $request->validate([
-                'pdf_file' => 'required|mimes:pdf|max:102400' // 100MB
+                'pdf_file' => 'required|mimes:pdf|max:102400', // 100MB
             ]);
         }
 
         try {
             $topicId = $request->topic_id;
             $userId = Auth::id();
-            
+
             // Chunking parameters (default to whole document if not provided)
             $startPage = $request->input('start_page', 1);
             $endPage = $request->input('end_page', 999);
@@ -70,7 +71,7 @@ class AiImportController extends Controller
                 $batchId = $request->batch_id;
                 $batchData = json_decode(Storage::get('temp/ai_batch_' . $batchId . '.json'), true);
                 $pdfPath = $batchData['pdf_path'];
-                
+
                 // Read existing questions if any
                 $existingQuestions = [];
                 if (Storage::exists('temp/ai_batch_' . $batchId . '_questions.json')) {
@@ -78,7 +79,7 @@ class AiImportController extends Controller
                 }
             } else {
                 $batchId = Str::random(20);
-                
+
                 // Store PDF temporarily
                 $pdfFile = $request->file('pdf_file');
                 $pdfPath = $pdfFile->storeAs('temp', 'ai_import_' . $batchId . '.pdf');
@@ -88,7 +89,7 @@ class AiImportController extends Controller
                     'topic_id' => $topicId,
                     'user_id' => $userId,
                     'pdf_path' => $pdfPath,
-                    'start_time' => Carbon::now('Asia/Kolkata')->format('d-M-Y h:i:s A')
+                    'start_time' => Carbon::now('Asia/Kolkata')->format('d-M-Y h:i:s A'),
                 ];
                 Storage::put('temp/ai_batch_' . $batchId . '.json', json_encode($batchData));
                 $existingQuestions = [];
@@ -113,11 +114,11 @@ class AiImportController extends Controller
                 'success' => true,
                 'batch_id' => $batchId,
                 'questions' => $allQuestions,
-                'start_time' => $batchData['start_time']
+                'start_time' => $batchData['start_time'],
             ]);
-
         } catch (\Exception $e) {
-            Log::error("Gemini Import Error: " . $e->getMessage());
+            Log::error('Gemini Import Error: ' . $e->getMessage());
+
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
@@ -131,23 +132,23 @@ class AiImportController extends Controller
         set_time_limit(1200);
 
         $apiKey = env('GEMINI_API_KEY');
-        if (!$apiKey) {
-            throw new \Exception("GEMINI_API_KEY not found in the .env file.");
+        if (! $apiKey) {
+            throw new \Exception('GEMINI_API_KEY not found in the .env file.');
         }
 
-        if (!file_exists($pdfPath)) {
-            Log::error("PDF File missing at path: " . $pdfPath);
-            throw new \Exception("System error: Uploaded PDF file not found.");
+        if (! file_exists($pdfPath)) {
+            Log::error('PDF File missing at path: ' . $pdfPath);
+            throw new \Exception('System error: Uploaded PDF file not found.');
         }
 
         $pdfBase64 = base64_encode(file_get_contents($pdfPath));
-        
+
         /** @var \Illuminate\Http\Client\Response $response */
         // Increase Laravel and cURL timeout limits to handle large 50-100 question extractions
         $response = Http::timeout(1200)->withOptions([
             \GuzzleHttp\RequestOptions::CONNECT_TIMEOUT => 60,
             \GuzzleHttp\RequestOptions::TIMEOUT => 1200,
-            'verify' => false // Prevent local SSL peer verification issues on some XAMPP setups
+            'verify' => false, // Prevent local SSL peer verification issues on some XAMPP setups
         ])->post("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={$apiKey}", [
             'contents' => [
                 [
@@ -156,43 +157,43 @@ class AiImportController extends Controller
                         [
                             'inline_data' => [
                                 'mime_type' => 'application/pdf',
-                                'data' => $pdfBase64
-                            ]
-                        ]
-                    ]
-                ]
+                                'data' => $pdfBase64,
+                            ],
+                        ],
+                    ],
+                ],
             ],
             'generationConfig' => [
                 'responseMimeType' => 'application/json',
                 'temperature' => 0.0,
-                'maxOutputTokens' => 8192, 
-            ]
+                'maxOutputTokens' => 8192,
+            ],
         ]);
 
-        if (!$response->successful()) {
-            $errorBody = $response->body() ?: "Unknown error";
-            Log::error("Gemini API HTTP Error: " . $errorBody);
-            throw new \Exception("Gemini API Error: The model failed to provide a valid response. Check laravel.log.");
+        if (! $response->successful()) {
+            $errorBody = $response->body() ?: 'Unknown error';
+            Log::error('Gemini API HTTP Error: ' . $errorBody);
+            throw new \Exception('Gemini API Error: The model failed to provide a valid response. Check laravel.log.');
         }
 
         $result = $response->json();
 
         if (isset($result['promptFeedback']['blockReason'])) {
-            Log::error("Gemini Blocked Request: " . json_encode($result['promptFeedback']));
-            throw new \Exception("AI blocked the request due to policy/safety limits. Please check the PDF content.");
+            Log::error('Gemini Blocked Request: ' . json_encode($result['promptFeedback']));
+            throw new \Exception('AI blocked the request due to policy/safety limits. Please check the PDF content.');
         }
 
         $content = $result['candidates'][0]['content']['parts'][0]['text'] ?? null;
 
-        if (!$content) {
-            Log::error("Gemini Empty Content. Full API Response: " . json_encode($result));
-            throw new \Exception("Received an empty response from Gemini. Check laravel.log.");
+        if (! $content) {
+            Log::error('Gemini Empty Content. Full API Response: ' . json_encode($result));
+            throw new \Exception('Received an empty response from Gemini. Check laravel.log.');
         }
 
         // CRITICAL FIX: Strip markdown formatting (```json) before decoding
         $cleanContent = preg_replace('/^```json\s*/i', '', trim($content));
         $cleanContent = preg_replace('/```$/', '', trim($cleanContent));
-        
+
         // NEW: Sanitize hidden control characters that cause "Control character error"
         $cleanContent = preg_replace('/[\x00-\x1F\x7F]/u', ' ', $cleanContent);
         $cleanContent = trim($cleanContent);
@@ -202,37 +203,37 @@ class AiImportController extends Controller
         // AUTO-REPAIR: If JSON is truncated (common with large PDFs)
         if (json_last_error() !== JSON_ERROR_NONE) {
             $repairedContent = trim($cleanContent);
-            
+
             // If it looks like an array that didn't close
             if (strpos($repairedContent, '[') === 0 && substr($repairedContent, -1) !== ']') {
                 // Remove trailing comma if exists
                 if (substr($repairedContent, -1) === ',') {
                     $repairedContent = substr($repairedContent, 0, -1);
                 }
-                
+
                 // Try closing the objects and array
                 // We add multiple closing braces just in case it cut off inside an object
-                $tempRepaired = $repairedContent . '}]'; 
+                $tempRepaired = $repairedContent . '}]';
                 $testDecoded = json_decode($tempRepaired, true);
-                
+
                 if (json_last_error() === JSON_ERROR_NONE) {
                     $decoded = $testDecoded;
-                    Log::info("Gemini JSON Auto-Repaired: Fixed truncated array structure.");
+                    Log::info('Gemini JSON Auto-Repaired: Fixed truncated array structure.');
                 } else {
                     // Try one more level if it was deeper (extremely rare)
                     $tempRepaired = $repairedContent . ']';
                     $testDecoded = json_decode($tempRepaired, true);
                     if (json_last_error() === JSON_ERROR_NONE) {
                         $decoded = $testDecoded;
-                        Log::info("Gemini JSON Auto-Repaired: Fixed truncated array structure (level 2).");
+                        Log::info('Gemini JSON Auto-Repaired: Fixed truncated array structure (level 2).');
                     }
                 }
             }
         }
 
         if (json_last_error() !== JSON_ERROR_NONE) {
-            Log::error("JSON Decode Failed. Error: " . json_last_error_msg() . " | Raw Content: " . $cleanContent);
-            throw new \Exception("AI response was too long and got cut off. I tried to repair it but failed. Please try a smaller PDF or check the document.");
+            Log::error('JSON Decode Failed. Error: ' . json_last_error_msg() . ' | Raw Content: ' . $cleanContent);
+            throw new \Exception('AI response was too long and got cut off. I tried to repair it but failed. Please try a smaller PDF or check the document.');
         }
 
         return $decoded;
@@ -248,7 +249,7 @@ class AiImportController extends Controller
             'batch_id' => 'required|string',
             'question_index' => 'required|integer',
             'image_base64' => 'required|string',
-            'image_type' => 'nullable|string' // 'question' or 'option_0', 'option_1', etc.
+            'image_type' => 'nullable|string', // 'question' or 'option_0', 'option_1', etc.
         ]);
 
         $batchId = $request->batch_id;
@@ -257,19 +258,19 @@ class AiImportController extends Controller
         $imageType = $request->image_type ?? 'question';
 
         $jsonFile = 'temp/ai_batch_' . $batchId . '_questions.json';
-        if (!Storage::exists($jsonFile)) {
+        if (! Storage::exists($jsonFile)) {
             return response()->json(['success' => false, 'message' => 'Batch not found.'], 404);
         }
 
         // Decode Base64 and convert to .jpg file
-        $imageParts = explode(";base64,", $imageBase64);
-        $imageTypeAux = explode("image/", $imageParts[0]);
+        $imageParts = explode(';base64,', $imageBase64);
+        $imageTypeAux = explode('image/', $imageParts[0]);
         $imageType = $imageTypeAux[1] ?? 'jpg';
         $imageBase64Decoded = base64_decode($imageParts[1]);
 
         // FIXED: Use batch-specific directory for cleaner cleanup
         $dir = 'ai_extracted/' . $batchId;
-        if (!Storage::disk('public')->exists($dir)) {
+        if (! Storage::disk('public')->exists($dir)) {
             Storage::disk('public')->makeDirectory($dir);
         }
 
@@ -311,9 +312,9 @@ class AiImportController extends Controller
 
                 Storage::put($jsonFile, json_encode($questions));
             }
-
         } catch (\Exception $e) {
-            Log::error("Race Condition Error in AiImport: " . $e->getMessage());
+            Log::error('Race Condition Error in AiImport: ' . $e->getMessage());
+
             return response()->json(['success' => false, 'message' => 'Image save karne me error: ' . $e->getMessage()], 500);
         } finally {
             $lock->release();
@@ -435,8 +436,9 @@ class AiImportController extends Controller
     {
         $insertedCount = 0;
         $topic = Topic::with('skill')->find($topicId);
-        if (!$topic)
+        if (! $topic) {
             return 0;
+        }
 
         $skill = $topic->skill ?? Skill::first();
         $defaultDiff = DifficultyLevel::where('code', 'EASY')->first();
@@ -456,8 +458,9 @@ class AiImportController extends Controller
         DB::beginTransaction();
         try {
             foreach ($questionsData as $qData) {
-                if (empty($qData['question']))
+                if (empty($qData['question'])) {
                     continue;
+                }
 
                 // Perform string comparison to avoid N+1 queries
                 $cleanQuestionPrefix = strtolower(trim(substr(strip_tags($qData['question']), 0, 100)));
@@ -469,8 +472,9 @@ class AiImportController extends Controller
                     }
                 }
 
-                if ($exists)
-                    continue; // Skip duplicates
+                if ($exists) {
+                    continue;
+                } // Skip duplicates
 
                 $typeCode = $qData['type'] ?? 'MSA';
                 $type = $qTypes->get($typeCode) ?: $qTypes->get('MSA');
@@ -519,7 +523,7 @@ class AiImportController extends Controller
                     'preferences' => $this->repository->setDefaultPreferences($typeCode),
                     'created_by' => $userId,
                     'is_active' => 1,
-                    'code' => $code
+                    'code' => $code,
                 ]);
 
                 // Update existing prefixes to prevent duplicates within the same batch
@@ -530,7 +534,7 @@ class AiImportController extends Controller
             DB::commit();
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error("Failed to insert questions batch: " . $e->getMessage());
+            Log::error('Failed to insert questions batch: ' . $e->getMessage());
             throw $e;
         }
 
@@ -544,11 +548,12 @@ class AiImportController extends Controller
     {
         $jsonFile = 'temp/ai_batch_' . $batchId . '_questions.json';
 
-        if (!Storage::exists($jsonFile)) {
+        if (! Storage::exists($jsonFile)) {
             return redirect()->route('admin.ai-import.index')->with('error', 'Batch not found or session expired.');
         }
 
         $questions = json_decode(Storage::get($jsonFile), true) ?? [];
+
         return view('admin.ai-import.preview', compact('questions', 'batchId'));
     }
 
@@ -560,7 +565,7 @@ class AiImportController extends Controller
         $metaFile = 'temp/ai_batch_' . $batchId . '.json';
         $jsonFile = 'temp/ai_batch_' . $batchId . '_questions.json';
 
-        if (!Storage::exists($metaFile) || !Storage::exists($jsonFile)) {
+        if (! Storage::exists($metaFile) || ! Storage::exists($jsonFile)) {
             return response()->json(['success' => false, 'message' => 'Batch nahi mila.']);
         }
 
@@ -579,8 +584,8 @@ class AiImportController extends Controller
             Storage::delete([$metaFile, $jsonFile]);
 
             $request->session()->flash('success', "Successfully imported {$count} questions!");
-            return response()->json(['success' => true, 'redirect' => route('admin.ai-import.index')]);
 
+            return response()->json(['success' => true, 'redirect' => route('admin.ai-import.index')]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Import failed: ' . $e->getMessage()]);
         }

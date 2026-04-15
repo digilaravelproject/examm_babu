@@ -328,6 +328,9 @@
                             body: JSON.stringify({ batch_id: currentBatchId, question_index: i, image_base64: base64, image_type: 'question' })
                         });
                         uploadPromises.push(uploadPromise);
+
+                        // IMAGE COOLING: 2-second delay between individual uploads
+                        await new Promise(r => setTimeout(r, 2000));
                     }
 
                     // Process option images
