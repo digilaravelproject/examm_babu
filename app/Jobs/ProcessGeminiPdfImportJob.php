@@ -14,7 +14,8 @@ class ProcessGeminiPdfImportJob implements ShouldQueue
     use Queueable;
 
     public $timeout = 1800; // 30 minutes
-    public $tries = 1;      // Don't retry AI jobs automatically to avoid double cost
+    public $tries = 3;      // Allow retries for quota issues
+    public $backoff = [60, 120]; // Wait 1 then 2 minutes between retries
 
     protected $batchId;
     protected $pdfPath;
@@ -85,7 +86,7 @@ class ProcessGeminiPdfImportJob implements ShouldQueue
                 'batch_id' => $this->batchId
             ]);
             $this->handleFailure($e);
-            throw $e; 
+            throw $e;
         }
     }
 
@@ -98,7 +99,7 @@ class ProcessGeminiPdfImportJob implements ShouldQueue
         if ($batch) {
             $batch->update([
                 'status' => $status,
-                'message' => $message,
+                'message' => \Illuminate\Support\Str::limit($message, 250),
                 'progress' => $progress,
                 'questions_count' => $count ?: $batch->questions_count
             ]);
@@ -106,7 +107,7 @@ class ProcessGeminiPdfImportJob implements ShouldQueue
 
         Cache::put("ai_import_status_{$this->batchId}", [
             'status' => $status,
-            'message' => $message,
+            'message' => \Illuminate\Support\Str::limit($message, 250),
             'progress' => $progress,
             'questions_count' => $count ?: ($batch->questions_count ?? 0)
         ], 3600); // 1 hour expiration
@@ -118,11 +119,13 @@ class ProcessGeminiPdfImportJob implements ShouldQueue
     private function handleFailure(\Throwable $e): void
     {
         $errorMessage = $e->getMessage();
-        if (str_contains($errorMessage, '429') || str_contains($errorMessage, 'Too Many Requests')) {
-            $errorMessage = "AI Quota exceeded. Please try again in 1-2 minutes.";
+        $isQuota = str_contains($errorMessage, '429') || str_contains($errorMessage, 'Quota') || str_contains($errorMessage, 'limit');
+        
+        if ($isQuota) {
+            $errorMessage = "AI Quota exceeded. System will automatically retry in a moment...";
         }
 
-        $this->updateStatus('failed', $errorMessage, 0);
+        $this->updateStatus($isQuota ? 'processing' : 'failed', $errorMessage, $isQuota ? 50 : 0);
 
         $batch = \App\Models\AiImportBatch::find($this->batchId);
         if ($batch) {
