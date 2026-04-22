@@ -132,12 +132,20 @@ class AiImportService
                                         'description' => '[ymin, xmin, ymax, xmax] coordinates (0-1000) for question image'
                                     ],
                                     'option_image_boxes' => [
-                                        'type' => 'OBJECT',
-                                        'additionalProperties' => [
-                                            'type' => 'ARRAY',
-                                            'items' => ['type' => 'INTEGER']
+                                        'type' => 'ARRAY',
+                                        'items' => [
+                                            'type' => 'OBJECT',
+                                            'properties' => [
+                                                'index' => ['type' => 'INTEGER', 'description' => '0-based index of the option (0, 1, 2, 3...)'],
+                                                'box' => [
+                                                    'type' => 'ARRAY',
+                                                    'items' => ['type' => 'INTEGER'],
+                                                    'description' => '[ymin, xmin, ymax, xmax] coordinates (0-1000)'
+                                                ]
+                                            ],
+                                            'required' => ['index', 'box']
                                         ],
-                                        'description' => 'Map of option index to [ymin, xmin, ymax, xmax] coordinates'
+                                        'description' => 'List of objects mapping option index to coordinates'
                                     ],
                                     'page_number_extracted' => ['type' => 'INTEGER', 'description' => 'The page number where this question was found']
                                 ],
@@ -281,7 +289,7 @@ Ensure all options, correct answers, and solutions are extracted with 100% accur
 IMAGE DETECTION & SPATIAL COORDINATES:
 1. If a question contains a diagram, graph, equation, or illustration, provide its coordinates in 'image_box' as [ymin, xmin, ymax, xmax] (normalized 0-1000).
 2. IMPORTANT: If an image is detected in the question text, insert the placeholder text "[IMAGE HERE]" at the exact point in the 'question' string where the image appears.
-3. If options contain images, provide coordinates in 'option_image_boxes' mapping the option index (0, 1, 2, 3) to the box. Insert "[IMAGE HERE]" in the option text.
+3. If options contain images, provide coordinates in 'option_image_boxes' as a list of objects containing 'index' and 'box'. Insert "[IMAGE HERE]" in the option text.
 
 MAPPING & TYPES:
 - 'page_number_extracted': The exact physical page number from the PDF (1-indexed).
