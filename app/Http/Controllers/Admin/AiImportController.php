@@ -384,21 +384,45 @@ class AiImportController extends Controller
     public function cancelImport(Request $request)
     {
         $batchId = $request->batch_id;
-        $batch = AiImportBatch::find($batchId);
         
-        Storage::disk('public')->deleteDirectory('ai_extracted/' . $batchId);
-        
-        if ($batch) {
-            Storage::delete($batch->pdf_path);
-            $batch->delete();
-        }
-        
-        Storage::delete([
-            'temp/ai_batch_' . $batchId . '_questions.json'
-        ]);
+        Log::info("Attempting to cancel AI Import session", ['batch_id' => $batchId, 'user_id' => Auth::id()]);
 
-        Cache::forget("ai_import_status_{$batchId}");
-        
-        return response()->json(['success' => true]);
+        try {
+            $batch = AiImportBatch::where('id', $batchId)
+                ->where('user_id', Auth::id())
+                ->first();
+            
+            // 1. Cleanup Public Assets (extracted images)
+            if (Storage::disk('public')->exists('ai_extracted/' . $batchId)) {
+                Storage::disk('public')->deleteDirectory('ai_extracted/' . $batchId);
+            }
+            
+            // 2. Cleanup Temporary Files (JSON questions)
+            Storage::delete('temp/ai_batch_' . $batchId . '_questions.json');
+            
+            // 3. Cleanup PDF and Record
+            if ($batch) {
+                if ($batch->pdf_path) {
+                    Storage::delete($batch->pdf_path);
+                }
+                $batch->delete();
+            } else {
+                // If batch not in DB, try to delete the default PDF path if it exists
+                Storage::delete('temp/ai_import_' . $batchId . '.pdf');
+            }
+            
+            // 4. Cleanup Cache
+            Cache::forget("ai_import_status_{$batchId}");
+            
+            Log::info("AI Import session cancelled successfully", ['batch_id' => $batchId]);
+            return response()->json(['success' => true]);
+
+        } catch (\Exception $e) {
+            Log::error("Failed to cancel AI Import session", [
+                'batch_id' => $batchId,
+                'error' => $e->getMessage()
+            ]);
+            return response()->json(['success' => false, 'message' => 'Cleanup failed: ' . $e->getMessage()], 500);
+        }
     }
 }

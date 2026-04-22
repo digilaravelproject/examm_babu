@@ -103,14 +103,14 @@ class ProcessGeminiPdfImportJob implements ShouldQueue
                 'progress' => $progress,
                 'questions_count' => $count ?: $batch->questions_count
             ]);
-        }
 
-        Cache::put("ai_import_status_{$this->batchId}", [
-            'status' => $status,
-            'message' => \Illuminate\Support\Str::limit($message, 250),
-            'progress' => $progress,
-            'questions_count' => $count ?: ($batch->questions_count ?? 0)
-        ], 3600); // 1 hour expiration
+            Cache::put("ai_import_status_{$this->batchId}", [
+                'status' => $status,
+                'message' => \Illuminate\Support\Str::limit($message, 250),
+                'progress' => $progress,
+                'questions_count' => $count ?: ($batch->questions_count ?? 0)
+            ], 3600); // 1 hour expiration
+        }
     }
 
     /**
