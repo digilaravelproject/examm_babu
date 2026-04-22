@@ -10,6 +10,9 @@ use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 
+use App\Settings\BillingSettings;
+use App\Settings\TaxSettings;
+
 class PaymentController extends Controller
 {
     // 1. List All Payments
@@ -100,16 +103,24 @@ class PaymentController extends Controller
     public function downloadInvoice($id)
     {
         $payment = Payment::with(['user', 'plan'])->findOrFail($id);
+        $billingSettings = app(BillingSettings::class);
+        $taxSettings = app(TaxSettings::class);
+
+        // Pull vendor info from stored payment data first, fallback to current settings
+        $vendorInfo = $payment->data['vendor_billing_information'] ?? $billingSettings->toArray();
+        $orderSummary = $payment->data['order_summary'] ?? [];
 
         $data = [
-            'payment' => $payment,
-            'company_name' => 'Exam Babu', // Apni Application ka naam
-            'company_address' => '123, Education Hub, India', // Apna Address
-            'date' => $payment->created_at->format('d M, Y')
+            'payment'       => $payment,
+            'vendor'        => $vendorInfo,
+            'tax_settings'  => $taxSettings,
+            'order_summary' => $orderSummary,
+            'date'          => ($payment->payment_date ?? $payment->created_at)->format('d M, Y'),
         ];
 
         $pdf = Pdf::loadView('admin.invoices.payment_invoice', $data);
 
-        return $pdf->download('invoice_' . $payment->payment_id . '.pdf');
+        return $pdf->download('invoice_' . ($payment->invoice_id ?? $payment->payment_id) . '.pdf');
     }
 }
+

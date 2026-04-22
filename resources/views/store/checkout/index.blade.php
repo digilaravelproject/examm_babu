@@ -14,6 +14,27 @@
             </div>
         </div>
 
+        {{-- Active Subscription Warning --}}
+        @if(isset($activeSubscription) && $activeSubscription)
+            <div class="p-4 mb-6 border border-amber-200 rounded-xl bg-amber-50">
+                <div class="flex gap-3">
+                    <div class="flex items-center justify-center w-10 h-10 rounded-full shrink-0 bg-amber-100">
+                        <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-amber-800">You already have an active plan</h3>
+                        <p class="mt-1 text-sm text-amber-700">
+                            Your current plan <strong>"{{ $activeSubscription->plan->name ?? 'N/A' }}"</strong> is active until
+                            <strong>{{ $activeSubscription->ends_at->format('d M, Y') }}</strong>.
+                            Purchasing this plan will create a new subscription.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        @endif
+
         {{-- Error Display --}}
         @if ($errors->any())
             <div class="p-3 mb-6 text-sm text-red-600 border border-red-200 rounded-lg bg-red-50">

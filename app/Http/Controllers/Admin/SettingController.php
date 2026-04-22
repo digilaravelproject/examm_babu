@@ -9,6 +9,7 @@ use App\Settings\EmailSettings;
 use App\Settings\PaymentSettings;
 use App\Settings\RazorpaySettings;
 use App\Settings\SiteSettings;
+use App\Settings\TaxSettings;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Jackiedo\DotenvEditor\Facades\DotenvEditor;
@@ -195,6 +196,46 @@ class SettingController extends Controller
         $settings->save();
 
         return redirect()->back()->with('success', 'Billing settings updated.');
+    }
+
+    /**
+     * Tax / GST Settings View
+     */
+    public function tax(TaxSettings $settings)
+    {
+        return view('admin.settings.tax', compact('settings'));
+    }
+
+    public function updateTaxSettings(Request $request, TaxSettings $settings)
+    {
+        $validated = $request->validate([
+            'tax_name'                  => 'required|string|max:50',
+            'tax_type'                  => 'required|in:exclusive,inclusive',
+            'tax_amount_type'           => 'required|in:percentage,fixed',
+            'tax_amount'                => 'required|numeric|min:0|max:100',
+            'additional_tax_name'       => 'nullable|string|max:50',
+            'additional_tax_type'       => 'nullable|in:exclusive,inclusive',
+            'additional_tax_amount_type'=> 'nullable|in:percentage,fixed',
+            'additional_tax_amount'     => 'nullable|numeric|min:0|max:100',
+        ]);
+
+        // Primary Tax
+        $settings->enable_tax               = $request->has('enable_tax');
+        $settings->tax_name                 = $validated['tax_name'];
+        $settings->tax_type                 = $validated['tax_type'];
+        $settings->tax_amount_type          = $validated['tax_amount_type'];
+        $settings->tax_amount               = (float) $validated['tax_amount'];
+
+        // Additional Tax
+        $settings->enable_additional_tax         = $request->has('enable_additional_tax');
+        $settings->additional_tax_name           = $validated['additional_tax_name'] ?? 'Extra Tax';
+        $settings->additional_tax_type           = $validated['additional_tax_type'] ?? 'exclusive';
+        $settings->additional_tax_amount_type    = $validated['additional_tax_amount_type'] ?? 'percentage';
+        $settings->additional_tax_amount         = (float) ($validated['additional_tax_amount'] ?? 0);
+
+        $settings->save();
+
+        return redirect()->back()->with('success', 'Tax / GST settings updated successfully.');
     }
 
     /**

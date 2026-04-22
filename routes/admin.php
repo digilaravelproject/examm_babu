@@ -72,6 +72,9 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('ad
         Route::get('/billing', [SettingController::class, 'billing'])->name('billing');
         Route::post('/billing', [SettingController::class, 'updateBillingSettings'])->name('update-billing');
 
+        Route::get('/tax', [SettingController::class, 'tax'])->name('tax');
+        Route::post('/tax', [SettingController::class, 'updateTaxSettings'])->name('update-tax');
+
         Route::get('/ai', [SettingController::class, 'ai'])->name('ai');
         Route::post('/ai', [SettingController::class, 'updateAiSettings'])->name('update-ai');
 

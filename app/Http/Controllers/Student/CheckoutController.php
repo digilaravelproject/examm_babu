@@ -44,6 +44,17 @@ class CheckoutController extends Controller
                 return $this->processFreePlan($request->user(), $plan, $orderSummary);
             }
 
+            // 2. Check if user already has active subscription for this category
+            $activeSubscription = null;
+            if ($plan->category_id) {
+                $activeSubscription = $request->user()->subscriptions()
+                    ->with('plan')
+                    ->where('category_id', $plan->category_id)
+                    ->where('status', 'active')
+                    ->where('ends_at', '>', now())
+                    ->first();
+            }
+
             $billingInfo = $request->user()->preferences['billing_information'] ?? [];
 
             return view('store.checkout.index', [
@@ -52,9 +63,10 @@ class CheckoutController extends Controller
                 'user' => $request->user(),
                 'billing_information' => $billingInfo,
                 'countries' => $this->getCountriesList(),
+                'activeSubscription' => $activeSubscription,
             ]);
         } catch (\Throwable $e) {
-            Log::error('Checkout Page Error: '.$e->getMessage());
+            Log::error('Checkout Page Error: ' . $e->getMessage());
 
             return redirect()->route('welcome')->with('error', 'Plan not found or inactive.');
         }
@@ -114,7 +126,7 @@ class CheckoutController extends Controller
             $user->save();
 
             // 5. Create Order on Razorpay
-            $paymentRefId = 'pay_'.Str::random(16);
+            $paymentRefId = 'pay_' . Str::random(16);
             $razorpayOrder = $this->razorpayRepo->createOrder($paymentRefId, (float) $orderSummary['total']);
 
             if (! $razorpayOrder) {
@@ -144,13 +156,13 @@ class CheckoutController extends Controller
                 'amount' => $razorpayOrder['amount'], // in paise
                 'currency' => $razorpayOrder['currency'],
                 'name' => 'Exam Babu',
-                'description' => 'Subscription for '.$plan->name,
+                'description' => 'Subscription for ' . $plan->name,
                 'image' => asset('assets/images/favicon.jpg'),
                 'user' => $user,
                 'callback_url' => route('razorpay_callback'),
             ]);
         } catch (\Throwable $e) {
-            Log::error('Process Checkout Error: '.$e->getMessage());
+            Log::error('Process Checkout Error: ' . $e->getMessage());
 
             return redirect()->route('payment_failed');
         }
@@ -180,14 +192,21 @@ class CheckoutController extends Controller
             }
 
             // 2. Find Pending Payment by Razorpay Order ID (Stored in meta_data)
+            //    Primary: JSON path query. Fallback: LIKE search for compatibility.
             $payment = Payment::where('data->razorpay_order_id', $request->razorpay_order_id)
                 ->where('status', 'pending')
                 ->first();
 
+            // Fallback: If JSON path query didn't work (MySQL 5.7 compatibility)
             if (! $payment) {
-                // If not found by JSON, try finding by payment_id logic if implemented differently,
-                // else fail safely to avoid ghost subscriptions.
-                Log::error('Payment record not found for Order ID: '.$request->razorpay_order_id);
+                $payment = Payment::where('status', 'pending')
+                    ->where('data', 'like', '%' . $request->razorpay_order_id . '%')
+                    ->latest()
+                    ->first();
+            }
+
+            if (! $payment) {
+                Log::error('Payment record not found for Order ID: ' . $request->razorpay_order_id);
 
                 return redirect()->route('payment_failed')->with('error', 'Payment record not found.');
             }
@@ -198,7 +217,7 @@ class CheckoutController extends Controller
 
             return redirect()->route('payment_success');
         } catch (\Throwable $e) {
-            Log::error('Razorpay Handler Error: '.$e->getMessage());
+            Log::error('Razorpay Handler Error: ' . $e->getMessage());
 
             return redirect()->route('payment_failed');
         }
@@ -207,7 +226,7 @@ class CheckoutController extends Controller
     /**
      * Helper: Process Free Plan
      */
-private function processFreePlan($user, $plan, $orderSummary): RedirectResponse
+    private function processFreePlan($user, $plan, $orderSummary): RedirectResponse
     {
         try {
             // Check if user already has an active subscription for this category
@@ -237,7 +256,7 @@ private function processFreePlan($user, $plan, $orderSummary): RedirectResponse
                 'status' => 'success',
                 'payment_processor' => 'free',
                 'duration' => $plan->duration ?? 12,
-                'transaction_id' => 'FREE-'.strtoupper(Str::random(8)),
+                'transaction_id' => 'FREE-' . strtoupper(Str::random(8)),
                 'meta_data' => [
                     'order_summary' => $orderSummary,
                 ],
@@ -245,57 +264,11 @@ private function processFreePlan($user, $plan, $orderSummary): RedirectResponse
 
             return redirect()->route('payment_success');
         } catch (\Exception $e) {
-            Log::error('Free Plan Error: '.$e->getMessage());
+            Log::error('Free Plan Error: ' . $e->getMessage());
 
             return redirect()->route('payment_failed');
         }
     }
-//     private function processFreePlan_old($user, $plan, $orderSummary): RedirectResponse
-//     {
-//         try {
-// <<<<<<< HEAD
-//             $paymentRefId = 'free_'.Str::random(16);
-// =======
-
-//             $hasActiveSub = $user->subscriptions()
-//                 ->where('category_id', $plan->category_id)
-//                 ->where('status', 'active')
-//                 ->where('ends_at', '>', now())
-//                 ->exists();
-
-//             if ($hasActiveSub) {
-//                 $categoryName = $plan->category->name ?? $plan->name ?? 'this plan';
-//                 return redirect()
-//                     ->route('student.exams.dashboard')
-//                     ->with(['error' => "You already have an active subscription for {$categoryName}."]);
-//             }
-
-//             $paymentRefId = 'free_' . Str::random(16);
-// >>>>>>> c7449b80698d7d9d2e22ae46d57d5a34e73308e0
-
-//             // Create Success Payment & Subscription Immediately
-//             $this->paymentRepo->createPaymentAndSubscription([
-//                 'payment_id' => $paymentRefId,
-//                 'currency' => $this->paymentSettings->default_currency,
-//                 'plan_id' => $plan->id,
-//                 'user_id' => $user->id,
-//                 'total_amount' => 0,
-//                 'status' => 'success',
-//                 'payment_processor' => 'free',
-//                 'duration' => $plan->duration ?? 12,
-//                 'transaction_id' => 'FREE-'.strtoupper(Str::random(8)),
-//                 'meta_data' => [
-//                     'order_summary' => $orderSummary,
-//                 ],
-//             ]);
-
-//             return redirect()->route('payment_success');
-//         } catch (\Exception $e) {
-//             Log::error('Free Plan Error: '.$e->getMessage());
-
-//             return redirect()->route('payment_failed');
-//         }
-//     }
 
     public function paymentSuccess(): View
     {
