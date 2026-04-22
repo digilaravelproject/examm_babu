@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Topic;
+use App\Models\AiImportBatch;
 use App\Services\AiImportService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -31,11 +32,16 @@ class AiImportController extends Controller
     public function index()
     {
         $topics = Topic::orderBy('name')->select('id', 'name')->get();
-        return view('admin.ai-import.index', compact('topics'));
+        $recentBatches = AiImportBatch::where('user_id', Auth::id())
+            ->with('topic:id,name')
+            ->latest()
+            ->limit(5)
+            ->get();
+        return view('admin.ai-import.index', compact('topics', 'recentBatches'));
     }
 
     /**
-     * STEP 1: Upload PDF and process via AI.
+     * STEP 1: Upload PDF and process via AI in the background.
      */
     public function uploadAndProcess(Request $request)
     {
@@ -55,19 +61,12 @@ class AiImportController extends Controller
 
             if ($request->has('batch_id') && $request->batch_id) {
                 $batchId = $request->batch_id;
-                $metadataPath = 'temp/ai_batch_' . $batchId . '.json';
+                $batch = AiImportBatch::find($batchId);
                 
-                if (!Storage::exists($metadataPath)) {
+                if (!$batch) {
                     return response()->json(['success' => false, 'message' => 'Session expired or invalid batch ID.'], 404);
                 }
-
-                $batchData = json_decode(Storage::get($metadataPath), true);
-                $pdfPath = $batchData['pdf_path'];
-
-                $questionsPath = 'temp/ai_batch_' . $batchId . '_questions.json';
-                $existingQuestions = Storage::exists($questionsPath) 
-                    ? (json_decode(Storage::get($questionsPath), true) ?: []) 
-                    : [];
+                $pdfPath = $batch->pdf_path;
             } else {
                 if (!$request->hasFile('pdf_file')) {
                     return response()->json(['success' => false, 'message' => 'PDF file is required for new import.'], 422);
@@ -77,45 +76,143 @@ class AiImportController extends Controller
                 $pdfFile = $request->file('pdf_file');
                 $pdfPath = $pdfFile->storeAs('temp', 'ai_import_' . $batchId . '.pdf');
 
-                $batchData = [
+                $batch = AiImportBatch::create([
+                    'id' => $batchId,
                     'topic_id' => $topicId,
                     'user_id' => $userId,
                     'pdf_path' => $pdfPath,
-                    'start_time' => Carbon::now('Asia/Kolkata')->format('d-M-Y h:i:s A'),
-                ];
-                Storage::put('temp/ai_batch_' . $batchId . '.json', json_encode($batchData));
-                $existingQuestions = [];
+                    'start_page' => $startPage,
+                    'end_page' => $endPage,
+                    'status' => 'pending',
+                    'message' => 'Queuing PDF for AI extraction...',
+                    'metadata' => [
+                        'start_time' => Carbon::now('Asia/Kolkata')->format('d-M-Y h:i:s A'),
+                        'original_filename' => $pdfFile->getClientOriginalName()
+                    ]
+                ]);
             }
 
-            // AI Extraction Logic moved to Service
-            $newQuestions = [];
-            try {
-                $newQuestions = $this->aiService->callGeminiApi(Storage::path($pdfPath), $startPage, $endPage);
-            } catch (\Exception $e) {
-                Log::warning("AI Processing Chunk Failed [Pages {$startPage}-{$endPage}]: " . $e->getMessage());
-                // We return success true but with zero questions if chunk fails, allowing retry or next chunk
-            }
+            // Set initial status in cache for fast polling
+            Cache::put("ai_import_status_{$batchId}", [
+                'status' => 'pending',
+                'message' => 'Queuing PDF for AI extraction...',
+                'progress' => 0
+            ], 3600);
 
-            // Metadata Enrichment
-            $currentIndex = count($existingQuestions);
-            foreach ($newQuestions as &$nq) {
-                $nq['original_index'] = $currentIndex++;
-                $nq['source_page'] = $startPage;
-            }
+            // Dispatch Background Job
+            \App\Jobs\ProcessGeminiPdfImportJob::dispatch(
+                $batchId, 
+                $pdfPath, 
+                (int)$topicId, 
+                (int)$userId, 
+                (int)$startPage, 
+                (int)$endPage
+            );
 
-            $allQuestions = array_merge($existingQuestions, $newQuestions);
-            Storage::put('temp/ai_batch_' . $batchId . '_questions.json', json_encode($allQuestions));
+            Log::info("AI Import Batch Created", [
+                'batch_id' => $batchId,
+                'user_id' => $userId,
+                'topic_id' => $topicId,
+                'file' => $batch->metadata['original_filename'] ?? 'unknown'
+            ]);
 
             return response()->json([
                 'success' => true,
                 'batch_id' => $batchId,
-                'questions' => $allQuestions,
-                'start_time' => $batchData['start_time'] ?? '--',
+                'status' => 'pending',
+                'message' => 'Processing started in background.',
+                'start_time' => $batch->metadata['start_time'] ?? '--',
             ]);
         } catch (\Exception $e) {
-            Log::error('AI Import Controller Error: ' . $e->getMessage());
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            Log::error('AI Import Upload Error', [
+                'user_id' => Auth::id(),
+                'topic_id' => $request->topic_id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json(['success' => false, 'message' => 'Upload failed: ' . $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * STEP 2: Check the status of background processing.
+     */
+    public function checkStatus($batchId)
+    {
+        $status = Cache::get("ai_import_status_{$batchId}");
+
+        if (!$status) {
+            // Fallback to Database if cache expired
+            $batch = AiImportBatch::find($batchId);
+            if ($batch) {
+                $status = [
+                    'status' => $batch->status,
+                    'message' => $batch->message,
+                    'progress' => $batch->progress,
+                    'questions_count' => $batch->questions_count
+                ];
+            } else {
+                return response()->json([
+                    'status' => 'not_found',
+                    'message' => 'Status not found or expired.'
+                ]);
+            }
+        }
+
+        // If completed, check if file exists
+        if ($status['status'] === 'completed') {
+            $questionsPath = 'temp/ai_batch_' . $batchId . '_questions.json';
+            if (!Storage::exists($questionsPath)) {
+                $status['status'] = 'failed';
+                $status['message'] = 'Extraction failed: Result file missing.';
+                
+                // Sync to DB
+                AiImportBatch::where('id', $batchId)->update([
+                    'status' => 'failed',
+                    'message' => $status['message']
+                ]);
+            }
+        }
+
+        return response()->json($status);
+    }
+
+    /**
+     * Download the PDF file for a batch (used for client-side processing).
+     */
+    public function downloadPdf($batchId)
+    {
+        $batch = AiImportBatch::findOrFail($batchId);
+        
+        // Security: Check ownership
+        if ((int)$batch->user_id !== (int)Auth::id()) {
+            abort(403, 'Unauthorized batch access.');
+        }
+
+        if (!Storage::exists($batch->pdf_path)) {
+            abort(404, 'PDF file not found.');
+        }
+
+        return Storage::response($batch->pdf_path);
+    }
+
+    /**
+     * Update the raw JSON questions data for a batch.
+     */
+    public function updateQuestions(Request $request, $batchId)
+    {
+        $request->validate([
+            'questions' => 'required|array'
+        ]);
+
+        $filePath = "temp/ai_batch_{$batchId}_questions.json";
+        if (!Storage::exists($filePath)) {
+            return response()->json(['success' => false, 'message' => 'Batch not found.']);
+        }
+
+        Storage::put($filePath, json_encode($request->questions));
+
+        return response()->json(['success' => true, 'message' => 'JSON updated successfully.']);
     }
 
     /**
@@ -134,9 +231,16 @@ class AiImportController extends Controller
         $qIndex = (int) $request->question_index;
         $imageType = $request->image_type ?? 'question';
 
+        $batch = AiImportBatch::find($batchId);
         $jsonFile = 'temp/ai_batch_' . $batchId . '_questions.json';
-        if (!Storage::exists($jsonFile)) {
-            return response()->json(['success' => false, 'message' => 'Batch file missing.'], 404);
+
+        if (!$batch || !Storage::exists($jsonFile)) {
+            return response()->json(['success' => false, 'message' => 'Session expired or invalid batch.'], 404);
+        }
+
+        // Security: Check ownership
+        if ((int)$batch->user_id !== (int)Auth::id()) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized batch access.'], 403);
         }
 
         try {
@@ -149,8 +253,11 @@ class AiImportController extends Controller
             Storage::disk('public')->makeDirectory($dir);
 
             $fileName = $dir . '/img_' . Str::random(8) . '_' . $qIndex . '.' . $extension;
-            Storage::disk('public')->put($fileName, $decodedImage);
-            $imageUrl = Storage::url($fileName);
+
+            /** @var \Illuminate\Filesystem\FilesystemAdapter $publicDisk */
+            $publicDisk = Storage::disk('public');
+            $publicDisk->put($fileName, $decodedImage);
+            $imageUrl = $publicDisk->url($fileName);
 
             // Thread-safe update using Cache Lock
             $lock = Cache::lock('ai_sync_' . $batchId, 10);
@@ -195,14 +302,31 @@ class AiImportController extends Controller
     /**
      * Preview extracted data.
      */
-    public function preview($batchId)
+    public function preview(Request $request, $batchId)
     {
+        $batch = AiImportBatch::find($batchId);
         $jsonFile = 'temp/ai_batch_' . $batchId . '_questions.json';
+
         if (!Storage::exists($jsonFile)) {
+            if ($request->ajax() || $request->has('json')) {
+                return response()->json(['success' => false, 'message' => 'Session expired.'], 404);
+            }
             return redirect()->route('admin.ai-import.index')->with('error', 'Session expired.');
         }
 
+        // Security: Check ownership
+        if ($batch) {
+            if ((int)$batch->user_id !== (int)Auth::id()) {
+                abort(403, 'Unauthorized batch access.');
+            }
+        }
+
         $questions = json_decode(Storage::get($jsonFile), true) ?? [];
+
+        if ($request->ajax() || $request->has('json')) {
+            return response()->json($questions);
+        }
+
         return view('admin.ai-import.preview', compact('questions', 'batchId'));
     }
 
@@ -211,25 +335,37 @@ class AiImportController extends Controller
      */
     public function approve(Request $request, $batchId)
     {
-        $metaFile = 'temp/ai_batch_' . $batchId . '.json';
+        $batch = AiImportBatch::find($batchId);
         $jsonFile = 'temp/ai_batch_' . $batchId . '_questions.json';
 
-        if (!Storage::exists($metaFile) || !Storage::exists($jsonFile)) {
-            return response()->json(['success' => false, 'message' => 'Required files missing.']);
+        if (!$batch || !Storage::exists($jsonFile)) {
+            return response()->json(['success' => false, 'message' => 'Required data missing.']);
         }
 
         try {
-            $batchData = json_decode(Storage::get($metaFile), true);
+            // Security: Check ownership
+            if ((int)$batch->user_id !== (int)Auth::id()) {
+                return response()->json(['success' => false, 'message' => 'Unauthorized batch access.'], 403);
+            }
+
             $questions = json_decode(Storage::get($jsonFile), true) ?? [];
 
             // Persistence handled by Service
-            $count = $this->aiService->importQuestions($questions, (int)$batchData['topic_id'], (int)Auth::id());
+            $count = $this->aiService->importQuestions($questions, (int)$batch->topic_id, (int)Auth::id());
 
             // Post-success Cleanup
-            if (isset($batchData['pdf_path'])) {
-                Storage::delete($batchData['pdf_path']);
+            if (Storage::exists($batch->pdf_path)) {
+                Storage::delete($batch->pdf_path);
             }
-            Storage::delete([$metaFile, $jsonFile]);
+            Storage::delete($jsonFile);
+            
+            // Mark as finished in DB (Optional: delete the batch record or keep it)
+            $batch->update([
+                'status' => 'completed',
+                'progress' => 100,
+                'questions_count' => $count,
+                'message' => 'Imported successfully.'
+            ]);
 
             return response()->json([
                 'success' => true, 
@@ -248,12 +384,21 @@ class AiImportController extends Controller
     public function cancelImport(Request $request)
     {
         $batchId = $request->batch_id;
+        $batch = AiImportBatch::find($batchId);
+        
         Storage::disk('public')->deleteDirectory('ai_extracted/' . $batchId);
+        
+        if ($batch) {
+            Storage::delete($batch->pdf_path);
+            $batch->delete();
+        }
+        
         Storage::delete([
-            'temp/ai_batch_' . $batchId . '.json',
-            'temp/ai_batch_' . $batchId . '_questions.json',
-            'temp/ai_import_' . $batchId . '.pdf'
+            'temp/ai_batch_' . $batchId . '_questions.json'
         ]);
+
+        Cache::forget("ai_import_status_{$batchId}");
+        
         return response()->json(['success' => true]);
     }
 }

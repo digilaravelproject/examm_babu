@@ -11,3 +11,8 @@ use Illuminate\Support\Facades\Schedule;
 Schedule::command('reports:send-weekly-teacher')
         ->weeklyOn(1, '08:00')
         ->timezone('Asia/Kolkata');
+
+// Critical for Shared Hosting (Hostinger): Runs queue without Supervisor
+Schedule::command('queue:work --stop-when-empty')
+    ->everyMinute()
+    ->withoutOverlapping();

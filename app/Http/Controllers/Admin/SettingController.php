@@ -11,7 +11,6 @@ use App\Settings\RazorpaySettings;
 use App\Settings\SiteSettings;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use Jackiedo\DotenvEditor\DotenvEditor as JackiedoDotenvEditor;
 use Jackiedo\DotenvEditor\Facades\DotenvEditor;
 
 class SettingController extends Controller
@@ -219,6 +218,22 @@ class SettingController extends Controller
         $settings->custom_model = $validated['custom_model'];
         $settings->save();
 
-        return redirect()->back()->with('success', 'AI settings updated.');
+        // Sync with .env to keep them aligned
+        try {
+            $env = DotenvEditor::load();
+            $env->setKey('GEMINI_API_KEY', $validated['gemini_api_key']);
+            $env->save();
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Failed to update .env: " . $e->getMessage());
+        }
+
+        // Clear settings cache and general cache to ensure immediate activation
+        try {
+            \Illuminate\Support\Facades\Artisan::call('settings:clear-cache');
+            \Illuminate\Support\Facades\Artisan::call('cache:clear');
+        } catch (\Exception $e) {
+        }
+
+        return redirect()->back()->with('success', 'AI settings updated and cache cleared.');
     }
 }

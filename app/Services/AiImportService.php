@@ -35,12 +35,23 @@ class AiImportService
      *
      * @throws \Exception
      */
-    public function callGeminiApi($pdfPath, $startPage = 1, $endPage = 999)
+    /**
+     * Call Gemini API to extract questions.
+     * Uses File API for large PDFs and Structured Output for accuracy.
+     *
+     * @param  string  $pdfPath
+     * @param  int  $startPage
+     * @param  int  $endPage
+     * @param  string|null $batchId
+     * @return array
+     */
+    public function callGeminiApi($pdfPath, $startPage = 1, $endPage = 999, $batchId = null, $topicId = null)
     {
         set_time_limit(1200);
 
         $apiKey = $this->settings->gemini_api_key ?: config('services.gemini.key');
         if (!$apiKey) {
+            Log::error("Gemini API Key missing for Batch: {$batchId}");
             throw new \Exception('Gemini API Key not found. Please set it in Admin -> Settings -> AI Settings.');
         }
 
@@ -49,107 +60,234 @@ class AiImportService
             : ($this->settings->model_name ?: 'gemini-1.5-flash');
             
         if (!$model) {
+            Log::error("Gemini Model not specified for Batch: {$batchId}");
             throw new \Exception('AI Model not specified. Please select a model in AI Settings.');
         }
 
         if (!file_exists($pdfPath)) {
+            Log::error("PDF file missing at: {$pdfPath} for Batch: {$batchId}");
             throw new \Exception('PDF file not found at path: ' . $pdfPath);
         }
 
-        $pdfBase64 = base64_encode(file_get_contents($pdfPath));
+        // Use File API for PDFs > 1MB or if batchId is provided
+        $fileUri = null;
+        $fileName = null;
 
-        $maxRetries = 3;
-        $retryDelay = 2; // initial delay in seconds
+        try {
+            // 1. Upload File to Gemini File API
+            Log::info("Uploading PDF to Gemini File API", ['batch_id' => $batchId, 'path' => $pdfPath]);
+            $uploadResult = $this->uploadToGemini($pdfPath, $apiKey);
+            $fileUri = $uploadResult['file']['uri'];
+            $fileName = $uploadResult['file']['name'];
 
-        for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
+            // 2. Wait for file to be processed (active state)
+            Log::info("Waiting for Gemini File Processing", ['batch_id' => $batchId, 'file_name' => $fileName]);
+            $this->waitForFile($fileName, $apiKey);
+
+            // 3. Generate Content with Structured Output
+            Log::info("Requesting Content Generation from Gemini", [
+                'batch_id' => $batchId,
+                'model' => $model,
+                'pages' => "{$startPage}-{$endPage}",
+                'topic_id' => $topicId
+            ]);
+
             /** @var \Illuminate\Http\Client\Response $response */
-            $response = Http::timeout(1200)->withOptions([
-                'verify' => false,
-            ])->post("https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$apiKey}", [
-                'contents' => [
-                    [
-                        'role' => 'user',
-                        'parts' => [
-                            ['text' => $this->getUltraEfficientPrompt($startPage, $endPage)],
-                            [
-                                'inline_data' => [
-                                    'mime_type' => 'application/pdf',
-                                    'data' => $pdfBase64,
-                                ],
+            $response = Http::timeout(1200)->withOptions(['verify' => false])
+                ->post("https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$apiKey}", [
+                    'contents' => [
+                        [
+                            'role' => 'user',
+                            'parts' => [
+                                ['text' => $this->getUltraEfficientPrompt($startPage, $endPage)],
+                                ['file_data' => ['mime_type' => 'application/pdf', 'file_uri' => $fileUri]],
                             ],
                         ],
                     ],
-                ],
-                'generationConfig' => [
-                    'responseMimeType' => 'application/json',
-                    'temperature' => 0.1,
-                    'maxOutputTokens' => 8192,
-                ],
+                    'generationConfig' => [
+                        'responseMimeType' => 'application/json',
+                        'responseSchema' => [
+                            'type' => 'ARRAY',
+                            'items' => [
+                                'type' => 'OBJECT',
+                                'properties' => [
+                                    'type' => ['type' => 'STRING', 'enum' => ['MSA', 'MMA', 'TOF', 'FIB', 'SAQ']],
+                                    'question' => ['type' => 'STRING'],
+                                    'options' => [
+                                        'type' => 'ARRAY',
+                                        'items' => ['type' => 'STRING']
+                                    ],
+                                    'correct_option_index' => ['type' => 'INTEGER', 'description' => '0-based index for MSA/TOF'],
+                                    'correct_option_indices' => [
+                                        'type' => 'ARRAY',
+                                        'items' => ['type' => 'INTEGER'],
+                                        'description' => '0-based indices for MMA'
+                                    ],
+                                    'correct_answer_text' => ['type' => 'STRING', 'description' => 'Text for FIB/SAQ'],
+                                    'solution' => ['type' => 'STRING'],
+                                    'hint' => ['type' => 'STRING'],
+                                    'image_box' => [
+                                        'type' => 'ARRAY',
+                                        'items' => ['type' => 'INTEGER'],
+                                        'description' => '[ymin, xmin, ymax, xmax] coordinates (0-1000) for question image'
+                                    ],
+                                    'option_image_boxes' => [
+                                        'type' => 'OBJECT',
+                                        'additionalProperties' => [
+                                            'type' => 'ARRAY',
+                                            'items' => ['type' => 'INTEGER']
+                                        ],
+                                        'description' => 'Map of option index to [ymin, xmin, ymax, xmax] coordinates'
+                                    ],
+                                    'page_number_extracted' => ['type' => 'INTEGER', 'description' => 'The page number where this question was found']
+                                ],
+                                'required' => ['type', 'question']
+                            ]
+                        ],
+                        'temperature' => 0.1,
+                        'maxOutputTokens' => 8192,
+                    ],
+                ]);
+
+            if (!$response->successful()) {
+                $errorResponse = $response->json();
+                $errorMessage = $errorResponse['error']['message'] ?? 'Unknown Gemini API error';
+                
+                Log::error("Gemini API Error [Batch: {$batchId}]", [
+                    'status' => $response->status(),
+                    'error_details' => $errorResponse,
+                    'pages' => "{$startPage}-{$endPage}",
+                    'batch_id' => $batchId,
+                    'topic_id' => $topicId,
+                    'model' => $model
+                ]);
+                throw new \Exception("Gemini API Error: {$errorMessage}");
+            }
+
+            $result = $response->json();
+            $content = $result['candidates'][0]['content']['parts'][0]['text'] ?? null;
+
+            if (!$content) {
+                Log::error("Gemini returned empty content for Batch: {$batchId}", ['response' => $result]);
+                throw new \Exception('Empty response from AI.');
+            }
+
+            Log::info("Gemini Extraction Successful for Batch: {$batchId}", [
+                'candidate_count' => count($result['candidates'] ?? []),
+                'pages' => "{$startPage}-{$endPage}"
             ]);
 
-            if ($response->successful()) {
-                break;
+            return $this->parseAiResponse($content);
+
+        } catch (\Exception $e) {
+            Log::error("AI Import Service Exception [Batch: {$batchId}]", [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'batch_id' => $batchId,
+                'topic_id' => $topicId
+            ]);
+            throw $e;
+        } finally {
+            // 4. Cleanup File from Gemini
+            if ($fileName) {
+                try {
+                    $this->deleteFromGemini($fileName, $apiKey);
+                } catch (\Exception $ex) {
+                    Log::warning("Failed to delete temp file from Gemini: {$fileName}", ['error' => $ex->getMessage()]);
+                }
             }
-
-            $errorBody = $response->json();
-            $errorCode = $response->status();
-            $errorMessage = $errorBody['error']['message'] ?? 'Unknown error';
-
-            if ($errorCode === 429 && $attempt < $maxRetries) {
-                Log::warning("Gemini API Rate Limit (429) on attempt {$attempt}. Retrying in {$retryDelay} seconds...");
-                sleep($retryDelay);
-                $retryDelay *= 2; // Exponential backoff
-
-                continue;
-            }
-
-            Log::error('Gemini API Error: ' . $response->body());
-            throw new \Exception('Gemini API Error: ' . $errorMessage);
         }
-
-        $result = $response->json();
-        $content = $result['candidates'][0]['content']['parts'][0]['text'] ?? null;
-
-        if (!$content) {
-            throw new \Exception('Empty response from AI.');
-        }
-
-        return $this->parseAiResponse($content);
     }
 
     /**
-     * Refined, Token-Efficient Prompt.
+     * Upload file to Gemini File API (REST)
+     */
+    private function uploadToGemini($filePath, $apiKey)
+    {
+        $fileSize = filesize($filePath);
+        $mimeType = 'application/pdf';
+        $displayName = basename($filePath);
+
+        // Metadata for upload
+        $metadata = ['file' => ['display_name' => $displayName]];
+
+        /** @var \Illuminate\Http\Client\Response $response */
+        $response = Http::withOptions(['verify' => false])
+            ->withHeaders([
+                'X-Goog-Upload-Protocol' => 'multipart',
+                'X-Goog-Upload-Command' => 'upload, finalize',
+                'X-Goog-Upload-Header-Content-Length' => $fileSize,
+                'X-Goog-Upload-Header-Content-Type' => $mimeType,
+            ])
+            ->asMultipart()
+            ->post("https://generativelanguage.googleapis.com/upload/v1beta/files?key={$apiKey}", [
+                [
+                    'name' => 'metadata',
+                    'contents' => json_encode($metadata),
+                    'headers' => ['Content-Type' => 'application/json']
+                ],
+                [
+                    'name' => 'file',
+                    'contents' => fopen($filePath, 'r'),
+                    'headers' => ['Content-Type' => $mimeType]
+                ]
+            ]);
+
+        if (!$response->successful()) {
+            throw new \Exception('Gemini File Upload Failed: ' . $response->body());
+        }
+
+        return $response->json();
+    }
+
+    /**
+     * Wait for file to reach 'ACTIVE' state
+     */
+    private function waitForFile($fileName, $apiKey)
+    {
+        $maxAttempts = 30;
+        for ($i = 0; $i < $maxAttempts; $i++) {
+            /** @var \Illuminate\Http\Client\Response $response */
+            $response = Http::withOptions(['verify' => false])
+                ->get("https://generativelanguage.googleapis.com/v1beta/{$fileName}?key={$apiKey}");
+            
+            $state = $response->json()['state'] ?? 'PROCESSING';
+            if ($state === 'ACTIVE') return true;
+            if ($state === 'FAILED') throw new \Exception('Gemini File Processing Failed.');
+            
+            sleep(2);
+        }
+        throw new \Exception('Gemini File Processing Timeout.');
+    }
+
+    /**
+     * Delete file from Gemini File API
+     */
+    private function deleteFromGemini($fileName, $apiKey)
+    {
+        Http::withOptions(['verify' => false])
+            ->delete("https://generativelanguage.googleapis.com/v1beta/{$fileName}?key={$apiKey}");
+    }
+
+    /**
+     * Refined, Token-Efficient Prompt for Structured Output.
      */
     private function getUltraEfficientPrompt($startPage, $endPage)
     {
         return <<<EOT
-Act as an Expert Question Extractor. Extract ALL questions from pages {$startPage} to {$endPage} of the PDF.
-Output ONLY a raw JSON array. No chatter. Ensure sequence preservation.
+Act as an Expert Question Extractor. Extract ALL questions from pages {$startPage} to {$endPage} of the provided PDF.
+Ensure all options, correct answers, and solutions are extracted with 100% accuracy.
 
-SCHEMA:
-[
-  {
-    "type": "MSA"|"MMA"|"TOF"|"FIB"|"SAQ",
-    "question": "text",
-    "options": ["A", "B", "C", "D"],
-    "image_box": [ymin, xmin, ymax, xmax] | null,
-    "option_image_boxes": { "0": [box], ... } | null,
-    "page_number": int,
-    "correct_option_index": int (0-3),
-    "correct_option_indices": [int],
-    "correct_answer_text": "string",
-    "solution": "short string",
-    "hint": "short string",
-    "reasoning": "Brief internal logic for answer"
-  }
-]
+IMAGE DETECTION & SPATIAL COORDINATES:
+1. If a question contains a diagram, graph, equation, or illustration, provide its coordinates in 'image_box' as [ymin, xmin, ymax, xmax] (normalized 0-1000).
+2. IMPORTANT: If an image is detected in the question text, insert the placeholder text "[IMAGE HERE]" at the exact point in the 'question' string where the image appears.
+3. If options contain images, provide coordinates in 'option_image_boxes' mapping the option index (0, 1, 2, 3) to the box. Insert "[IMAGE HERE]" in the option text.
 
-RULES:
-1. Extract in EXACT order.
-2. If image present, box coords [0-1000] normalized.
-3. If no answer explicitly stated, use 'reasoning' to derive correct one.
-4. TOF options must be ["True", "False"]. FIB/SAQ options [].
-5. Token Efficiency: Keep solution/hint < 20 words.
+MAPPING & TYPES:
+- 'page_number_extracted': The exact physical page number from the PDF (1-indexed).
+- Types: MSA (Single Choice), MMA (Multiple Choice), TOF (True/False), FIB (Fill in blanks), SAQ (Short Answer).
+- Format: Return a strict JSON array matching the requested schema.
+- Language: Keep the extracted text exactly as it appears in the PDF.
 EOT;
     }
 
@@ -158,26 +296,35 @@ EOT;
      */
     private function parseAiResponse($content)
     {
-        $cleanContent = preg_replace('/^```json\s*/i', '', trim($content));
-        $cleanContent = preg_replace('/```$/', '', trim($cleanContent));
-        $cleanContent = preg_replace('/[\x00-\x1F\x7F]/u', ' ', $cleanContent);
+        try {
+            $decoded = json_decode($content, true);
 
-        $decoded = json_decode($cleanContent, true);
-
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            Log::error('JSON Decode Error: ' . json_last_error_msg());
-            // Attempt simple repair for truncated JSON
-            if (strpos($cleanContent, '[') === 0 && substr($cleanContent, -1) !== ']') {
-                $cleanContent = rtrim($cleanContent, ',');
-                $decoded = json_decode($cleanContent . '}]', true) ?? json_decode($cleanContent . ']', true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                // Attempt cleanup if Gemini adds markdown markers
+                $cleanContent = preg_replace('/^```json\s*/i', '', trim($content));
+                $cleanContent = preg_replace('/```$/', '', trim($cleanContent));
+                $decoded = json_decode($cleanContent, true);
+                
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    Log::error('Gemini JSON Parsing Failed after cleanup', [
+                        'error' => json_last_error_msg(),
+                        'raw_content' => substr($content, 0, 1000) . '...' 
+                    ]);
+                    throw new \Exception('Failed to parse AI JSON response: ' . json_last_error_msg());
+                }
             }
-        }
 
-        if (!$decoded) {
-            throw new \Exception('Failed to parse AI JSON response.');
-        }
+            if (!$decoded) {
+                throw new \Exception('Empty or invalid decoded JSON from AI.');
+            }
 
-        return $decoded;
+            return $decoded;
+        } catch (\Exception $e) {
+            Log::error('AI Response Parsing Exception: ' . $e->getMessage(), [
+                'content_snippet' => substr($content, 0, 500)
+            ]);
+            throw $e;
+        }
     }
 
     /**

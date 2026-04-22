@@ -1,11 +1,10 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-
-// Controllers
 use App\Http\Controllers\Admin\ActivityLogController;
+// Controllers
 use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AdminFileManagerController;
+use App\Http\Controllers\Admin\AdvertisementController;
 use App\Http\Controllers\Admin\AiImportController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\ComprehensionController;
@@ -14,6 +13,9 @@ use App\Http\Controllers\Admin\ExamQuestionController;
 use App\Http\Controllers\Admin\ExamScheduleController;
 use App\Http\Controllers\Admin\ExamSectionController;
 use App\Http\Controllers\Admin\ExamTypeController;
+use App\Http\Controllers\Admin\HeroSlideController;
+use App\Http\Controllers\Admin\HomeFeatureController;
+use App\Http\Controllers\Admin\HomeStatController;
 use App\Http\Controllers\Admin\MicroCategoryController;
 use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\PlanCrudController;
@@ -36,10 +38,7 @@ use App\Http\Controllers\Admin\TagController;
 use App\Http\Controllers\Admin\TopicController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\UserGroupController;
-use App\Http\Controllers\Admin\HeroSlideController;
-use App\Http\Controllers\Admin\HomeStatController;
-use App\Http\Controllers\Admin\HomeFeatureController;
-use App\Http\Controllers\Admin\AdvertisementController;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -118,7 +117,10 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('ad
     // // AI Import Page
     Route::get('ai-import', [AiImportController::class, 'index'])->name('ai-import.index');
     Route::get('ai-import/preview/{batch_id}', [AiImportController::class, 'preview'])->name('ai-import.preview');
+    Route::get('ai-import/status/{batch_id}', [AiImportController::class, 'checkStatus'])->name('ai-import.status');
+    Route::get('ai-import/download-pdf/{batch_id}', [AiImportController::class, 'downloadPdf'])->name('ai-import.download-pdf');
     Route::post('ai-import/process', [AiImportController::class, 'uploadAndProcess'])->name('ai-import.process');
+    Route::post('ai-import/update-json/{batch_id}', [AiImportController::class, 'updateQuestions'])->name('ai-import.update-json');
     Route::post('ai-import/upload-cropped-image', [AiImportController::class, 'uploadCroppedImage'])->name('ai-import.upload-cropped-image');
     Route::post('ai-import/cancel', [AiImportController::class, 'cancelImport'])->name('ai-import.cancel');
     Route::post('ai-import/approve/{batch_id}', [AiImportController::class, 'approve'])->name('ai-import.approve');
@@ -215,7 +217,6 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('ad
     Route::post('practice-sets/{practice_set}/settings', [PracticeSetController::class, 'updateSettings'])->name('practice-sets.settings.update');
     Route::get('practice-sets/{practice_set}/report', [PracticeSetController::class, 'overallReport'])->name('practice-sets.overall_report');
 
-
     // --- 8. PAYMENTS & SUBSCRIPTIONS ---
     Route::resource('subscriptions', SubscriptionCrudController::class);
     Route::get('subscriptions/invoice/{paymentId}', [SubscriptionCrudController::class, 'downloadInvoice'])->name('subscriptions.invoice');
@@ -238,11 +239,9 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('ad
         Route::get('/popup', 'popup')->name('popup');
     });
 
-
     // Hero Slider CRUD
     Route::resource('hero-slides', HeroSlideController::class);
     Route::post('hero-slides/{id}/toggle', [HeroSlideController::class, 'toggleStatus'])->name('hero-slides.toggle');
-
 
     Route::resource('home-stats', HomeStatController::class);
     Route::post('home-stats/{id}/toggle', [HomeStatController::class, 'toggleStatus'])->name('home-stats.toggle');
