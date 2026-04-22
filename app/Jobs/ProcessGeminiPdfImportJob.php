@@ -61,7 +61,7 @@ class ProcessGeminiPdfImportJob implements ShouldQueue
             $this->updateStatus('processing', 'Uploading to Gemini File API...', 30);
 
             $questions = $aiService->callGeminiApi(
-                storage_path('app/' . $this->pdfPath),
+                Storage::disk('local')->path($this->pdfPath),
                 $this->startPage,
                 $this->endPage,
                 $this->batchId,
