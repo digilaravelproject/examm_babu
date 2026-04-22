@@ -167,13 +167,13 @@ protected function profilePhotoUrl(): Attribute
     }
 
     /**
-     * Calculates Wallet Balance dynamically from Transactions table
+     * Wallet Balance Attribute
      */
     protected function walletBalance(): Attribute
     {
         return Attribute::make(
-            // Hum sum('amount') kar rahe hain. Credit positive hoga, Debit negative hoga.
-            get: fn() => $this->walletTransactions()->sum('amount'),
+            get: fn($value) => $value ?? 0,
+            set: fn($value) => $value,
         );
     }
 

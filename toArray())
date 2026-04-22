@@ -1,0 +1,22 @@
+
+   InvalidArgumentException 
+
+  Unexpected end of input
+
+  at vendor\psy\psysh\src\Shell.php:1028
+    1024▕ 
+    1025▕         if (!$this->hasValidCode()) {
+    1026▕             $this->popCodeStack();
+    1027▕ 
+  ➜ 1028▕             throw new \InvalidArgumentException('Unexpected end of input');
+    1029▕         }
+    1030▕     }
+    1031▕ 
+    1032▕     /**
+
+  1   vendor\psy\psysh\src\Shell.php:1562
+      Psy\Shell::setCode("print_r(App\Models\Plan::first()?-")
+
+  2   vendor\laravel\tinker\src\Console\TinkerCommand.php:76
+      Psy\Shell::execute("print_r(App\Models\Plan::first()?-")
+

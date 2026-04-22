@@ -125,13 +125,16 @@
                                                         </span>
                                                     @endif
                                                 </div>
-                                                @if ($hasDiscount)
-                                                    <p class="mt-1 text-xs font-bold text-green-600">
-                                                        You Save {{ $siteSettings->currency_symbol ?? '₹' }}{{ number_format($savings, 0) }}
-                                                    </p>
-                                                @else
-                                                    <p class="mt-1 text-xs font-medium text-slate-400">Best value price</p>
-                                                @endif
+                                                <div class="flex items-center justify-between mt-1">
+                                                    @if ($hasDiscount)
+                                                        <p class="text-xs font-bold text-green-600">
+                                                            You Save {{ $siteSettings->currency_symbol ?? '₹' }}{{ number_format($savings, 0) }}
+                                                        </p>
+                                                    @else
+                                                        <p class="text-xs font-medium text-slate-400">Best value price</p>
+                                                    @endif
+                                                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-tight">+ GST</span>
+                                                </div>
                                             </div>
                                         </div>
 

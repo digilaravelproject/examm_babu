@@ -18,6 +18,7 @@ class RazorpayRepository
     public function createOrder(string $paymentId, float $amount): ?array
     {
         try {
+            /** @var \Illuminate\Http\Client\Response $response */
             $response = Http::withBasicAuth($this->settings->key_id, $this->settings->key_secret)
                 ->withHeaders(['Content-Type' => 'application/json'])
                 ->post('https://api.razorpay.com/v1/orders', [
@@ -48,6 +49,18 @@ class RazorpayRepository
             return true;
         } catch (SignatureVerificationError $e) {
             Log::error("Razorpay Signature Error: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function verifyWebhookSignature(string $payload, string $signature): bool
+    {
+        try {
+            $api = new Api($this->settings->key_id, $this->settings->key_secret);
+            $api->utility->verifyWebhookSignature($payload, $signature, $this->settings->webhook_secret);
+            return true;
+        } catch (\Exception $e) {
+            Log::error("Razorpay Webhook Signature Error: " . $e->getMessage());
             return false;
         }
     }

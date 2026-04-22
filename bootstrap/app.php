@@ -26,6 +26,11 @@ return Application::configure(basePath: dirname(__DIR__))
         // Ye har page load par check karega ki URL me ?ref=CODE hai ya nahi
         $middleware->appendToGroup('web', \App\Http\Middleware\CheckReferral::class);
 
+        // 3. CSRF Exclusions
+        $middleware->validateCsrfTokens(except: [
+            '/webhooks/razorpay',
+        ]);
+
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

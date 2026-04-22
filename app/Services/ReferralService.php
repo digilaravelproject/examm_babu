@@ -101,14 +101,18 @@ class ReferralService
                     return;
                 }
 
-                $commissionAmount = ($payment->total_amount * $commissionRate) / 100;
+                // Use sub_total (Base Price) for commission if available, else fallback to total_amount
+                // This ensures we don't pay commission on the GST/Tax portion.
+                $baseAmount = (float) ($payment->data->get('order_summary.sub_total') ?? $payment->total_amount);
+
+                $commissionAmount = ($baseAmount * $commissionRate) / 100;
 
                 // 5. Create Referral Record
                 Referral::create([
                     'referrer_id'           => $referrerLocked->id,
                     'referee_id'            => $user->id,
                     'payment_id'            => $payment->id,
-                    'plan_amount'           => $payment->total_amount,
+                    'plan_amount'           => $baseAmount,
                     'commission_percentage' => $commissionRate,
                     'commission_amount'     => $commissionAmount,
                     'status'                => 'approved'

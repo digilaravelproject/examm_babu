@@ -9,6 +9,13 @@ use Illuminate\Support\Facades\Auth;
 
 /*
 |--------------------------------------------------------------------------
+| WEBHOOKS (Publicly Accessible)
+|--------------------------------------------------------------------------
+*/
+Route::post('/webhooks/razorpay', [\App\Http\Controllers\Webhooks\RazorpayWebhookController::class, 'handle'])->name('webhooks.razorpay');
+
+/*
+|--------------------------------------------------------------------------
 | PUBLIC ROUTES (Site Controller)
 |--------------------------------------------------------------------------
 */
