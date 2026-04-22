@@ -45,7 +45,7 @@ class AiImportService
      * @param  string|null $batchId
      * @return array
      */
-    public function callGeminiApi($pdfPath, $startPage = 1, $endPage = 999, $batchId = null, $topicId = null)
+    public function callGeminiApi($pdfPath, $startPage = 1, $endPage = 50, $batchId = null, $topicId = null)
     {
         set_time_limit(1200);
 
@@ -282,8 +282,17 @@ class AiImportService
      */
     private function getUltraEfficientPrompt($startPage, $endPage)
     {
+        // Build a smart page instruction
+        if ($startPage == 1 && $endPage >= 50) {
+            $pageInstruction = 'Extract ALL questions from ALL pages of the provided PDF.';
+        } elseif ($startPage == 1) {
+            $pageInstruction = "Extract ALL questions from pages 1 to {$endPage} of the provided PDF.";
+        } else {
+            $pageInstruction = "Extract ALL questions from pages {$startPage} to {$endPage} of the provided PDF.";
+        }
+
         return <<<EOT
-Act as an Expert Question Extractor. Extract ALL questions from pages {$startPage} to {$endPage} of the provided PDF.
+Act as an Expert Question Extractor. {$pageInstruction}
 Ensure all options, correct answers, and solutions are extracted with 100% accuracy.
 
 IMAGE DETECTION & SPATIAL COORDINATES:

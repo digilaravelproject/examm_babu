@@ -49,15 +49,30 @@ class AiImportController extends Controller
             'topic_id' => 'required|exists:topics,id',
             'pdf_file' => 'nullable|mimes:pdf|max:51200', // 50MB
             'batch_id' => 'nullable|string',
-            'start_page' => 'integer|min:1',
-            'end_page' => 'integer|min:1',
+            'start_page' => 'nullable|integer|min:1',
+            'end_page' => 'nullable|integer|min:1',
+            'total_pages' => 'nullable|integer|min:1',
         ]);
 
         try {
             $topicId = $request->topic_id;
             $userId = Auth::id();
-            $startPage = $request->input('start_page', 1);
-            $endPage = $request->input('end_page', 999);
+            $totalPages = (int) $request->input('total_pages', 0);
+            $startPage = (int) $request->input('start_page', 1);
+
+            // Smart end_page: use user input > actual PDF pages > safe fallback
+            if ($request->filled('end_page')) {
+                $endPage = (int) $request->input('end_page');
+            } elseif ($totalPages > 0) {
+                $endPage = $totalPages;
+            } else {
+                $endPage = 50; // Safe fallback instead of 999
+            }
+
+            // Never exceed actual PDF page count if we know it
+            if ($totalPages > 0 && $endPage > $totalPages) {
+                $endPage = $totalPages;
+            }
 
             if ($request->has('batch_id') && $request->batch_id) {
                 $batchId = $request->batch_id;

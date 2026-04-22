@@ -15,7 +15,7 @@ class ProcessGeminiPdfImportJob implements ShouldQueue
 
     public $timeout = 1800; // 30 minutes
     public $tries = 3;      // Allow retries for quota issues
-    public $backoff = [60, 120]; // Wait 1 then 2 minutes between retries
+    public $backoff = [90, 180]; // Wait 1.5 then 3 minutes between retries (Gemini says retry in ~53s)
 
     protected $batchId;
     protected $pdfPath;
@@ -27,7 +27,7 @@ class ProcessGeminiPdfImportJob implements ShouldQueue
     /**
      * Create a new job instance.
      */
-    public function __construct($batchId, $pdfPath, $topicId, $userId, $startPage = 1, $endPage = 999)
+    public function __construct($batchId, $pdfPath, $topicId, $userId, $startPage = 1, $endPage = 50)
     {
         $this->batchId = $batchId;
         $this->pdfPath = $pdfPath;

@@ -444,6 +444,21 @@
                 fd.append('topic_id', topicSelect.value);
                 fd.append('pdf_file', fileInput.files[0]);
 
+                // Send actual page count from pdf.js so backend doesn't default to 999
+                if (pdfDoc) {
+                    fd.append('total_pages', pdfDoc.numPages);
+                }
+
+                // Send user-specified page range if provided
+                const startPageInput = document.querySelector('input[name="start_page"]');
+                const endPageInput = document.querySelector('input[name="end_page"]');
+                if (startPageInput && startPageInput.value) {
+                    fd.append('start_page', startPageInput.value);
+                }
+                if (endPageInput && endPageInput.value) {
+                    fd.append('end_page', endPageInput.value);
+                }
+
                 const res = await fetch("{{ route('admin.ai-import.process') }}", {
                     method: 'POST',
                     body: fd,
