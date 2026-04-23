@@ -2,15 +2,15 @@
 
 namespace App\Services;
 
-use App\Models\User;
-use App\Models\Referral;
-use App\Models\WalletTransaction;
 use App\Models\Payment;
 use App\Models\Plan;
+use App\Models\Referral;
+use App\Models\User;
+use App\Models\WalletTransaction;
 use App\Settings\ReferralSettings;
 use Illuminate\Support\Facades\Cookie;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ReferralService
 {
@@ -21,7 +21,7 @@ class ReferralService
     {
         $custom = $referrer->referralSetting;
 
-        return !is_null($custom?->commission_percentage)
+        return ! is_null($custom?->commission_percentage)
             ? (float) $custom->commission_percentage
             : $settings->commission_percentage;
     }
@@ -37,14 +37,16 @@ class ReferralService
             $settings = app(ReferralSettings::class);
 
             // 1. Basic Validation
-            if (!$settings->enable_referral || $payment->total_amount <= 0) {
-                Log::info("Referral Skipped: System disabled or Amount 0");
+            if (! $settings->enable_referral || $payment->total_amount <= 0) {
+                Log::info('Referral Skipped: System disabled or Amount 0');
+
                 return;
             }
 
             // 2. DUPLICATE CHECK (Strict Payment ID Check)
             if (Referral::where('payment_id', $payment->id)->exists()) {
                 Log::info("Referral Skipped: Payment {$payment->id} already processed.");
+
                 return;
             }
 
@@ -77,8 +79,9 @@ class ReferralService
             // }
 
             // 4. VALIDATE REFERRER
-            if (!$referrer || $referrer->id === $user->id) {
-                Log::info("Referral Skipped: No valid referrer found (or self-referral).");
+            if (! $referrer || $referrer->id === $user->id) {
+                Log::info('Referral Skipped: No valid referrer found (or self-referral).');
+
                 return;
             }
 
@@ -86,18 +89,21 @@ class ReferralService
             DB::transaction(function () use ($settings, $referrer, $user, $payment) {
 
                 // Lock row to prevent race conditions on wallet balance
-                $referrerLocked = User::where('id', $referrer->id)
-                                ->with('referralSetting')
-                                ->lockForUpdate()
-                                ->first();
+                /** @var \App\Models\User $referrerLocked */
+                $referrerLocked = User::with('referralSetting')
+                    ->lockForUpdate()
+                    ->find($referrer->id);
 
-                if (!$referrerLocked) return;
+                if (! $referrerLocked) {
+                    return;
+                }
 
                 // Calculate Commission
                 $commissionRate = self::getApplicableRate($referrerLocked, $settings);
 
                 if ($commissionRate <= 0) {
-                    Log::info("Referral Skipped: Commission rate is 0.");
+                    Log::info('Referral Skipped: Commission rate is 0.');
+
                     return;
                 }
 
@@ -109,13 +115,13 @@ class ReferralService
 
                 // 5. Create Referral Record
                 Referral::create([
-                    'referrer_id'           => $referrerLocked->id,
-                    'referee_id'            => $user->id,
-                    'payment_id'            => $payment->id,
-                    'plan_amount'           => $baseAmount,
+                    'referrer_id' => $referrerLocked->id,
+                    'referee_id' => $user->id,
+                    'payment_id' => $payment->id,
+                    'plan_amount' => $baseAmount,
                     'commission_percentage' => $commissionRate,
-                    'commission_amount'     => $commissionAmount,
-                    'status'                => 'approved'
+                    'commission_amount' => $commissionAmount,
+                    'status' => 'approved',
                 ]);
 
                 // 6. Update Wallet
@@ -127,13 +133,13 @@ class ReferralService
                 $newRunningBalance = $referrerLocked->wallet_balance + $commissionAmount;
 
                 WalletTransaction::create([
-                    'user_id'         => $referrerLocked->id,
-                    'amount'          => $commissionAmount,
-                    'type'            => 'credit',
-                    'source'          => 'referral_reward',
-                    'description'     => $desc,
-                    'reference_id'    => $payment->id,
-                    'running_balance' => $newRunningBalance
+                    'user_id' => $referrerLocked->id,
+                    'amount' => $commissionAmount,
+                    'type' => 'credit',
+                    'source' => 'referral_reward',
+                    'description' => $desc,
+                    'reference_id' => $payment->id,
+                    'running_balance' => $newRunningBalance,
                 ]);
 
                 $referrerLocked->wallet_balance = $newRunningBalance;
@@ -141,17 +147,13 @@ class ReferralService
 
                 Log::info("Referral Success: Commission {$commissionAmount} added to Referrer {$referrerLocked->id}");
             });
-
         } catch (\Exception $e) {
-            Log::error("Referral Critical Error: " . $e->getMessage());
+            Log::error('Referral Critical Error: ' . $e->getMessage());
         }
     }
 
     /**
      * Disable revisit reward
      */
-    public static function handleRevisitReward(User $user, Plan $plan)
-    {
-        return;
-    }
+    public static function handleRevisitReward(User $user, Plan $plan) {}
 }
