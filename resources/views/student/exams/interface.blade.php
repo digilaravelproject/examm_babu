@@ -351,22 +351,22 @@
                                 <div class="grid gap-3">
                                     <template x-for="(opt,oIdx) in currQ.options" :key="oIdx">
                                         <div @click="selectOption(oIdx)"
-                                            class="flex flex-col p-4 transition border-2 cursor-pointer rounded-xl hover:bg-gray-50"
+                                            class="flex items-start p-4 transition border-2 cursor-pointer rounded-xl hover:bg-gray-50"
                                             :class="(currQ.selected_option == oIdx) ? 'border-blue-500 bg-blue-50' :
                                                 'border-gray-200'">
-                                            <div class="flex items-center gap-2">
-                                                <div class="flex items-center justify-center w-6 h-6 mr-2 border-2 rounded-full"
-                                                    :class="(currQ.selected_option == oIdx) ? 'border-blue-600 bg-blue-600' :
-                                                        'border-gray-400'">
-                                                    <div class="w-2 h-2 bg-white rounded-full"
-                                                        x-show="currQ.selected_option == oIdx"></div>
-                                                </div>
-                                                <div x-html="typeof opt === 'object' ? opt.option : opt" class="flex-1 font-medium text-gray-700"></div>
+                                            <div class="flex items-center justify-center w-6 h-6 mr-3 border-2 rounded-full mt-0.5 shrink-0"
+                                                :class="(currQ.selected_option == oIdx) ? 'border-blue-600 bg-blue-600' :
+                                                    'border-gray-400'">
+                                                <div class="w-2 h-2 bg-white rounded-full"
+                                                    x-show="currQ.selected_option == oIdx"></div>
                                             </div>
-                                            <template x-if="secondaryLang && opt.translated_option">
-                                                <div class="mt-1 text-sm font-bold text-blue-700"
-                                                    x-html="opt.translated_option"></div>
-                                            </template>
+                                            <div class="flex-1 flex flex-col">
+                                                <div x-html="typeof opt === 'object' ? opt.option : opt" class="font-medium text-gray-700"></div>
+                                                <template x-if="secondaryLang && opt.translated_option">
+                                                    <div class="mt-1 text-sm font-bold text-blue-700 leading-relaxed"
+                                                        x-html="opt.translated_option"></div>
+                                                </template>
+                                            </div>
                                         </div>
                                     </template>
                                 </div>
@@ -377,17 +377,19 @@
                                 <div class="grid gap-3">
                                     <template x-for="(opt, oIdx) in currQ.options" :key="oIdx">
                                         <div @click="toggleMMA(oIdx)"
-                                            class="flex items-center p-4 transition border-2 cursor-pointer rounded-xl hover:bg-gray-50"
+                                            class="flex items-start p-4 transition border-2 cursor-pointer rounded-xl hover:bg-gray-50"
                                             :class="isMMAChecked(oIdx) ? 'border-blue-500 bg-blue-50' : 'border-gray-200'">
-                                            <div class="flex items-center justify-center w-6 h-6 mr-4 border-2 rounded"
+                                            <div class="flex items-center justify-center w-6 h-6 mr-4 border-2 rounded mt-0.5 shrink-0"
                                                 :class="isMMAChecked(oIdx) ? 'border-blue-600 bg-blue-600' : 'border-gray-400'">
                                                 <span class="text-xs text-white" x-show="isMMAChecked(oIdx)">✔</span>
                                             </div>
-                                            <div class="flex-1 font-medium text-gray-700" x-html="typeof opt === 'object' ? opt.option : opt"></div>
-                                            <template x-if="secondaryLang && opt.translated_option">
-                                                <div class="mt-1 text-sm font-bold text-blue-700"
-                                                    x-html="opt.translated_option"></div>
-                                            </template>
+                                            <div class="flex-1 flex flex-col">
+                                                <div class="font-medium text-gray-700" x-html="typeof opt === 'object' ? opt.option : opt"></div>
+                                                <template x-if="secondaryLang && opt.translated_option">
+                                                    <div class="mt-1 text-sm font-bold text-blue-700 leading-relaxed"
+                                                        x-html="opt.translated_option"></div>
+                                                </template>
+                                            </div>
                                         </div>
                                     </template>
                                 </div>
