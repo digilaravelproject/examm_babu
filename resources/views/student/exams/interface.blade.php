@@ -316,8 +316,29 @@
                 </div>
             </div>
 
+            <!-- Skeleton Loader -->
+            <div class="flex-1 p-6 overflow-y-auto" x-show="loading || isInitialLoading" x-cloak>
+                <div class="animate-pulse space-y-8">
+                    <!-- Question Text Skeleton -->
+                    <div class="space-y-3">
+                        <div class="h-6 bg-gray-200 rounded w-3/4"></div>
+                        <div class="h-6 bg-gray-200 rounded w-1/2"></div>
+                    </div>
+                    
+                    <!-- Options Skeleton -->
+                    <div class="space-y-4">
+                        <template x-for="i in [1,2,3,4]">
+                            <div class="flex items-center p-4 border-2 border-gray-100 rounded-xl">
+                                <div class="w-6 h-6 bg-gray-200 rounded-full mr-4"></div>
+                                <div class="h-4 bg-gray-200 rounded flex-1"></div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
             <!-- Question Content -->
-            <div class="flex-1 p-6 overflow-y-auto" x-show="!loading && currQ">
+            <div class="flex-1 p-6 overflow-y-auto" x-show="!loading && !isInitialLoading && currQ" x-cloak>
                 <div class="flex flex-col h-full gap-8 lg:flex-row">
                     <!-- Passage -->
                     <template x-if="currQ?.passage">
@@ -562,6 +583,7 @@
                 warnings: 0,
                 started: false,
                 showPalette: false,
+                isInitialLoading: false,
 
                 // Debounce store for FIB
                 fibDebounceTimers: {},
@@ -598,7 +620,16 @@
 
                 async startSequence() {
                     this.showInstructions = false;
+                    this.isInitialLoading = true;
+                    
                     await this.loadData(0);
+                    
+                    // Critical: Ensure the first question's translation is ready if applicable
+                    if (this.currQ && this.secondaryLang && this.currQ.allow_translation && !this.currQ.translated_text) {
+                        await this.translateQuestion(this.currQ);
+                    }
+                    
+                    this.isInitialLoading = false;
                     this.startExamTimer();
                 },
 
