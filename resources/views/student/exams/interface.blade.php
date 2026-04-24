@@ -690,13 +690,22 @@
                                 }
                             }
 
-                            q.translated_text = null;
+                            // Initialize translation state explicitly for perfect Alpine.js reactivity
+                            q.translated_text = '';
+                            if (q.type_code === 'MTF') {
+                                if (q.options.matches) q.options.matches.forEach(m => m.translated_value = '');
+                                if (q.options.pairs) q.options.pairs.forEach(p => p.translated_value = '');
+                            }
+                            if (q.type_code === 'ORD' && Array.isArray(q.options)) {
+                                q.options.forEach(o => o.translated_value = '');
+                            }
                             if (Array.isArray(q.options)) {
-                                q.options.forEach(opt => opt.translated_option = null);
+                                q.options.forEach(opt => {
+                                    if (typeof opt === 'object') opt.translated_option = '';
+                                });
                             }
 
                             if (this.secondaryLang && q.allow_translation) {
-                                // If it's the first question, we might want to await it
                                 this.translateQuestion(q);
                             }
                             return q;
