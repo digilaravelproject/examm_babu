@@ -40,6 +40,11 @@ class AiImportService
             ? $this->settings->custom_model
             : ($this->settings->model_name ?: 'gemini-1.5-flash');
 
+        // Fallback for gemini-2.0-flash which is no longer available to new users
+        if ($model === 'gemini-2.0-flash') {
+            $model = 'gemini-1.5-flash';
+        }
+
         if (! $model) {
             Log::error("Gemini Model not specified for Batch: {$batchId}");
             throw new \Exception('AI Model not specified. Please select a model in AI Settings.');
@@ -82,46 +87,58 @@ class AiImportService
                         ],
                     ],
                     'generationConfig' => [
-                        'response_mime_type' => 'application/json',
-                        'response_schema' => [
-                            'type' => 'array',
+                        'responseMimeType' => 'application/json',
+                        'responseSchema' => [
+                            'type' => 'ARRAY',
                             'items' => [
-                                'type' => 'object',
+                                'type' => 'OBJECT',
                                 'properties' => [
-                                    'type' => ['type' => 'string', 'enum' => ['MSA', 'MMA', 'TOF', 'FIB', 'SAQ']],
-                                    'question' => ['type' => 'string'],
-                                    'options' => [
-                                        'type' => 'array',
-                                        'items' => ['type' => 'string'],
+                                    'type' => [
+                                        'type' => 'STRING',
+                                        'enum' => ['MSA', 'MMA', 'TOF', 'FIB', 'SAQ'],
                                     ],
-                                    'correct_option_index' => ['type' => 'integer', 'description' => '0-based index for MSA/TOF'],
+                                    'question' => ['type' => 'STRING'],
+                                    'options' => [
+                                        'type' => 'ARRAY',
+                                        'items' => ['type' => 'STRING'],
+                                    ],
+                                    'correct_option_index' => [
+                                        'type' => 'INTEGER',
+                                        'description' => '0-based index for MSA/TOF',
+                                    ],
                                     'correct_option_indices' => [
-                                        'type' => 'array',
-                                        'items' => ['type' => 'integer'],
+                                        'type' => 'ARRAY',
+                                        'items' => ['type' => 'INTEGER'],
                                         'description' => '0-based indices for MMA',
                                     ],
-                                    'correct_answer_text' => ['type' => 'string', 'description' => 'Text for FIB/SAQ'],
-                                    'solution' => ['type' => 'string'],
-                                    'hint' => ['type' => 'string'],
+                                    'correct_answer_text' => [
+                                        'type' => 'STRING',
+                                        'description' => 'Text for FIB/SAQ',
+                                    ],
+                                    'solution' => ['type' => 'STRING'],
+                                    'hint' => ['type' => 'STRING'],
                                     'image_box' => [
-                                        'type' => 'array',
+                                        'type' => 'ARRAY',
                                         'items' => [
-                                            'type' => 'integer',
+                                            'type' => 'INTEGER',
                                             'minimum' => 0,
                                             'maximum' => 1000,
                                         ],
                                         'description' => '[ymin, xmin, ymax, xmax] coordinates (0-1000) for question image',
                                     ],
                                     'option_image_boxes' => [
-                                        'type' => 'array',
+                                        'type' => 'ARRAY',
                                         'items' => [
-                                            'type' => 'object',
+                                            'type' => 'OBJECT',
                                             'properties' => [
-                                                'index' => ['type' => 'integer', 'description' => '0-based index of the option'],
+                                                'index' => [
+                                                    'type' => 'INTEGER',
+                                                    'description' => '0-based index of the option',
+                                                ],
                                                 'box' => [
-                                                    'type' => 'array',
+                                                    'type' => 'ARRAY',
                                                     'items' => [
-                                                        'type' => 'integer',
+                                                        'type' => 'INTEGER',
                                                         'minimum' => 0,
                                                         'maximum' => 1000,
                                                     ],
@@ -132,7 +149,10 @@ class AiImportService
                                         ],
                                         'description' => 'List of objects mapping option index to coordinates',
                                     ],
-                                    'page_number_extracted' => ['type' => 'integer', 'description' => 'The page number where this question was found'],
+                                    'page_number_extracted' => [
+                                        'type' => 'INTEGER',
+                                        'description' => 'The page number where this question was found',
+                                    ],
                                 ],
                                 'required' => ['type', 'question'],
                             ],
@@ -156,7 +176,7 @@ class AiImportService
                 ]);
 
                 if ($response->status() === 404 && str_contains($errorMessage, 'not found')) {
-                    throw new \Exception("Gemini API Error: The selected model '{$model}' is not supported by the stable v1 API or does not exist. Please try switching to 'gemini-1.5-flash' or 'gemini-2.0-flash' in AI Settings.");
+                    throw new \Exception("Gemini API Error: The selected model '{$model}' is not supported by the stable v1 API or does not exist. Please try switching to 'gemini-1.5-flash' in AI Settings.");
                 }
 
                 throw new \Exception("Gemini API Error: {$errorMessage}");

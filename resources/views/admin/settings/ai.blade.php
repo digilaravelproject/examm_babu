@@ -29,9 +29,10 @@
                         <select name="model_name" id="model_name" onchange="checkCustomModel(this.value)"
                             class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#0777be] focus:ring focus:ring-[#0777be] focus:ring-opacity-50">
                             <optgroup label="Flash Models (Cost-Optimized)">
-                                <option value="gemini-2.0-flash" {{ $settings->model_name == 'gemini-2.0-flash' ? 'selected' : '' }}>Gemini 2.0 Flash (Recommended)</option>
+                                <option value="gemini-1.5-flash" {{ $settings->model_name == 'gemini-1.5-flash' ? 'selected' : '' }}>Gemini 1.5 Flash (Recommended - Stable)</option>
+                                <option value="gemini-1.5-pro" {{ $settings->model_name == 'gemini-1.5-pro' ? 'selected' : '' }}>Gemini 1.5 Pro</option>
+                                <option value="gemini-2.0-flash" {{ $settings->model_name == 'gemini-2.0-flash' ? 'selected' : '' }}>Gemini 2.0 Flash (Experimental/Limited)</option>
                                 <option value="gemini-2.0-flash-001" {{ $settings->model_name == 'gemini-2.0-flash-001' ? 'selected' : '' }}>Gemini 2.0 Flash-001</option>
-                                <option value="gemini-1.5-flash" {{ $settings->model_name == 'gemini-1.5-flash' ? 'selected' : '' }}>Gemini 1.5 Flash (Legacy)</option>
                             </optgroup>
                             <optgroup label="Pro Models (Advanced)">
                                 <option value="gemini-2.5-pro" {{ $settings->model_name == 'gemini-2.5-pro' ? 'selected' : '' }}>Gemini 2.5 Pro</option>
