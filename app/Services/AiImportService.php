@@ -38,11 +38,12 @@ class AiImportService
 
         $model = ($this->settings->model_name === 'custom')
             ? $this->settings->custom_model
-            : ($this->settings->model_name ?: 'gemini-1.5-flash');
+            : ($this->settings->model_name ?: 'gemini-2.5-flash');
 
-        // Fallback for gemini-2.0-flash which is no longer available to new users
-        if ($model === 'gemini-2.0-flash') {
-            $model = 'gemini-1.5-flash';
+        // Fallback for older models that are no longer available to new users
+        if ($model === 'gemini-2.0-flash' || $model === 'gemini-1.5-flash') {
+            // Check for 2.5-flash as it's the newer recommended model for this key
+            $model = 'gemini-2.5-flash';
         }
 
         if (! $model) {

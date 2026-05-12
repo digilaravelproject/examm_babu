@@ -28,15 +28,14 @@
                         <label class="block text-sm font-medium text-gray-700">Model Name</label>
                         <select name="model_name" id="model_name" onchange="checkCustomModel(this.value)"
                             class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-[#0777be] focus:ring focus:ring-[#0777be] focus:ring-opacity-50">
-                            <optgroup label="Flash Models (Cost-Optimized)">
-                                <option value="gemini-1.5-flash" {{ $settings->model_name == 'gemini-1.5-flash' ? 'selected' : '' }}>Gemini 1.5 Flash (Recommended - Stable)</option>
-                                <option value="gemini-1.5-pro" {{ $settings->model_name == 'gemini-1.5-pro' ? 'selected' : '' }}>Gemini 1.5 Pro</option>
-                                <option value="gemini-2.0-flash" {{ $settings->model_name == 'gemini-2.0-flash' ? 'selected' : '' }}>Gemini 2.0 Flash (Experimental/Limited)</option>
-                                <option value="gemini-2.0-flash-001" {{ $settings->model_name == 'gemini-2.0-flash-001' ? 'selected' : '' }}>Gemini 2.0 Flash-001</option>
+                            <optgroup label="Flash Models (Fast & Cost-Optimized)">
+                                <option value="gemini-2.5-flash" {{ $settings->model_name == 'gemini-2.5-flash' ? 'selected' : '' }}>Gemini 2.5 Flash (Recommended - Fastest)</option>
+                                <option value="gemini-2.0-flash" {{ $settings->model_name == 'gemini-2.0-flash' ? 'selected' : '' }}>Gemini 2.0 Flash</option>
+                                <option value="gemini-2.0-flash-lite" {{ $settings->model_name == 'gemini-2.0-flash-lite' ? 'selected' : '' }}>Gemini 2.0 Flash Lite</option>
                             </optgroup>
-                            <optgroup label="Pro Models (Advanced)">
-                                <option value="gemini-2.5-pro" {{ $settings->model_name == 'gemini-2.5-pro' ? 'selected' : '' }}>Gemini 2.5 Pro</option>
-                                <option value="gemini-3.1-pro-preview" {{ $settings->model_name == 'gemini-3.1-pro-preview' ? 'selected' : '' }}>Gemini 3.1 Pro (Preview)</option>
+                            <optgroup label="Pro Models (High Accuracy)">
+                                <option value="gemini-2.5-pro" {{ $settings->model_name == 'gemini-2.5-pro' ? 'selected' : '' }}>Gemini 2.5 Pro (Best for Math/Diagrams)</option>
+                                <option value="gemini-1.5-pro" {{ $settings->model_name == 'gemini-1.5-pro' ? 'selected' : '' }}>Gemini 1.5 Pro (Legacy)</option>
                             </optgroup>
                             <option value="custom" {{ $settings->model_name == 'custom' ? 'selected' : '' }}>Enter Custom Model Name...</option>
                         </select>
