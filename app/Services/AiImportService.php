@@ -94,7 +94,7 @@ class AiImportService
 
             /** @var \Illuminate\Http\Client\Response $response */
             $response = Http::timeout(1200)->withOptions(['verify' => false])
-                ->post("https://generativelanguage.googleapis.com/v1/models/{$model}:generateContent?key={$apiKey}", [
+                ->post("https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$apiKey}", [
                     'contents' => [
                         [
                             'role' => 'user',
