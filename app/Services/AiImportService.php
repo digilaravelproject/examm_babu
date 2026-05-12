@@ -17,6 +17,7 @@ use Illuminate\Support\Str;
 class AiImportService
 {
     protected $repository;
+
     protected $settings;
 
     public function __construct(QuestionRepository $repository, AiSettings $settings)
@@ -25,62 +26,47 @@ class AiImportService
         $this->settings = $settings;
     }
 
-    /**
-     * Call Gemini API to extract questions.
-     * Uses File API for large PDFs and Structured Output for accuracy.
-     *
-     * @param  string  $pdfPath
-     * @param  int  $startPage
-     * @param  int  $endPage
-     * @param  string|null $batchId
-     * @param  int|null $topicId
-     * @return array
-     */
     public function callGeminiApi($pdfPath, $startPage = 1, $endPage = 50, $batchId = null, $topicId = null)
     {
         set_time_limit(1200);
 
         $apiKey = $this->settings->gemini_api_key ?: config('services.gemini.key');
-        if (!$apiKey) {
+        if (! $apiKey) {
             Log::error("Gemini API Key missing for Batch: {$batchId}");
             throw new \Exception('Gemini API Key not found. Please set it in Admin -> Settings -> AI Settings.');
         }
 
-        $model = ($this->settings->model_name === 'custom') 
-            ? $this->settings->custom_model 
+        $model = ($this->settings->model_name === 'custom')
+            ? $this->settings->custom_model
             : ($this->settings->model_name ?: 'gemini-1.5-flash');
-            
-        if (!$model) {
+
+        if (! $model) {
             Log::error("Gemini Model not specified for Batch: {$batchId}");
             throw new \Exception('AI Model not specified. Please select a model in AI Settings.');
         }
 
-        if (!file_exists($pdfPath)) {
+        if (! file_exists($pdfPath)) {
             Log::error("PDF file missing at: {$pdfPath} for Batch: {$batchId}");
-            throw new \Exception('PDF file not found at path: ' . $pdfPath);
+            throw new \Exception('PDF file not found at path: '.$pdfPath);
         }
 
-        // Use File API for PDFs > 1MB or if batchId is provided
         $fileUri = null;
         $fileName = null;
 
         try {
-            // 1. Upload File to Gemini File API
-            Log::info("Uploading PDF to Gemini File API", ['batch_id' => $batchId, 'path' => $pdfPath]);
+            Log::info('Uploading PDF to Gemini File API', ['batch_id' => $batchId, 'path' => $pdfPath]);
             $uploadResult = $this->uploadToGemini($pdfPath, $apiKey);
             $fileUri = $uploadResult['file']['uri'];
             $fileName = $uploadResult['file']['name'];
 
-            // 2. Wait for file to be processed (active state)
-            Log::info("Waiting for Gemini File Processing", ['batch_id' => $batchId, 'file_name' => $fileName]);
+            Log::info('Waiting for Gemini File Processing', ['batch_id' => $batchId, 'file_name' => $fileName]);
             $this->waitForFile($fileName, $apiKey);
 
-            // 3. Generate Content with Structured Output
-            Log::info("Requesting Content Generation from Gemini", [
+            Log::info('Requesting Content Generation from Gemini', [
                 'batch_id' => $batchId,
                 'model' => $model,
                 'pages' => "{$startPage}-{$endPage}",
-                'topic_id' => $topicId
+                'topic_id' => $topicId,
             ]);
 
             /** @var \Illuminate\Http\Client\Response $response */
@@ -96,81 +82,77 @@ class AiImportService
                         ],
                     ],
                     'generationConfig' => [
-                        'responseFormat' => [
-                            'text' => [
-                                'mimeType' => 'application/json',
-                                'schema' => [
-                                    'type' => 'array',
-                                    'items' => [
-                                        'type' => 'object',
-                                        'properties' => [
-                                            'type' => ['type' => 'string', 'enum' => ['MSA', 'MMA', 'TOF', 'FIB', 'SAQ']],
-                                            'question' => ['type' => 'string'],
-                                            'options' => [
-                                                'type' => 'array',
-                                                'items' => ['type' => 'string']
-                                            ],
-                                            'correct_option_index' => ['type' => 'integer', 'description' => '0-based index for MSA/TOF'],
-                                            'correct_option_indices' => [
-                                                'type' => 'array',
-                                                'items' => ['type' => 'integer'],
-                                                'description' => '0-based indices for MMA'
-                                            ],
-                                            'correct_answer_text' => ['type' => 'string', 'description' => 'Text for FIB/SAQ'],
-                                            'solution' => ['type' => 'string'],
-                                            'hint' => ['type' => 'string'],
-                                            'image_box' => [
-                                                'type' => 'array',
-                                                'items' => [
-                                                    'type' => 'integer',
-                                                    'minimum' => 0,
-                                                    'maximum' => 1000
-                                                ],
-                                                'description' => '[ymin, xmin, ymax, xmax] coordinates (0-1000) for question image'
-                                            ],
-                                            'option_image_boxes' => [
-                                                'type' => 'array',
-                                                'items' => [
-                                                    'type' => 'object',
-                                                    'properties' => [
-                                                        'index' => ['type' => 'integer', 'description' => '0-based index of the option (0, 1, 2, 3...)'],
-                                                        'box' => [
-                                                            'type' => 'array',
-                                                            'items' => [
-                                                                'type' => 'integer',
-                                                                'minimum' => 0,
-                                                                'maximum' => 1000
-                                                            ],
-                                                            'description' => '[ymin, xmin, ymax, xmax] coordinates (0-1000)'
-                                                        ]
-                                                    ],
-                                                    'required' => ['index', 'box']
-                                                ],
-                                                'description' => 'List of objects mapping option index to coordinates'
-                                            ],
-                                            'page_number_extracted' => ['type' => 'integer', 'description' => 'The page number where this question was found']
+                        'response_mime_type' => 'application/json',
+                        'response_schema' => [
+                            'type' => 'array',
+                            'items' => [
+                                'type' => 'object',
+                                'properties' => [
+                                    'type' => ['type' => 'string', 'enum' => ['MSA', 'MMA', 'TOF', 'FIB', 'SAQ']],
+                                    'question' => ['type' => 'string'],
+                                    'options' => [
+                                        'type' => 'array',
+                                        'items' => ['type' => 'string'],
+                                    ],
+                                    'correct_option_index' => ['type' => 'integer', 'description' => '0-based index for MSA/TOF'],
+                                    'correct_option_indices' => [
+                                        'type' => 'array',
+                                        'items' => ['type' => 'integer'],
+                                        'description' => '0-based indices for MMA',
+                                    ],
+                                    'correct_answer_text' => ['type' => 'string', 'description' => 'Text for FIB/SAQ'],
+                                    'solution' => ['type' => 'string'],
+                                    'hint' => ['type' => 'string'],
+                                    'image_box' => [
+                                        'type' => 'array',
+                                        'items' => [
+                                            'type' => 'integer',
+                                            'minimum' => 0,
+                                            'maximum' => 1000,
                                         ],
-                                        'required' => ['type', 'question']
-                                    ]
-                                ]
-                            ]
+                                        'description' => '[ymin, xmin, ymax, xmax] coordinates (0-1000) for question image',
+                                    ],
+                                    'option_image_boxes' => [
+                                        'type' => 'array',
+                                        'items' => [
+                                            'type' => 'object',
+                                            'properties' => [
+                                                'index' => ['type' => 'integer', 'description' => '0-based index of the option'],
+                                                'box' => [
+                                                    'type' => 'array',
+                                                    'items' => [
+                                                        'type' => 'integer',
+                                                        'minimum' => 0,
+                                                        'maximum' => 1000,
+                                                    ],
+                                                    'description' => '[ymin, xmin, ymax, xmax] coordinates (0-1000)',
+                                                ],
+                                            ],
+                                            'required' => ['index', 'box'],
+                                        ],
+                                        'description' => 'List of objects mapping option index to coordinates',
+                                    ],
+                                    'page_number_extracted' => ['type' => 'integer', 'description' => 'The page number where this question was found'],
+                                ],
+                                'required' => ['type', 'question'],
+                            ],
                         ],
                         'temperature' => 0.1,
                         'maxOutputTokens' => 8192,
                     ],
                 ]);
 
-            if (!$response->successful()) {
+            if (! $response->successful()) {
                 $errorResponse = $response->json();
                 $errorMessage = $errorResponse['error']['message'] ?? 'Unknown Gemini API error';
-                
+
                 Log::error("Gemini API Error [Batch: {$batchId}]", [
                     'status' => $response->status(),
                     'error_details' => $errorResponse,
                     'pages' => "{$startPage}-{$endPage}",
                     'batch_id' => $batchId,
                     'topic_id' => $topicId,
-                    'model' => $model
+                    'model' => $model,
                 ]);
 
                 if ($response->status() === 404 && str_contains($errorMessage, 'not found')) {
@@ -183,14 +165,14 @@ class AiImportService
             $result = $response->json();
             $content = $result['candidates'][0]['content']['parts'][0]['text'] ?? null;
 
-            if (!$content) {
+            if (! $content) {
                 Log::error("Gemini returned empty content for Batch: {$batchId}", ['response' => $result]);
                 throw new \Exception('Empty response from AI.');
             }
 
             Log::info("Gemini Extraction Successful for Batch: {$batchId}", [
                 'candidate_count' => count($result['candidates'] ?? []),
-                'pages' => "{$startPage}-{$endPage}"
+                'pages' => "{$startPage}-{$endPage}",
             ]);
 
             return $this->parseAiResponse($content);
@@ -200,11 +182,10 @@ class AiImportService
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
                 'batch_id' => $batchId,
-                'topic_id' => $topicId
+                'topic_id' => $topicId,
             ]);
             throw $e;
         } finally {
-            // 4. Cleanup File from Gemini
             if ($fileName) {
                 try {
                     $this->deleteFromGemini($fileName, $apiKey);
@@ -215,16 +196,12 @@ class AiImportService
         }
     }
 
-    /**
-     * Upload file to Gemini File API (REST)
-     */
     private function uploadToGemini($filePath, $apiKey)
     {
         $fileSize = filesize($filePath);
         $mimeType = 'application/pdf';
         $displayName = basename($filePath);
 
-        // Metadata for upload
         $metadata = ['file' => ['displayName' => $displayName]];
 
         /** @var \Illuminate\Http\Client\Response $response */
@@ -240,25 +217,22 @@ class AiImportService
                 [
                     'name' => 'metadata',
                     'contents' => json_encode($metadata),
-                    'headers' => ['Content-Type' => 'application/json']
+                    'headers' => ['Content-Type' => 'application/json'],
                 ],
                 [
                     'name' => 'file',
                     'contents' => fopen($filePath, 'r'),
-                    'headers' => ['Content-Type' => $mimeType]
-                ]
+                    'headers' => ['Content-Type' => $mimeType],
+                ],
             ]);
 
-        if (!$response->successful()) {
-            throw new \Exception('Gemini File Upload Failed: ' . $response->body());
+        if (! $response->successful()) {
+            throw new \Exception('Gemini File Upload Failed: '.$response->body());
         }
 
         return $response->json();
     }
 
-    /**
-     * Wait for file to reach 'ACTIVE' state
-     */
     private function waitForFile($fileName, $apiKey)
     {
         $maxAttempts = 30;
@@ -266,31 +240,28 @@ class AiImportService
             /** @var \Illuminate\Http\Client\Response $response */
             $response = Http::withOptions(['verify' => false])
                 ->get("https://generativelanguage.googleapis.com/v1beta/{$fileName}?key={$apiKey}");
-            
+
             $state = $response->json()['state'] ?? 'PROCESSING';
-            if ($state === 'ACTIVE') return true;
-            if ($state === 'FAILED') throw new \Exception('Gemini File Processing Failed.');
-            
+            if ($state === 'ACTIVE') {
+                return true;
+            }
+            if ($state === 'FAILED') {
+                throw new \Exception('Gemini File Processing Failed.');
+            }
+
             sleep(2);
         }
         throw new \Exception('Gemini File Processing Timeout.');
     }
 
-    /**
-     * Delete file from Gemini File API
-     */
     private function deleteFromGemini($fileName, $apiKey)
     {
         Http::withOptions(['verify' => false])
             ->delete("https://generativelanguage.googleapis.com/v1beta/{$fileName}?key={$apiKey}");
     }
 
-    /**
-     * Refined, Token-Efficient Prompt for Structured Output.
-     */
     private function getUltraEfficientPrompt($startPage, $endPage)
     {
-        // Build a smart page instruction
         if ($startPage == 1 && $endPage >= 50) {
             $pageInstruction = 'Extract ALL questions from ALL pages of the provided PDF.';
         } elseif ($startPage == 1) {
@@ -316,45 +287,38 @@ MAPPING & TYPES:
 EOT;
     }
 
-    /**
-     * Clean and parse AI response.
-     */
     private function parseAiResponse($content)
     {
         try {
             $decoded = json_decode($content, true);
 
             if (json_last_error() !== JSON_ERROR_NONE) {
-                // Attempt cleanup if Gemini adds markdown markers
                 $cleanContent = preg_replace('/^```json\s*/i', '', trim($content));
                 $cleanContent = preg_replace('/```$/', '', trim($cleanContent));
                 $decoded = json_decode($cleanContent, true);
-                
+
                 if (json_last_error() !== JSON_ERROR_NONE) {
                     Log::error('Gemini JSON Parsing Failed after cleanup', [
                         'error' => json_last_error_msg(),
-                        'raw_content' => substr($content, 0, 1000) . '...' 
+                        'raw_content' => substr($content, 0, 1000).'...',
                     ]);
-                    throw new \Exception('Failed to parse AI JSON response: ' . json_last_error_msg());
+                    throw new \Exception('Failed to parse AI JSON response: '.json_last_error_msg());
                 }
             }
 
-            if (!$decoded) {
+            if (! $decoded) {
                 throw new \Exception('Empty or invalid decoded JSON from AI.');
             }
 
             return $decoded;
         } catch (\Exception $e) {
-            Log::error('AI Response Parsing Exception: ' . $e->getMessage(), [
-                'content_snippet' => substr($content, 0, 500)
+            Log::error('AI Response Parsing Exception: '.$e->getMessage(), [
+                'content_snippet' => substr($content, 0, 500),
             ]);
             throw $e;
         }
     }
 
-    /**
-     * Save questions with bulk optimization and transactions.
-     */
     public function importQuestions(array $questionsData, int $topicId, int $userId)
     {
         return DB::transaction(function () use ($questionsData, $topicId, $userId) {
@@ -363,10 +327,9 @@ EOT;
             $defaultDiff = DifficultyLevel::where('code', 'EASY')->first();
             $qTypes = QuestionType::all()->keyBy('code');
 
-            // Prevent N+1: Fetch existing for duplicate check
             $existingPrefixes = Question::where('topic_id', $topicId)
                 ->get(['question'])
-                ->map(fn($q) => strtolower(trim(substr(strip_tags($q->question), 0, 100))))
+                ->map(fn ($q) => strtolower(trim(substr(strip_tags($q->question), 0, 100))))
                 ->toArray();
 
             $insertedCount = 0;
@@ -394,7 +357,7 @@ EOT;
                             $formattedOptions[] = ['option' => $optText, 'partial_weightage' => 0];
                         }
                         $indices = is_array($qData['correct_option_indices']) ? $qData['correct_option_indices'] : [];
-                        $correctAnswer = array_map(fn($i) => (int) $i + 1, $indices);
+                        $correctAnswer = array_map(fn ($i) => (int) $i + 1, $indices);
                         break;
                     case 'TOF':
                     case 'MSA':
@@ -409,7 +372,7 @@ EOT;
                         break;
                 }
 
-                $code = 'que_ai_' . $batchTime . '_' . $skill->id . '_' . Str::random(5);
+                $code = 'que_ai_'.$batchTime.'_'.$skill->id.'_'.Str::random(5);
 
                 Question::create([
                     'question_type_id' => $type->id,
