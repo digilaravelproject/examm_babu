@@ -27,22 +27,13 @@ class AiImportService
 
     /**
      * Call Gemini API to extract questions.
-     *
-     * @param  string  $pdfPath
-     * @param  int  $startPage
-     * @param  int  $endPage
-     * @return array
-     *
-     * @throws \Exception
-     */
-    /**
-     * Call Gemini API to extract questions.
      * Uses File API for large PDFs and Structured Output for accuracy.
      *
      * @param  string  $pdfPath
      * @param  int  $startPage
      * @param  int  $endPage
      * @param  string|null $batchId
+     * @param  int|null $topicId
      * @return array
      */
     public function callGeminiApi($pdfPath, $startPage = 1, $endPage = 50, $batchId = null, $topicId = null)
