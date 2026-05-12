@@ -94,7 +94,7 @@ class AiImportService
 
             /** @var \Illuminate\Http\Client\Response $response */
             $response = Http::timeout(1200)->withOptions(['verify' => false])
-                ->post("https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$apiKey}", [
+                ->post("https://generativelanguage.googleapis.com/v1/models/{$model}:generateContent?key={$apiKey}", [
                     'contents' => [
                         [
                             'role' => 'user',
@@ -128,7 +128,11 @@ class AiImportService
                                     'hint' => ['type' => 'STRING'],
                                     'image_box' => [
                                         'type' => 'ARRAY',
-                                        'items' => ['type' => 'INTEGER'],
+                                        'items' => [
+                                            'type' => 'INTEGER',
+                                            'minimum' => 0,
+                                            'maximum' => 1000
+                                        ],
                                         'description' => '[ymin, xmin, ymax, xmax] coordinates (0-1000) for question image'
                                     ],
                                     'option_image_boxes' => [
@@ -139,7 +143,11 @@ class AiImportService
                                                 'index' => ['type' => 'INTEGER', 'description' => '0-based index of the option (0, 1, 2, 3...)'],
                                                 'box' => [
                                                     'type' => 'ARRAY',
-                                                    'items' => ['type' => 'INTEGER'],
+                                                    'items' => [
+                                                        'type' => 'INTEGER',
+                                                        'minimum' => 0,
+                                                        'maximum' => 1000
+                                                    ],
                                                     'description' => '[ymin, xmin, ymax, xmax] coordinates (0-1000)'
                                                 ]
                                             ],
@@ -169,6 +177,11 @@ class AiImportService
                     'topic_id' => $topicId,
                     'model' => $model
                 ]);
+
+                if ($response->status() === 404 && str_contains($errorMessage, 'not found')) {
+                    throw new \Exception("Gemini API Error: The selected model '{$model}' is not supported by the stable v1 API or does not exist. Please try switching to 'gemini-1.5-flash' or 'gemini-2.0-flash' in AI Settings.");
+                }
+
                 throw new \Exception("Gemini API Error: {$errorMessage}");
             }
 

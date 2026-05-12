@@ -9,7 +9,12 @@
                     <h1 class="text-3xl font-bold text-slate-900 tracking-tight">
                         AI Question <span class="text-indigo-600">Import</span>
                     </h1>
-                    <p class="text-slate-500 mt-1">Convert PDF documents into questions using AI.</p>
+                    <div class="flex items-center gap-3 mt-1">
+                        <p class="text-slate-500">Convert PDF documents into questions using AI.</p>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100 uppercase tracking-wider">
+                            <i class="fas fa-microchip mr-1.5 text-[9px]"></i> {{ $activeModel }}
+                        </span>
+                    </div>
                 </div>
             </div>
 

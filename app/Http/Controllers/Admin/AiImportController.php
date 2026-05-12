@@ -14,16 +14,21 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
+use App\Settings\AiSettings;
+
 class AiImportController extends Controller
 {
     protected $aiService;
+    protected $settings;
 
     /**
      * @param AiImportService $aiService
+     * @param AiSettings $settings
      */
-    public function __construct(AiImportService $aiService)
+    public function __construct(AiImportService $aiService, AiSettings $settings)
     {
         $this->aiService = $aiService;
+        $this->settings = $settings;
     }
 
     /**
@@ -37,7 +42,12 @@ class AiImportController extends Controller
             ->latest()
             ->limit(5)
             ->get();
-        return view('admin.ai-import.index', compact('topics', 'recentBatches'));
+            
+        $activeModel = ($this->settings->model_name === 'custom') 
+            ? $this->settings->custom_model 
+            : ($this->settings->model_name ?: 'gemini-1.5-flash');
+
+        return view('admin.ai-import.index', compact('topics', 'recentBatches', 'activeModel'));
     }
 
     /**
