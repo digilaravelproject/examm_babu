@@ -176,7 +176,22 @@ class AiImportService
                 ]);
 
                 if ($response->status() === 404 && str_contains($errorMessage, 'not found')) {
-                    throw new \Exception("Gemini API Error: The selected model '{$model}' is not supported by the stable v1 API or does not exist. Please try switching to 'gemini-1.5-flash' in AI Settings.");
+                    $availableStr = 'Unknown';
+                    try {
+                        $modelsResponse = Http::timeout(10)->withOptions(['verify' => false])
+                            ->get("https://generativelanguage.googleapis.com/v1beta/models?key={$apiKey}");
+                        if ($modelsResponse->successful()) {
+                            $models = $modelsResponse->json()['models'] ?? [];
+                            $names = array_map(function($m) { return str_replace('models/', '', $m['name'] ?? ''); }, $models);
+                            $availableStr = implode(', ', array_filter($names));
+                        } else {
+                            $availableStr = "Failed to list models: " . ($modelsResponse->json()['error']['message'] ?? 'Unknown API error');
+                        }
+                    } catch (\Exception $ex) {
+                        $availableStr = "Fetch error: " . $ex->getMessage();
+                    }
+
+                    throw new \Exception("Gemini API Error: The selected model '{$model}' was not found. Available models for your API key: {$availableStr}. Please update AI Settings with one of these.");
                 }
 
                 throw new \Exception("Gemini API Error: {$errorMessage}");
