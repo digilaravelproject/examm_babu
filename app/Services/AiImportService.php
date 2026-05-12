@@ -96,59 +96,63 @@ class AiImportService
                         ],
                     ],
                     'generationConfig' => [
-                        'responseMimeType' => 'application/json',
-                        'responseSchema' => [
-                            'type' => 'ARRAY',
-                            'items' => [
-                                'type' => 'OBJECT',
-                                'properties' => [
-                                    'type' => ['type' => 'STRING', 'enum' => ['MSA', 'MMA', 'TOF', 'FIB', 'SAQ']],
-                                    'question' => ['type' => 'STRING'],
-                                    'options' => [
-                                        'type' => 'ARRAY',
-                                        'items' => ['type' => 'STRING']
-                                    ],
-                                    'correct_option_index' => ['type' => 'INTEGER', 'description' => '0-based index for MSA/TOF'],
-                                    'correct_option_indices' => [
-                                        'type' => 'ARRAY',
-                                        'items' => ['type' => 'INTEGER'],
-                                        'description' => '0-based indices for MMA'
-                                    ],
-                                    'correct_answer_text' => ['type' => 'STRING', 'description' => 'Text for FIB/SAQ'],
-                                    'solution' => ['type' => 'STRING'],
-                                    'hint' => ['type' => 'STRING'],
-                                    'image_box' => [
-                                        'type' => 'ARRAY',
-                                        'items' => [
-                                            'type' => 'INTEGER',
-                                            'minimum' => 0,
-                                            'maximum' => 1000
-                                        ],
-                                        'description' => '[ymin, xmin, ymax, xmax] coordinates (0-1000) for question image'
-                                    ],
-                                    'option_image_boxes' => [
-                                        'type' => 'ARRAY',
-                                        'items' => [
-                                            'type' => 'OBJECT',
-                                            'properties' => [
-                                                'index' => ['type' => 'INTEGER', 'description' => '0-based index of the option (0, 1, 2, 3...)'],
-                                                'box' => [
-                                                    'type' => 'ARRAY',
-                                                    'items' => [
-                                                        'type' => 'INTEGER',
-                                                        'minimum' => 0,
-                                                        'maximum' => 1000
-                                                    ],
-                                                    'description' => '[ymin, xmin, ymax, xmax] coordinates (0-1000)'
-                                                ]
+                        'responseFormat' => [
+                            'text' => [
+                                'mimeType' => 'application/json',
+                                'schema' => [
+                                    'type' => 'array',
+                                    'items' => [
+                                        'type' => 'object',
+                                        'properties' => [
+                                            'type' => ['type' => 'string', 'enum' => ['MSA', 'MMA', 'TOF', 'FIB', 'SAQ']],
+                                            'question' => ['type' => 'string'],
+                                            'options' => [
+                                                'type' => 'array',
+                                                'items' => ['type' => 'string']
                                             ],
-                                            'required' => ['index', 'box']
+                                            'correct_option_index' => ['type' => 'integer', 'description' => '0-based index for MSA/TOF'],
+                                            'correct_option_indices' => [
+                                                'type' => 'array',
+                                                'items' => ['type' => 'integer'],
+                                                'description' => '0-based indices for MMA'
+                                            ],
+                                            'correct_answer_text' => ['type' => 'string', 'description' => 'Text for FIB/SAQ'],
+                                            'solution' => ['type' => 'string'],
+                                            'hint' => ['type' => 'string'],
+                                            'image_box' => [
+                                                'type' => 'array',
+                                                'items' => [
+                                                    'type' => 'integer',
+                                                    'minimum' => 0,
+                                                    'maximum' => 1000
+                                                ],
+                                                'description' => '[ymin, xmin, ymax, xmax] coordinates (0-1000) for question image'
+                                            ],
+                                            'option_image_boxes' => [
+                                                'type' => 'array',
+                                                'items' => [
+                                                    'type' => 'object',
+                                                    'properties' => [
+                                                        'index' => ['type' => 'integer', 'description' => '0-based index of the option (0, 1, 2, 3...)'],
+                                                        'box' => [
+                                                            'type' => 'array',
+                                                            'items' => [
+                                                                'type' => 'integer',
+                                                                'minimum' => 0,
+                                                                'maximum' => 1000
+                                                            ],
+                                                            'description' => '[ymin, xmin, ymax, xmax] coordinates (0-1000)'
+                                                        ]
+                                                    ],
+                                                    'required' => ['index', 'box']
+                                                ],
+                                                'description' => 'List of objects mapping option index to coordinates'
+                                            ],
+                                            'page_number_extracted' => ['type' => 'integer', 'description' => 'The page number where this question was found']
                                         ],
-                                        'description' => 'List of objects mapping option index to coordinates'
-                                    ],
-                                    'page_number_extracted' => ['type' => 'INTEGER', 'description' => 'The page number where this question was found']
-                                ],
-                                'required' => ['type', 'question']
+                                        'required' => ['type', 'question']
+                                    ]
+                                ]
                             ]
                         ],
                         'temperature' => 0.1,
@@ -221,7 +225,7 @@ class AiImportService
         $displayName = basename($filePath);
 
         // Metadata for upload
-        $metadata = ['file' => ['display_name' => $displayName]];
+        $metadata = ['file' => ['displayName' => $displayName]];
 
         /** @var \Illuminate\Http\Client\Response $response */
         $response = Http::withOptions(['verify' => false])
