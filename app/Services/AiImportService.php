@@ -91,7 +91,7 @@ class AiImportService
                             'role' => 'user',
                             'parts' => [
                                 ['text' => $this->getUltraEfficientPrompt($startPage, $endPage)],
-                                ['file_data' => ['mime_type' => 'application/pdf', 'file_uri' => $fileUri]],
+                                ['fileData' => ['mimeType' => 'application/pdf', 'fileUri' => $fileUri]],
                             ],
                         ],
                     ],
