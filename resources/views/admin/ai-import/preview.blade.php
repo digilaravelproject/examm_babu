@@ -1,83 +1,71 @@
 @extends('layouts.admin')
 
 @section('content')
-    <div class="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div class="min-h-screen bg-slate-50 py-6 sm:py-12 px-2 sm:px-6 lg:px-8">
         <div class="max-w-7xl mx-auto">
 
             {{-- Header Section --}}
             <div
-                class="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10 sticky top-0 bg-slate-50/90 backdrop-blur-md z-50 py-4 -mx-4 px-4">
-                <div>
+                class="flex flex-col xl:flex-row xl:items-center justify-between gap-6 mb-8 sticky top-0 bg-slate-50/95 backdrop-blur-md z-50 py-4 -mx-2 px-2 sm:-mx-4 sm:px-4 border-b border-slate-200 xl:border-none transition-all duration-300">
+                <div class="space-y-1">
                     <nav class="flex mb-2" aria-label="Breadcrumb">
-                        <ol class="inline-flex items-center space-x-1 md:space-x-3">
+                        <ol class="inline-flex items-center space-x-2">
                             <li class="inline-flex items-center">
                                 <a href="{{ route('admin.ai-import.index') }}"
-                                    class="text-sm font-medium text-slate-500 hover:text-indigo-600 transition-colors flex items-center">
-                                    <i class="fas fa-magic mr-2 text-[10px]"></i> AI Import
+                                    class="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-indigo-600 transition-colors flex items-center">
+                                    <i class="fas fa-magic mr-1.5"></i> AI Import
                                 </a>
                             </li>
-                            <li>
-                                <div class="flex items-center text-slate-300">
-                                    <i class="fas fa-chevron-right text-[8px] mx-1"></i>
-                                    <span class="text-sm font-bold text-slate-900 ml-1">Review Questions</span>
-                                </div>
+                            <li class="flex items-center text-slate-300">
+                                <i class="fas fa-chevron-right text-[8px]"></i>
+                                <span class="text-[10px] font-black uppercase tracking-widest text-slate-900 ml-2">Review</span>
                             </li>
                         </ol>
                     </nav>
-                    <h1 class="text-3xl font-black text-slate-900 tracking-tight">
-                        Verify Extracted Content
+                    <h1 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                        Verify <span class="text-indigo-600">Extracted</span> Content
                     </h1>
-                    <p class="text-slate-500 mt-1 flex items-center gap-2">
-                        <span
-                            class="inline-flex items-center justify-center w-5 h-5 bg-indigo-100 text-indigo-600 rounded-full text-[10px] font-black">{{ count($questions) }}</span>
-                        Questions ready for review
+                    <p class="text-sm text-slate-500 font-medium flex items-center gap-2">
+                        <span class="inline-flex items-center justify-center px-2 py-0.5 bg-indigo-600 text-white rounded-lg text-[10px] font-black">{{ count($questions) }}</span>
+                        Questions detected by AI
                     </p>
                 </div>
 
-                {{-- Stepper Progress --}}
-                <div
-                    class="hidden lg:flex items-center gap-6 bg-white px-8 py-4 rounded-3xl border border-slate-200 shadow-sm overflow-x-auto whitespace-nowrap">
-                    <div class="flex items-center gap-3 shrink-0">
-                        <div
-                            class="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-bold shadow-lg shadow-emerald-100">
-                            <i class="fas fa-check"></i>
+                <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+                    {{-- Stepper Progress --}}
+                    <div class="hidden sm:flex items-center gap-4 bg-white px-6 py-3 rounded-2xl border border-slate-200 shadow-sm">
+                        <div class="flex items-center gap-2">
+                            <div class="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px] font-bold"><i class="fas fa-check"></i></div>
+                            <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Config</span>
                         </div>
-                        <span class="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Config</span>
-                    </div>
-                    <div class="h-px w-8 bg-slate-200"></div>
-                    <div class="flex items-center gap-3 shrink-0">
-                        <div
-                            class="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-bold shadow-lg shadow-emerald-100">
-                            <i class="fas fa-check"></i>
+                        <div class="h-px w-4 bg-slate-200"></div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px] font-bold"><i class="fas fa-check"></i></div>
+                            <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Extract</span>
                         </div>
-                        <span class="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Extract</span>
+                        <div class="h-px w-4 bg-slate-200"></div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px] font-bold">3</div>
+                            <span class="text-[9px] font-black text-indigo-600 uppercase tracking-widest">Review</span>
+                        </div>
+                        <div class="h-px w-4 bg-slate-200"></div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-6 h-6 rounded-full bg-white border border-slate-200 text-slate-300 flex items-center justify-center text-[10px] font-bold">4</div>
+                            <span class="text-[9px] font-black text-slate-300 uppercase tracking-widest">Approve</span>
+                        </div>
                     </div>
-                    <div class="h-px w-8 bg-slate-200"></div>
-                    <div class="flex items-center gap-3 shrink-0">
-                        <div
-                            class="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-bold shadow-lg shadow-indigo-100 scale-110">
-                            3</div>
-                        <span class="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Review</span>
-                    </div>
-                    <div class="h-px w-8 bg-slate-200"></div>
-                    <div class="flex items-center gap-3 shrink-0">
-                        <div
-                            class="w-8 h-8 rounded-full bg-white border-2 border-slate-200 text-slate-400 flex items-center justify-center text-xs font-bold">
-                            4</div>
-                        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Approve</span>
-                    </div>
-                </div>
 
-                @if (count($questions) > 0)
-                    <div class="flex items-center gap-3">
-                        <button onclick="cancelSession('{{ $batchId }}')"
-                            class="px-6 py-3 text-slate-500 font-bold hover:text-rose-600 transition-colors">Cancel</button>
-                        <button id="approveBtn"
-                            class="inline-flex items-center px-10 py-4 bg-indigo-600 border border-transparent rounded-2xl font-black text-white hover:bg-indigo-700 hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-indigo-200 uppercase tracking-widest text-sm">
-                            <i class="fas fa-cloud-upload-alt mr-2"></i> Save to Database
-                        </button>
-                    </div>
-                @endif
+                    @if (count($questions) > 0)
+                        <div class="flex items-center gap-3">
+                            <button onclick="cancelSession('{{ $batchId }}')"
+                                class="flex-1 sm:flex-none px-6 py-3.5 text-xs font-black text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-2xl transition-all uppercase tracking-widest">Discard</button>
+                            <button id="approveBtn"
+                                class="flex-1 sm:flex-none inline-flex items-center justify-center px-8 py-3.5 bg-indigo-600 text-white rounded-2xl font-black hover:bg-indigo-700 hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-indigo-100 uppercase tracking-widest text-xs border border-indigo-500">
+                                <i class="fas fa-cloud-upload-alt mr-2 text-sm"></i> Save to DB
+                            </button>
+                        </div>
+                    @endif
+                </div>
             </div>
 
             <div id="status-message"

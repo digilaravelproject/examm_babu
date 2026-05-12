@@ -1,17 +1,17 @@
 @extends('layouts.admin')
 
 @section('content')
-    <div class="min-h-screen bg-[#f8fafc] py-8 px-4 sm:px-6 lg:px-8">
-        <div class="max-w-6xl mx-auto">
+    <div class="min-h-screen bg-[#f8fafc] py-6 px-3 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto">
             {{-- Header Section --}}
-            <div class="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4 border-b border-slate-200 pb-6">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4 border-b border-slate-200 pb-6">
                 <div>
-                    <h1 class="text-3xl font-bold text-slate-900 tracking-tight">
+                    <h1 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
                         AI Question <span class="text-indigo-600">Import</span>
                     </h1>
-                    <div class="flex items-center gap-3 mt-1">
-                        <p class="text-slate-500">Convert PDF documents into questions using AI.</p>
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100 uppercase tracking-wider">
+                    <div class="flex flex-wrap items-center gap-3 mt-2">
+                        <p class="text-sm text-slate-500">Convert PDF documents into questions using AI.</p>
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100 uppercase tracking-wider">
                             <i class="fas fa-microchip mr-1.5 text-[9px]"></i> {{ $activeModel }}
                         </span>
                     </div>
@@ -19,82 +19,101 @@
             </div>
 
             {{-- Main Content Layout --}}
-            <div class="space-y-8">
+            <div class="space-y-6 sm:space-y-8">
                 <div class="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
                     {{-- Stepper Progress --}}
                     <div
-                        class="bg-slate-50/50 border-b border-slate-100 px-6 py-5 flex items-center justify-center overflow-x-auto whitespace-nowrap gap-4">
+                        class="bg-slate-50/50 border-b border-slate-100 px-4 sm:px-6 py-5 flex items-center justify-start sm:justify-center overflow-x-auto whitespace-nowrap gap-4 no-scrollbar">
                         <div class="flex items-center gap-3 shrink-0" id="step1-header">
                             <div id="step1-indicator"
-                                class="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-bold shadow-lg shadow-indigo-100">
+                                class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-bold shadow-lg shadow-indigo-100 transition-all">
                                 1</div>
                             <span class="text-[10px] font-bold text-slate-700 uppercase tracking-wider">Config</span>
                         </div>
-                        <div class="h-px w-8 bg-slate-200 shrink-0"></div>
+                        <div class="h-px w-6 sm:w-8 bg-slate-200 shrink-0"></div>
                         <div class="flex items-center gap-3 shrink-0" id="step2-header">
                             <div id="step2-indicator"
-                                class="w-8 h-8 rounded-full bg-white border-2 border-slate-200 text-slate-400 flex items-center justify-center text-xs font-bold transition-all">
+                                class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white border-2 border-slate-200 text-slate-400 flex items-center justify-center text-xs font-bold transition-all">
                                 2</div>
                             <span
                                 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider transition-all">Extract</span>
                         </div>
-                        <div class="h-px w-8 bg-slate-200 shrink-0"></div>
+                        <div class="h-px w-6 sm:w-8 bg-slate-200 shrink-0"></div>
                         <div class="flex items-center gap-3 shrink-0" id="step3-header">
                             <div id="step3-indicator"
-                                class="w-8 h-8 rounded-full bg-white border-2 border-slate-200 text-slate-400 flex items-center justify-center text-xs font-bold transition-all">
+                                class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white border-2 border-slate-200 text-slate-400 flex items-center justify-center text-xs font-bold transition-all">
                                 3</div>
                             <span
                                 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider transition-all">Review</span>
                         </div>
-                        <div class="h-px w-8 bg-slate-200 shrink-0"></div>
+                        <div class="h-px w-6 sm:w-8 bg-slate-200 shrink-0"></div>
                         <div class="flex items-center gap-3 shrink-0" id="step4-header">
                             <div id="step4-indicator"
-                                class="w-8 h-8 rounded-full bg-white border-2 border-slate-200 text-slate-400 flex items-center justify-center text-xs font-bold transition-all">
+                                class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white border-2 border-slate-200 text-slate-400 flex items-center justify-center text-xs font-bold transition-all">
                                 4</div>
                             <span
                                 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider transition-all">Approve</span>
                         </div>
                     </div>
 
-                    <div class="p-8 sm:p-10">
+                    <div class="p-5 sm:p-10">
                         {{-- STEP 1: CONFIGURATION --}}
-                        <div id="step-config" class="space-y-8">
+                        <div id="step-config" class="space-y-8 animate-in fade-in duration-500">
                             <form id="aiImportForm" class="space-y-8">
                                 @csrf
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
                                     {{-- Topic Selection --}}
                                     <div class="space-y-3">
                                         <label
-                                            class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">
+                                            class="block text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">
                                             Knowledge Category
                                         </label>
                                         <div class="relative group">
                                             <div
                                                 class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                                <i class="fas fa-layer-group text-indigo-400"></i>
+                                                <i class="fas fa-layer-group text-indigo-400 transition-transform group-focus-within:scale-110"></i>
                                             </div>
                                             <select name="topic_id" id="topicSelect"
-                                                class="block w-full pl-11 pr-4 py-4 bg-slate-50/50 border border-slate-200 rounded-2xl text-slate-900 font-semibold focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all appearance-none cursor-pointer">
+                                                class="block w-full pl-11 pr-4 py-4 bg-white border-2 border-slate-200 rounded-2xl text-slate-900 font-semibold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all appearance-none cursor-pointer hover:border-slate-300">
                                                 <option value="">Select Topic...</option>
                                                 @foreach ($topics as $topic)
-                                                    <option value="{{ $topic->id }}">{{ $topic->name }}</option>
+                                                    @php
+                                                        $micro = $topic->skill->microCategory->name ?? '';
+                                                        $sub = $topic->skill->microCategory->subCategory->name ?? '';
+                                                        $hierarchy = array_filter([$sub, $micro]);
+                                                        $label = $topic->name . (count($hierarchy) ? ' (' . implode(' › ', $hierarchy) . ')' : '');
+                                                    @endphp
+                                                    <option value="{{ $topic->id }}">{{ $label }}</option>
                                                 @endforeach
                                             </select>
+                                            <div class="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-slate-400">
+                                                <i class="fas fa-chevron-down text-[10px]"></i>
+                                            </div>
                                         </div>
                                     </div>
 
                                     {{-- Page Range --}}
                                     <div class="space-y-3">
                                         <label
-                                            class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">
+                                            class="block text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">
                                             Page Range (Optional)
                                         </label>
                                         <div class="flex items-center gap-3">
-                                            <input type="number" name="start_page" placeholder="Start"
-                                                class="w-full px-4 py-4 bg-slate-50/50 border border-slate-200 rounded-2xl text-slate-900 font-semibold focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all">
-                                            <span class="text-slate-300"><i class="fas fa-minus"></i></span>
-                                            <input type="number" name="end_page" placeholder="End"
-                                                class="w-full px-4 py-4 bg-slate-50/50 border border-slate-200 rounded-2xl text-slate-900 font-semibold focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all">
+                                            <div class="relative flex-1 group">
+                                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                                    <span class="text-[10px] font-bold text-slate-400">FROM</span>
+                                                </div>
+                                                <input type="number" name="start_page" placeholder="Start"
+                                                    class="w-full pl-14 pr-4 py-4 bg-white border-2 border-slate-200 rounded-2xl text-slate-900 font-semibold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all hover:border-slate-300">
+                                            </div>
+                                            <span class="text-slate-300 shrink-0"><i class="fas fa-arrow-right text-[10px]"></i></span>
+                                            <div class="relative flex-1 group">
+                                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                                    <span class="text-[10px] font-bold text-slate-400">TO</span>
+                                                </div>
+                                                <input type="number" name="end_page" placeholder="End"
+                                                    class="w-full pl-11 pr-4 py-4 bg-white border-2 border-slate-200 rounded-2xl text-slate-900 font-semibold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all hover:border-slate-300">
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -102,11 +121,11 @@
                                 {{-- File Upload --}}
                                 <div class="space-y-3">
                                     <label
-                                        class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider ml-1">
+                                        class="block text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">
                                         Source Document
                                     </label>
                                     <div id="dropZone"
-                                        class="group relative flex flex-col items-center justify-center py-14 px-6 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/30 hover:bg-white hover:border-indigo-400 transition-all cursor-pointer overflow-hidden backdrop-blur-sm">
+                                        class="group relative flex flex-col items-center justify-center py-16 px-6 border-2 border-dashed border-slate-200 rounded-3xl bg-slate-50/30 hover:bg-white hover:border-indigo-400 transition-all cursor-pointer overflow-hidden backdrop-blur-sm">
                                         <div
                                             class="absolute inset-0 bg-gradient-to-tr from-indigo-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
                                         </div>
@@ -114,37 +133,39 @@
 
                                         <div id="emptyState" class="text-center space-y-4">
                                             <div
-                                                class="w-16 h-16 bg-white rounded-2xl shadow-lg flex items-center justify-center mx-auto group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 border border-slate-100">
-                                                <i class="fas fa-file-pdf text-3xl text-indigo-500"></i>
+                                                class="w-20 h-20 bg-white rounded-3xl shadow-xl shadow-slate-200/50 flex items-center justify-center mx-auto group-hover:scale-110 group-hover:rotate-3 transition-all duration-500 border border-slate-100">
+                                                <i class="fas fa-cloud-upload-alt text-4xl text-indigo-500"></i>
                                             </div>
                                             <div>
-                                                <p class="text-lg font-bold text-slate-900">Upload PDF Paper</p>
-                                                <p class="text-xs text-slate-400 mt-1 font-medium">Drag & drop or click to
-                                                    browse (Max 50MB)</p>
+                                                <p class="text-xl font-black text-slate-900 tracking-tight">Upload PDF Document</p>
+                                                <p class="text-sm text-slate-400 mt-2 font-medium">Drag and drop your file here or <span class="text-indigo-600 font-bold">browse</span></p>
+                                                <p class="text-[10px] text-slate-300 mt-3 font-bold uppercase tracking-widest">Maximum Size: 50MB</p>
                                             </div>
                                         </div>
 
-                                        <div id="fileInfo" class="hidden text-center space-y-4">
+                                        <div id="fileInfo" class="hidden text-center space-y-5 animate-in zoom-in duration-300">
                                             <div
-                                                class="w-16 h-16 bg-emerald-500 rounded-2xl shadow-lg shadow-emerald-100 flex items-center justify-center mx-auto">
-                                                <i class="fas fa-check text-2xl text-white"></i>
+                                                class="w-20 h-20 bg-emerald-500 rounded-3xl shadow-xl shadow-emerald-200 flex items-center justify-center mx-auto">
+                                                <i class="fas fa-file-pdf text-3xl text-white"></i>
                                             </div>
                                             <div>
                                                 <p id="fileName"
-                                                    class="text-lg font-bold text-emerald-600 truncate max-w-xs mx-auto">
+                                                    class="text-lg font-black text-slate-900 truncate max-w-sm mx-auto">
                                                     file.pdf</p>
-                                                <button type="button" onclick="resetFile()"
-                                                    class="text-[10px] font-black text-rose-500 hover:text-rose-600 mt-2 uppercase tracking-widest">Change
-                                                    File</button>
+                                                <div class="flex items-center justify-center gap-4 mt-3">
+                                                    <span class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-lg border border-emerald-100 uppercase tracking-widest">Ready to Process</span>
+                                                    <button type="button" onclick="resetFile()"
+                                                        class="text-[10px] font-black text-rose-500 hover:text-rose-600 uppercase tracking-widest underline underline-offset-4">Change File</button>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
                                 <button type="submit" id="startBtn" disabled
-                                    class="w-full py-5 rounded-2xl bg-slate-100 text-slate-400 font-bold text-sm uppercase tracking-wider shadow-sm transition-all flex items-center justify-center gap-3">
-                                    <span>Start Extraction</span>
-                                    <i class="fas fa-arrow-right text-xs"></i>
+                                    class="w-full py-5 rounded-2xl bg-slate-100 text-slate-400 font-black text-sm uppercase tracking-[0.2em] shadow-sm transition-all flex items-center justify-center gap-3 active:scale-[0.98] group">
+                                    <span>Launch AI Extraction</span>
+                                    <i class="fas fa-bolt text-xs group-hover:animate-pulse"></i>
                                 </button>
                             </form>
                         </div>
@@ -278,17 +299,20 @@
                                             <span
                                                 class="text-xs font-bold text-slate-900">{{ $batch->questions_count ?: 0 }}</span>
                                         </td>
-                                        <td class="px-8 py-5 text-right">
+                                        <td class="px-8 py-5 text-right flex items-center justify-end gap-3">
                                             @if ($batch->status === 'completed')
                                                 <a href="{{ route('admin.ai-import.preview', $batch->id) }}"
-                                                    class="text-[10px] font-black text-indigo-600 hover:text-indigo-800 uppercase tracking-widest">Review</a>
+                                                    class="text-[10px] font-black text-indigo-600 hover:text-indigo-800 uppercase tracking-widest bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100 transition-all hover:shadow-sm">Review</a>
                                             @elseif($batch->status === 'processing' || $batch->status === 'pending')
                                                 <button onclick="resumeBatch('{{ $batch->id }}')"
-                                                    class="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Track</button>
-                                            @else
-                                                <button onclick="cancelSession('{{ $batch->id }}')"
-                                                    class="text-[10px] font-bold text-rose-500 uppercase tracking-wider">Delete</button>
+                                                    class="text-[10px] font-black text-indigo-600 uppercase tracking-widest bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100 transition-all hover:shadow-sm">Track</button>
                                             @endif
+
+                                            <button onclick="cancelSession('{{ $batch->id }}')"
+                                                class="w-8 h-8 flex items-center justify-center rounded-lg text-rose-500 hover:bg-rose-50 hover:text-rose-600 transition-all"
+                                                title="Delete Batch">
+                                                <i class="fas fa-trash-alt text-xs"></i>
+                                            </button>
                                         </td>
                                     </tr>
                                 @empty

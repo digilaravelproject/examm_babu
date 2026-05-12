@@ -36,7 +36,10 @@ class AiImportController extends Controller
      */
     public function index()
     {
-        $topics = Topic::orderBy('name')->select('id', 'name')->get();
+        $topics = Topic::with(['skill.microCategory.subCategory'])
+            ->orderBy('name')
+            ->get();
+
         $recentBatches = AiImportBatch::where('user_id', Auth::id())
             ->with('topic:id,name')
             ->latest()
