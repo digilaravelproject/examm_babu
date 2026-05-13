@@ -76,7 +76,7 @@ class AiImportService
             ]);
 
             /** @var \Illuminate\Http\Client\Response $response */
-            $response = Http::timeout(1200)->withOptions(['verify' => false])
+            $response = Http::timeout(1800)->withOptions(['verify' => false])
                 ->post("https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$apiKey}", [
                     'contents' => [
                         [
@@ -159,7 +159,7 @@ class AiImportService
                             ],
                         ],
                         'temperature' => 0.1,
-                        'maxOutputTokens' => 15000,
+                        'maxOutputTokens' => 30000,
                     ],
                 ]);
 
@@ -306,28 +306,42 @@ class AiImportService
 
     private function getUltraEfficientPrompt($startPage, $endPage)
     {
-        if ($startPage == 1 && $endPage >= 50) {
-            $pageInstruction = 'Extract ALL questions from ALL pages of the provided PDF.';
-        } elseif ($startPage == 1) {
-            $pageInstruction = "Extract ALL questions from pages 1 to {$endPage} of the provided PDF.";
-        } else {
-            $pageInstruction = "Extract ALL questions from pages {$startPage} to {$endPage} of the provided PDF.";
-        }
+        $pageInstruction = ($startPage == 1 && $endPage >= 50) 
+            ? "Extract EVERYTHING from ALL pages." 
+            : "Extract EVERYTHING from pages {$startPage} to {$endPage}.";
 
         return <<<EOT
-Act as an Expert Question Extractor. {$pageInstruction}
-Ensure all options, correct answers, and solutions are extracted with 100% accuracy.
+### ROLE: LEAD DATA ARCHITECT & EXAM SPECIALIST
+### MISSION: 100% RAW FIDELITY EXTRACTION
+{$pageInstruction}
 
-IMAGE DETECTION & SPATIAL COORDINATES:
-1. If a question contains a diagram, graph, equation, or illustration, provide its coordinates in 'image_box' as [ymin, xmin, ymax, xmax] (normalized 0-1000).
-2. IMPORTANT: If an image is detected in the question text, insert the placeholder text "[IMAGE HERE]" at the exact point in the 'question' string where the image appears.
-3. If options contain images, provide coordinates in 'option_image_boxes' as a list of objects containing 'index' and 'box'. Insert "[IMAGE HERE]" in the option text.
+---
+### 1. RIGOROUS EXTRACTION PROTOCOL (NO SKIPPING)
+- **Zero Omission Policy:** You are FORBIDDEN from skipping any question, sub-question, or part. 
+- **Sequential Scan:** Scan the document line-by-line. If you find a question marker (e.g., 1., Q2, i), a), etc.), you MUST extract it.
+- **High Density:** Even if a page has 20+ small questions, extract every single one. Use your massive token limit (30,000) to provide the full list.
+- **Math & Science:** Use LaTeX syntax for EVERY formula, equation, or scientific symbol (e.g., use $ \frac{-b \pm \sqrt{b^2-4ac}}{2a} $ or $ H_{2}O $).
 
-MAPPING & TYPES:
-- 'page_number_extracted': The exact physical page number from the PDF (1-indexed). This MUST be the absolute page number in the document.
-- Types: MSA (Single Choice), MMA (Multiple Choice), TOF (True/False), FIB (Fill in blanks), SAQ (Short Answer).
-- Format: Return a strict JSON array matching the requested schema.
-- Language: Keep the extracted text exactly as it appears in the PDF.
+---
+### 2. SPATIAL & IMAGE INTELLIGENCE
+- **Coordinate Precision:** For ANY diagram, graph, map, or complex illustration, provide pixel-perfect [ymin, xmin, ymax, xmax] boxes (0-1000).
+- **Placeholder Injection:** In the 'question' or 'options' text, insert "[IMAGE HERE]" at the EXACT location where the visual element appears relative to the text.
+- **Option Images:** If options are images (common in geometry), you MUST provide 'option_image_boxes'.
+
+---
+### 3. DATA STRUCTURE & MAPPING
+- **page_number_extracted:** The physical page number in the PDF (1-indexed).
+- **type:**
+  - MSA: Single correct answer.
+  - MMA: Multiple correct answers.
+  - TOF: True/False.
+  - FIB: Fill in the blank (Provide correct_answer_text).
+  - SAQ: Descriptive/Short Answer (Provide detailed solution/solution).
+- **Correctness:** Analyze the text deeply to identify the correct option. If the PDF has an answer key at the end, use it!
+
+---
+### 4. OUTPUT FORMAT
+Return a STRICT JSON ARRAY of objects. No preamble, no commentary. Just raw, high-fidelity data.
 EOT;
     }
 
