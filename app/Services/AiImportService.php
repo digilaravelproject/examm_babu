@@ -152,14 +152,14 @@ class AiImportService
                                     ],
                                     'page_number_extracted' => [
                                         'type' => 'INTEGER',
-                                        'description' => 'The page number where this question was found',
+                                        'description' => 'The page number where this question was found (Absolute PDF page number)',
                                     ],
                                 ],
                                 'required' => ['type', 'question'],
                             ],
                         ],
                         'temperature' => 0.1,
-                        'maxOutputTokens' => 8192,
+                        'maxOutputTokens' => 15000,
                     ],
                 ]);
 
@@ -211,7 +211,15 @@ class AiImportService
                 'pages' => "{$startPage}-{$endPage}",
             ]);
 
-            return $this->parseAiResponse($content);
+            $questions = $this->parseAiResponse($content);
+
+            // Standardize page number key for Frontend compatibility
+            return array_map(function($q) {
+                if (isset($q['page_number_extracted'])) {
+                    $q['source_page'] = $q['page_number_extracted'];
+                }
+                return $q;
+            }, $questions);
 
         } catch (\Exception $e) {
             Log::error("AI Import Service Exception [Batch: {$batchId}]", [
@@ -316,7 +324,7 @@ IMAGE DETECTION & SPATIAL COORDINATES:
 3. If options contain images, provide coordinates in 'option_image_boxes' as a list of objects containing 'index' and 'box'. Insert "[IMAGE HERE]" in the option text.
 
 MAPPING & TYPES:
-- 'page_number_extracted': The exact physical page number from the PDF (1-indexed).
+- 'page_number_extracted': The exact physical page number from the PDF (1-indexed). This MUST be the absolute page number in the document.
 - Types: MSA (Single Choice), MMA (Multiple Choice), TOF (True/False), FIB (Fill in blanks), SAQ (Short Answer).
 - Format: Return a strict JSON array matching the requested schema.
 - Language: Keep the extracted text exactly as it appears in the PDF.
@@ -325,34 +333,101 @@ EOT;
 
     private function parseAiResponse($content)
     {
+        $cleanContent = trim($content);
+        
+        // Remove Markdown code blocks if present
+        if (preg_match('/^```(?:json)?\s*(.*?)\s*```$/is', $cleanContent, $matches)) {
+            $cleanContent = trim($matches[1]);
+        }
+
         try {
-            $decoded = json_decode($content, true);
+            $decoded = json_decode($cleanContent, true);
 
             if (json_last_error() !== JSON_ERROR_NONE) {
-                $cleanContent = preg_replace('/^```json\s*/i', '', trim($content));
-                $cleanContent = preg_replace('/```$/', '', trim($cleanContent));
-                $decoded = json_decode($cleanContent, true);
+                // Attempt to fix truncated JSON
+                $fixedContent = $this->repairTruncatedJson($cleanContent);
+                $decoded = json_decode($fixedContent, true);
 
                 if (json_last_error() !== JSON_ERROR_NONE) {
-                    Log::error('Gemini JSON Parsing Failed after cleanup', [
+                    Log::error('Gemini JSON Parsing Failed after repair attempt', [
                         'error' => json_last_error_msg(),
-                        'raw_content' => substr($content, 0, 1000).'...',
+                        'raw_content_preview' => substr($content, 0, 1000).'...',
+                        'last_chars' => substr($cleanContent, -50),
                     ]);
                     throw new \Exception('Failed to parse AI JSON response: '.json_last_error_msg());
                 }
             }
 
-            if (! $decoded) {
-                throw new \Exception('Empty or invalid decoded JSON from AI.');
+            if (! $decoded || !is_array($decoded)) {
+                throw new \Exception('Invalid JSON structure from AI (Expected Array).');
             }
 
             return $decoded;
         } catch (\Exception $e) {
             Log::error('AI Response Parsing Exception: '.$e->getMessage(), [
-                'content_snippet' => substr($content, 0, 500),
+                'content_snippet' => substr($content, 0, 1000),
             ]);
             throw $e;
         }
+    }
+
+    /**
+     * Repairs truncated JSON by closing open brackets and braces.
+     */
+    private function repairTruncatedJson($json)
+    {
+        // Remove trailing comma if present (common in truncated arrays)
+        $json = preg_replace('/,\s*$/', '', trim($json));
+        
+        $len = strlen($json);
+        $stack = [];
+        $inString = false;
+        $escaped = false;
+
+        for ($i = 0; $i < $len; $i++) {
+            $char = $json[$i];
+
+            if ($escaped) {
+                $escaped = false;
+                continue;
+            }
+
+            if ($char === '\\') {
+                $escaped = true;
+                continue;
+            }
+
+            if ($char === '"') {
+                $inString = !$inString;
+                continue;
+            }
+
+            if (!$inString) {
+                if ($char === '{' || $char === '[') {
+                    $stack[] = $char;
+                } elseif ($char === '}') {
+                    if (end($stack) === '{') array_pop($stack);
+                } elseif ($char === ']') {
+                    if (end($stack) === '[') array_pop($stack);
+                }
+            }
+        }
+
+        if ($inString) {
+            $json .= '"'; // Close open string
+        }
+
+        // Close brackets/braces in reverse order
+        while (!empty($stack)) {
+            $opener = array_pop($stack);
+            if ($opener === '{') {
+                $json .= '}';
+            } elseif ($opener === '[') {
+                $json .= ']';
+            }
+        }
+
+        return $json;
     }
 
     public function importQuestions(array $questionsData, int $topicId, int $userId)

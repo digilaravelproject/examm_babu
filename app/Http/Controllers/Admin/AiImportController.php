@@ -273,8 +273,17 @@ class AiImportController extends Controller
 
         try {
             // Encode Base64 to public storage
+            if (!str_contains($request->image_base64, ',')) {
+                return response()->json(['success' => false, 'message' => 'Invalid image format.'], 422);
+            }
+
             $imageParts = explode(';base64,', $request->image_base64);
             $decodedImage = base64_decode($imageParts[1]);
+            
+            if (!$decodedImage) {
+                return response()->json(['success' => false, 'message' => 'Failed to decode image.'], 422);
+            }
+
             $extension = str_contains($imageParts[0], 'png') ? 'png' : 'jpg';
 
             $dir = 'ai_extracted/' . $batchId;
@@ -285,21 +294,33 @@ class AiImportController extends Controller
             /** @var \Illuminate\Filesystem\FilesystemAdapter $publicDisk */
             $publicDisk = Storage::disk('public');
             $publicDisk->put($fileName, $decodedImage);
-            $imageUrl = $publicDisk->url($fileName);
+            
+            // Use relative path for internal storage but return asset URL to frontend
+            // Using asset() instead of Storage::url() to avoid APP_URL issues in subdirectories
+            $imageUrl = asset('storage/' . $fileName);
 
             // Thread-safe update using Cache Lock
             $lock = Cache::lock('ai_sync_' . $batchId, 10);
             $lock->block(5);
 
             try {
-                $questions = json_decode(Storage::get($jsonFile), true);
+                $content = Storage::get($jsonFile);
+                $questions = json_decode($content, true);
+                
+                if (json_last_error() !== JSON_ERROR_NONE || !is_array($questions)) {
+                    throw new \Exception('Failed to read or parse questions JSON for update.');
+                }
+
                 if (isset($questions[$qIndex])) {
                     $imgHtml = '<img src="' . $imageUrl . '" class="ai-img rounded shadow-sm max-w-full my-2" />';
                     
                     if ($imageType === 'question') {
                         if (isset($questions[$qIndex]['question'])) {
-                            $questions[$qIndex]['question'] = str_replace('[IMAGE HERE]', $imgHtml, $questions[$qIndex]['question']);
-                            if (!str_contains($questions[$qIndex]['question'], $imgHtml)) {
+                            // If placeholder exists, replace it
+                            if (str_contains($questions[$qIndex]['question'], '[IMAGE HERE]')) {
+                                $questions[$qIndex]['question'] = str_replace('[IMAGE HERE]', $imgHtml, $questions[$qIndex]['question']);
+                            } else {
+                                // Otherwise append it
                                 $questions[$qIndex]['question'] .= '<br>' . $imgHtml;
                             }
                         } else {
@@ -308,9 +329,10 @@ class AiImportController extends Controller
                     } else {
                         $optIdx = (int) str_replace('option_', '', $imageType);
                         if (isset($questions[$qIndex]['options'][$optIdx])) {
-                            $questions[$qIndex]['options'][$optIdx] = str_replace('[IMAGE HERE]', $imgHtml, $questions[$qIndex]['options'][$optIdx]);
-                            if (!str_contains($questions[$qIndex]['options'][$optIdx], $imgHtml)) {
-                                $questions[$qIndex]['options'][$optIdx] = $imgHtml;
+                            if (str_contains($questions[$qIndex]['options'][$optIdx], '[IMAGE HERE]')) {
+                                $questions[$qIndex]['options'][$optIdx] = str_replace('[IMAGE HERE]', $imgHtml, $questions[$qIndex]['options'][$optIdx]);
+                            } else {
+                                $questions[$qIndex]['options'][$optIdx] .= '<br>' . $imgHtml;
                             }
                         }
                     }
