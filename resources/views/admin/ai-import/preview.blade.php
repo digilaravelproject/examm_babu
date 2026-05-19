@@ -183,6 +183,10 @@
                                                 class="w-9 h-9 flex items-center justify-center rounded-xl text-slate-400 hover:bg-white hover:text-indigo-600 hover:shadow-md transition-all">
                                                 <i class="fas fa-edit text-xs"></i>
                                             </button>
+                                            <button type="button" onclick="deleteQuestion({{ $index }}, event)"
+                                                class="w-9 h-9 inline-flex items-center justify-center rounded-xl text-slate-300 hover:bg-rose-50 hover:text-rose-600 transition-all">
+                                                <i class="fas fa-trash-alt text-xs"></i>
+                                            </button>
                                             <button type="button"
                                                 class="w-9 h-9 flex items-center justify-center rounded-xl text-slate-300 hover:text-indigo-600 transition-all">
                                                 <i id="icon-{{ $index }}"
@@ -335,10 +339,25 @@
                                 Body <span class="text-indigo-400 font-bold ml-2">(HTML Supported)</span></label>
                             <textarea id="editQuestionText" rows="5"
                                 class="w-full px-6 py-5 bg-slate-50 border-2 border-slate-100 rounded-3xl text-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white transition-all font-bold leading-relaxed"></textarea>
+                            <div class="flex flex-wrap gap-2">
+                                <label
+                                    class="inline-flex items-center px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-indigo-600 hover:border-indigo-200 cursor-pointer">
+                                    <i class="fas fa-image mr-2"></i> Add Question Image
+                                    <input type="file" accept="image/*" class="hidden manual-image-input" data-target="question">
+                                </label>
+                                <button type="button" onclick="removeImagesFromField('question')"
+                                    class="px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-rose-600 hover:border-rose-200">
+                                    Remove Question Images
+                                </button>
+                            </div>
                         </div>
 
                         <div id="optionsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {{-- Options injected via JS --}}
+                        </div>
+
+                        <div id="correctAnswerContainer" class="space-y-3">
+                            {{-- Correct answer controls injected via JS --}}
                         </div>
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
@@ -427,23 +446,26 @@
         }
 
         // Search functionality
-        document.getElementById('questionSearch').addEventListener('input', function (e) {
-            const term = e.target.value.toLowerCase();
-            const rows = document.querySelectorAll('#questionTableBody > tr:not([id^="details-"])');
+        const questionSearch = document.getElementById('questionSearch');
+        if (questionSearch) {
+            questionSearch.addEventListener('input', function (e) {
+                const term = e.target.value.toLowerCase();
+                const rows = document.querySelectorAll('#questionTableBody > tr:not([id^="details-"])');
 
-            rows.forEach((row, idx) => {
-                const text = row.querySelector('.question-preview').textContent.toLowerCase();
-                const detailRow = document.getElementById(`details-${idx}`);
+                rows.forEach((row, idx) => {
+                    const text = row.querySelector('.question-preview').textContent.toLowerCase();
+                    const detailRow = document.getElementById(`details-${idx}`);
 
-                if (text.includes(term)) {
-                    row.style.display = '';
-                } else {
-                    row.style.display = 'none';
-                    detailRow.classList.add('hidden');
-                    document.getElementById(`icon-${idx}`).classList.remove('rotate-180');
-                }
+                    if (text.includes(term)) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                        detailRow.classList.add('hidden');
+                        document.getElementById(`icon-${idx}`).classList.remove('rotate-180');
+                    }
+                });
             });
-        });
+        }
 
         // Edit functionality
         function editQuestion(index, event) {
@@ -457,6 +479,7 @@
 
             const container = document.getElementById('optionsContainer');
             container.innerHTML = '';
+            document.getElementById('correctAnswerContainer').innerHTML = '';
 
             if (q.options && Array.isArray(q.options)) {
                 q.options.forEach((opt, optIdx) => {
@@ -473,13 +496,69 @@
                             ${isCorrect ? '<span class="ml-auto text-[9px] font-black text-emerald-600 uppercase bg-emerald-100 px-1.5 py-0.5 rounded">Correct</span>' : ''}
                         </div>
                         <textarea class="option-input w-full bg-white border border-slate-200 rounded-2xl p-3 text-xs font-bold focus:ring-2 focus:ring-indigo-500 transition-all" data-idx="${optIdx}" rows="2">${opt}</textarea>
+                        <div class="flex flex-wrap gap-2 mt-3">
+                            <label class="inline-flex items-center px-3 py-2 bg-white border border-slate-200 rounded-xl text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-indigo-600 hover:border-indigo-200 cursor-pointer">
+                                <i class="fas fa-image mr-1.5"></i> Add Image
+                                <input type="file" accept="image/*" class="hidden manual-image-input" data-target="option_${optIdx}">
+                            </label>
+                            <button type="button" onclick="removeImagesFromField('option_${optIdx}')"
+                                class="px-3 py-2 bg-white border border-slate-200 rounded-xl text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-rose-600 hover:border-rose-200">
+                                Remove Images
+                            </button>
+                        </div>
                     `;
                     container.appendChild(div);
                 });
             }
 
+            renderCorrectAnswerControls(q);
+
             document.getElementById('editModal').classList.remove('hidden');
             document.body.classList.add('overflow-hidden');
+        }
+
+        function renderCorrectAnswerControls(q) {
+            const container = document.getElementById('correctAnswerContainer');
+            const type = q.type || 'MSA';
+            const options = Array.isArray(q.options) ? q.options : [];
+
+            if (!['MSA', 'TOF', 'MMA', 'FIB', 'SAQ'].includes(type)) return;
+
+            if (type === 'MMA') {
+                container.innerHTML = `
+                    <label class="block text-[11px] font-black uppercase text-slate-500 tracking-widest">Correct Options</label>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        ${options.map((_, idx) => `
+                            <label class="flex items-center gap-2 p-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold cursor-pointer">
+                                <input type="checkbox" class="correct-answer-input" value="${idx}" ${(q.correct_option_indices || []).includes(idx) ? 'checked' : ''}>
+                                Option ${String.fromCharCode(65 + idx)}
+                            </label>
+                        `).join('')}
+                    </div>
+                `;
+                return;
+            }
+
+            if (type === 'MSA' || type === 'TOF') {
+                container.innerHTML = `
+                    <label class="block text-[11px] font-black uppercase text-slate-500 tracking-widest">Correct Option</label>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        ${options.map((_, idx) => `
+                            <label class="flex items-center gap-2 p-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold cursor-pointer">
+                                <input type="radio" name="correct-answer-radio" class="correct-answer-input" value="${idx}" ${q.correct_option_index == idx ? 'checked' : ''}>
+                                Option ${String.fromCharCode(65 + idx)}
+                            </label>
+                        `).join('')}
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <label class="block text-[11px] font-black uppercase text-slate-500 tracking-widest">Correct Answer Text</label>
+                <textarea id="editCorrectAnswerText" rows="2"
+                    class="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-3xl text-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white transition-all font-bold leading-relaxed">${q.correct_answer_text || ''}</textarea>
+            `;
         }
 
         function closeEditModal() {
@@ -508,6 +587,7 @@
             questionsData[index].options = newOptions;
             questionsData[index].solution = newSolution;
             questionsData[index].hint = newHint;
+            applyCorrectAnswerEdit(questionsData[index]);
 
             try {
                 const res = await fetch("{{ route('admin.ai-import.update-json', $batchId) }}", {
@@ -551,6 +631,132 @@
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fas fa-save mr-2"></i> Update Entry';
+            }
+        }
+
+        function applyCorrectAnswerEdit(q) {
+            const type = q.type || 'MSA';
+            if (type === 'MMA') {
+                q.correct_option_indices = Array.from(document.querySelectorAll('.correct-answer-input:checked'))
+                    .map(input => parseInt(input.value));
+                delete q.correct_option_index;
+                q.answer_validation_status = q.correct_option_indices.length ? 'valid' : 'missing';
+                return;
+            }
+
+            if (type === 'MSA' || type === 'TOF') {
+                const selected = document.querySelector('.correct-answer-input:checked');
+                if (selected) {
+                    q.correct_option_index = parseInt(selected.value);
+                    q.correct_option_indices = [];
+                    q.answer_validation_status = 'valid';
+                    delete q.answer_validation_message;
+                } else {
+                    delete q.correct_option_index;
+                    q.answer_validation_status = 'missing';
+                    q.answer_validation_message = 'Correct answer missing or unclear. Please review before approval.';
+                }
+                return;
+            }
+
+            const answerText = document.getElementById('editCorrectAnswerText');
+            if (answerText) {
+                q.correct_answer_text = answerText.value;
+                q.answer_validation_status = answerText.value.trim() ? 'valid' : 'missing';
+            }
+        }
+
+        function removeImagesFromField(target) {
+            const field = fieldForImageTarget(target);
+            if (!field) return;
+            field.value = field.value.replace(/<img\b[^>]*>/gi, '').replace(/(<br\s*\/?>\s*){2,}/gi, '<br>').trim();
+        }
+
+        function fieldForImageTarget(target) {
+            if (target === 'question') return document.getElementById('editQuestionText');
+            if (target.startsWith('option_')) {
+                const idx = target.replace('option_', '');
+                return document.querySelector(`.option-input[data-idx="${idx}"]`);
+            }
+            return null;
+        }
+
+        document.addEventListener('change', async function (event) {
+            if (!event.target.classList.contains('manual-image-input')) return;
+            const input = event.target;
+            const file = input.files[0];
+            if (!file) return;
+
+            const index = document.getElementById('editIndex').value;
+            const target = input.dataset.target;
+            const field = fieldForImageTarget(target);
+            if (!field) return;
+
+            try {
+                const base64 = await fileToDataUrl(file);
+                const data = await uploadManualImage(index, base64, target);
+                field.value = field.value.trim()
+                    ? `${field.value}<br>${data.image_html}`
+                    : data.image_html;
+            } catch (err) {
+                alert('Image upload failed: ' + err.message);
+            } finally {
+                input.value = '';
+            }
+        });
+
+        function fileToDataUrl(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = () => reject(new Error('Could not read image file.'));
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function uploadManualImage(questionIndex, imageBase64, imageType) {
+            const res = await fetch("{{ route('admin.ai-import.upload-cropped-image') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    batch_id: "{{ $batchId }}",
+                    question_index: parseInt(questionIndex),
+                    image_base64: imageBase64,
+                    image_type: imageType
+                })
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) throw new Error(data.message || 'Upload failed.');
+            return data;
+        }
+
+        async function syncQuestionsData() {
+            const res = await fetch("{{ route('admin.ai-import.update-json', $batchId) }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({ questions: questionsData })
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) throw new Error(data.message || 'Failed to save review data.');
+            return data;
+        }
+
+        async function deleteQuestion(index, event) {
+            if (event) event.stopPropagation();
+            if (!confirm('Delete this question from the import review?')) return;
+
+            questionsData.splice(index, 1);
+            try {
+                await syncQuestionsData();
+                window.location.reload();
+            } catch (err) {
+                alert('Failed to delete question: ' + err.message);
             }
         }
 

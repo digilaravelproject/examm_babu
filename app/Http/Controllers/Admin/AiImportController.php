@@ -68,7 +68,7 @@ class AiImportController extends Controller
         ]);
 
         try {
-            $topicId = $request->topic_id;
+            $topicId = $request->input('topic_id');
             $userId = Auth::id();
             $totalPages = (int) $request->input('total_pages', 0);
             $startPage = (int) $request->input('start_page', 1);
@@ -87,8 +87,8 @@ class AiImportController extends Controller
                 $endPage = $totalPages;
             }
 
-            if ($request->has('batch_id') && $request->batch_id) {
-                $batchId = $request->batch_id;
+            if ($request->filled('batch_id')) {
+                $batchId = $request->input('batch_id');
                 $batch = AiImportBatch::find($batchId);
                 
                 if (!$batch) {
@@ -154,7 +154,7 @@ class AiImportController extends Controller
         } catch (\Exception $e) {
             Log::error('AI Import Upload Error', [
                 'user_id' => Auth::id(),
-                'topic_id' => $request->topic_id,
+                'topic_id' => $request->input('topic_id'),
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
@@ -242,7 +242,7 @@ class AiImportController extends Controller
             return is_array($question)
                 ? $this->aiService->normalizeCorrectAnswerFields($question)
                 : $question;
-        }, $request->questions);
+        }, $request->input('questions', []));
 
         Storage::put($filePath, json_encode($questions));
 
@@ -261,9 +261,9 @@ class AiImportController extends Controller
             'image_type' => 'nullable|string',
         ]);
 
-        $batchId = $request->batch_id;
-        $qIndex = (int) $request->question_index;
-        $imageType = $request->image_type ?? 'question';
+        $batchId = $request->input('batch_id');
+        $qIndex = (int) $request->input('question_index');
+        $imageType = (string) $request->input('image_type', 'question');
 
         $batch = AiImportBatch::find($batchId);
         $jsonFile = 'temp/ai_batch_' . $batchId . '_questions.json';
@@ -279,11 +279,13 @@ class AiImportController extends Controller
 
         try {
             // Encode Base64 to public storage
-            if (!str_contains($request->image_base64, ',')) {
+            $imageBase64 = (string) $request->input('image_base64');
+
+            if (!str_contains($imageBase64, ',')) {
                 return response()->json(['success' => false, 'message' => 'Invalid image format.'], 422);
             }
 
-            $imageParts = explode(';base64,', $request->image_base64);
+            $imageParts = explode(';base64,', $imageBase64);
             $decodedImage = base64_decode($imageParts[1]);
             
             if (!$decodedImage) {
@@ -327,35 +329,15 @@ class AiImportController extends Controller
 
                 if (isset($questions[$qIndex])) {
                     $imgHtml = '<img src="' . e($imageUrl) . '" class="ai-img rounded shadow-sm max-w-full my-2" />';
-                    
-                    if ($imageType === 'question') {
-                        if (isset($questions[$qIndex]['question'])) {
-                            // If placeholder exists, replace it
-                            if (str_contains($questions[$qIndex]['question'], '[IMAGE HERE]')) {
-                                $questions[$qIndex]['question'] = str_replace('[IMAGE HERE]', $imgHtml, $questions[$qIndex]['question']);
-                            } else {
-                                // Otherwise append it
-                                $questions[$qIndex]['question'] .= '<br>' . $imgHtml;
-                            }
-                        } else {
-                            $questions[$qIndex]['question'] = $imgHtml;
-                        }
-                    } else {
-                        $optIdx = (int) str_replace('option_', '', $imageType);
-                        if (isset($questions[$qIndex]['options'][$optIdx])) {
-                            if (str_contains($questions[$qIndex]['options'][$optIdx], '[IMAGE HERE]')) {
-                                $questions[$qIndex]['options'][$optIdx] = str_replace('[IMAGE HERE]', $imgHtml, $questions[$qIndex]['options'][$optIdx]);
-                            } else {
-                                $questions[$qIndex]['options'][$optIdx] .= '<br>' . $imgHtml;
-                            }
-                        } else {
-                            Log::warning('Cropped option image could not be attached because option index was missing', [
-                                'batch_id' => $batchId,
-                                'question_index' => $qIndex,
-                                'image_type' => $imageType,
-                                'option_index' => $optIdx,
-                            ]);
-                        }
+
+                    $before = $questions;
+                    $questions = $this->aiService->attachImageHtmlToQuestion($questions, $qIndex, $imageType, $imgHtml);
+                    if ($before === $questions) {
+                        Log::warning('Cropped image could not be attached to target field', [
+                            'batch_id' => $batchId,
+                            'question_index' => $qIndex,
+                            'image_type' => $imageType,
+                        ]);
                     }
                     Storage::put($jsonFile, json_encode($questions));
                 }
@@ -363,7 +345,7 @@ class AiImportController extends Controller
                 $lock->release();
             }
 
-            return response()->json(['success' => true]);
+            return response()->json(['success' => true, 'image_url' => $imageUrl, 'image_html' => $imgHtml]);
         } catch (\Exception $e) {
             Log::error('Cropped Image Upload Error: ' . $e->getMessage(), [
                 'batch_id' => $batchId,
@@ -396,7 +378,10 @@ class AiImportController extends Controller
         ]);
 
         /** @var AiImportBatch|null $batch */
-        $batch = AiImportBatch::where('id', $request->batch_id)
+        $batchId = $request->input('batch_id');
+        $failures = $request->input('failures', []);
+
+        $batch = AiImportBatch::where('id', $batchId)
             ->where('user_id', Auth::id())
             ->first();
 
@@ -405,12 +390,12 @@ class AiImportController extends Controller
         }
 
         Log::warning('AI import image crop failures reported by browser', [
-            'batch_id' => $request->batch_id,
-            'failures' => $request->failures,
+            'batch_id' => $batchId,
+            'failures' => $failures,
         ]);
 
         $metadata = $batch->metadata ?? [];
-        $metadata['image_crop_failures'] = array_merge($metadata['image_crop_failures'] ?? [], $request->failures);
+        $metadata['image_crop_failures'] = array_merge($metadata['image_crop_failures'] ?? [], $failures);
         $batch->update(['metadata' => $metadata]);
 
         return response()->json(['success' => true]);
@@ -505,7 +490,7 @@ class AiImportController extends Controller
      */
     public function cancelImport(Request $request)
     {
-        $batchId = $request->batch_id;
+        $batchId = $request->input('batch_id');
         
         Log::info("Attempting to cancel AI Import session", ['batch_id' => $batchId, 'user_id' => Auth::id()]);
 

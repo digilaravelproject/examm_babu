@@ -1017,126 +1017,173 @@ EOT;
 
     public function importQuestions(array $questionsData, int $topicId, int $userId)
     {
-        return DB::transaction(function () use ($questionsData, $topicId, $userId) {
-            $topic = Topic::with('skill')->findOrFail($topicId);
-            $skill = $topic->skill ?? Skill::first();
-            $defaultDiff = DifficultyLevel::where('code', 'EASY')->first();
-            $qTypes = QuestionType::all()->keyBy('code');
+        return DB::transaction(fn () => $this->persistReviewedAiQuestions($questionsData, $topicId, $userId));
+    }
 
-            $existingPrefixes = Question::where('topic_id', $topicId)
-                ->get(['question'])
-                ->map(fn ($q) => strtolower(trim(substr(strip_tags($q->question), 0, 100))))
-                ->toArray();
+    private function persistReviewedAiQuestions(array $questionsData, int $topicId, int $userId): int
+    {
+        $topic = Topic::with('skill')->findOrFail($topicId);
+        $skill = $topic->skill ?? Skill::first();
+        $defaultDiff = DifficultyLevel::where('code', 'EASY')->first();
+        $qTypes = QuestionType::all()->keyBy('code');
+        $existingPrefixes = $this->existingQuestionPrefixes($topicId);
+        $batchTime = now()->setTimezone('Asia/Kolkata')->format('Ymd_His');
+        $insertedCount = 0;
 
-            $insertedCount = 0;
-            $batchTime = now()->setTimezone('Asia/Kolkata')->format('Ymd_His');
-
-            foreach ($questionsData as $index => $qData) {
-                if (empty($qData['question'])) {
-                    continue;
-                }
-
-                $qData = $this->normalizeCorrectAnswerFields($qData);
-
-                $cleanPrefix = strtolower(trim(substr(strip_tags($qData['question']), 0, 100)));
-                if (in_array($cleanPrefix, $existingPrefixes)) {
-                    continue;
-                }
-
-                $typeCode = $qData['type'] ?? 'MSA';
-                $type = $qTypes->get($typeCode) ?: $qTypes->get('MSA');
-
-                $formattedOptions = [];
-                $correctAnswer = null;
-
-                switch ($typeCode) {
-                    case 'MMA':
-                        if (($qData['answer_validation_status'] ?? null) !== 'valid') {
-                            Log::warning('Skipping AI imported MMA question with missing correct answers', [
-                                'topic_id' => $topicId,
-                                'index' => $index,
-                                'question_number' => $qData['question_number'] ?? null,
-                                'source_page' => $qData['source_page'] ?? null,
-                            ]);
-                            continue 2;
-                        }
-                        foreach (($qData['options'] ?? []) as $optText) {
-                            $formattedOptions[] = ['option' => $this->optionHtml($optText), 'is_correct' => false, 'partial_weightage' => 0];
-                        }
-                        $indices = is_array($qData['correct_option_indices'] ?? null) ? $qData['correct_option_indices'] : [];
-                        $correctAnswer = array_map(fn ($i) => (int) $i, $indices);
-                        foreach ($indices as $idx) {
-                            if (isset($formattedOptions[(int) $idx])) {
-                                $formattedOptions[(int) $idx]['is_correct'] = true;
-                            }
-                        }
-                        break;
-                    case 'TOF':
-                    case 'MSA':
-                        if (($qData['answer_validation_status'] ?? null) !== 'valid' || ! isset($qData['correct_option_index'])) {
-                            Log::warning('Skipping AI imported single-answer question with missing correct answer', [
-                                'topic_id' => $topicId,
-                                'index' => $index,
-                                'question_number' => $qData['question_number'] ?? null,
-                                'source_page' => $qData['source_page'] ?? null,
-                            ]);
-                            continue 2;
-                        }
-                        foreach (($qData['options'] ?? []) as $optText) {
-                            $formattedOptions[] = ['option' => $this->optionHtml($optText), 'is_correct' => false, 'partial_weightage' => 0];
-                        }
-                        $correctIdx = (int) $qData['correct_option_index'];
-                        if (! isset($formattedOptions[$correctIdx])) {
-                            Log::warning('Skipping AI imported single-answer question with out-of-range correct answer', [
-                                'topic_id' => $topicId,
-                                'index' => $index,
-                                'correct_option_index' => $correctIdx,
-                                'options_count' => count($formattedOptions),
-                            ]);
-                            continue 2;
-                        }
-                        $formattedOptions[$correctIdx]['is_correct'] = true;
-                        $correctAnswer = $correctIdx;
-                        break;
-                    case 'FIB':
-                    case 'SAQ':
-                        $correctAnswer = $qData['correct_answer_text'] ?? '';
-                        break;
-                }
-
-                $code = 'que_ai_'.$batchTime.'_'.$skill->id.'_'.Str::random(5);
-
-                Question::create([
-                    'question_type_id' => $type->id,
-                    'skill_id' => $skill->id,
-                    'topic_id' => $topic->id,
-                    'difficulty_level_id' => $defaultDiff->id,
-                    'question' => $qData['question'],
-                    'options' => $formattedOptions,
-                    'correct_answer' => $correctAnswer,
-                    'solution' => $qData['solution'] ?? '',
-                    'hint' => $qData['hint'] ?? '',
-                    'default_marks' => 1,
-                    'default_time' => 60,
-                    'preferences' => $this->repository->setDefaultPreferences($typeCode),
-                    'created_by' => $userId,
-                    'is_active' => true,
-                    'code' => $code,
-                ]);
-
-                $existingPrefixes[] = $cleanPrefix;
-                $insertedCount++;
+        foreach ($questionsData as $index => $qData) {
+            $prepared = $this->prepareAiQuestionForCreate($qData, $index, $topicId, $qTypes);
+            if ($prepared === null || in_array($prepared['clean_prefix'], $existingPrefixes, true)) {
+                continue;
             }
 
-            Log::info('AI import final DB insert count', [
-                'topic_id' => $topicId,
-                'user_id' => $userId,
-                'input_count' => count($questionsData),
-                'inserted_count' => $insertedCount,
+            Question::create([
+                'question_type_id' => $prepared['type']->id,
+                'skill_id' => $skill->id,
+                'topic_id' => $topic->id,
+                'difficulty_level_id' => $defaultDiff->id,
+                'question' => $prepared['question']['question'],
+                'options' => $prepared['options'],
+                'correct_answer' => $prepared['correct_answer'],
+                'solution' => $prepared['question']['solution'] ?? '',
+                'hint' => $prepared['question']['hint'] ?? '',
+                'default_marks' => 1,
+                'default_time' => 60,
+                'preferences' => $this->repository->setDefaultPreferences($prepared['type_code']),
+                'created_by' => $userId,
+                'is_active' => true,
+                'code' => 'que_ai_'.$batchTime.'_'.$skill->id.'_'.Str::random(5),
             ]);
 
-            return $insertedCount;
-        });
+            $existingPrefixes[] = $prepared['clean_prefix'];
+            $insertedCount++;
+        }
+
+        $this->logAiImportInsertCount($topicId, $userId, count($questionsData), $insertedCount);
+
+        return $insertedCount;
+    }
+
+    private function existingQuestionPrefixes(int $topicId): array
+    {
+        return Question::where('topic_id', $topicId)
+            ->get(['question'])
+            ->map(fn ($q) => strtolower(trim(substr(strip_tags($q->question), 0, 100))))
+            ->toArray();
+    }
+
+    private function prepareAiQuestionForCreate($qData, int $index, int $topicId, $qTypes): ?array
+    {
+        if (! is_array($qData) || empty($qData['question'])) {
+            return null;
+        }
+
+        $qData = $this->normalizeCorrectAnswerFields($qData);
+        $typeCode = $qData['type'] ?? 'MSA';
+        $type = $qTypes->get($typeCode) ?: $qTypes->get('MSA');
+        $answerPayload = $this->buildAnswerPayload($qData, $typeCode, $index, $topicId);
+
+        if ($answerPayload === null) {
+            return null;
+        }
+
+        return [
+            'question' => $qData,
+            'type' => $type,
+            'type_code' => $typeCode,
+            'options' => $answerPayload['options'],
+            'correct_answer' => $answerPayload['correct_answer'],
+            'clean_prefix' => strtolower(trim(substr(strip_tags($qData['question']), 0, 100))),
+        ];
+    }
+
+    private function buildAnswerPayload(array $qData, string $typeCode, int $index, int $topicId): ?array
+    {
+        return match ($typeCode) {
+            'MMA' => $this->buildMultipleAnswerPayload($qData, $index, $topicId),
+            'MSA', 'TOF' => $this->buildSingleAnswerPayload($qData, $index, $topicId),
+            'FIB', 'SAQ' => [
+                'options' => [],
+                'correct_answer' => $qData['correct_answer_text'] ?? '',
+            ],
+            default => [
+                'options' => [],
+                'correct_answer' => null,
+            ],
+        };
+    }
+
+    private function buildMultipleAnswerPayload(array $qData, int $index, int $topicId): ?array
+    {
+        if (($qData['answer_validation_status'] ?? null) !== 'valid') {
+            $this->logSkippedAiQuestion('MMA question with missing correct answers', $qData, $index, $topicId);
+            return null;
+        }
+
+        $options = $this->formatAiOptions($qData['options'] ?? []);
+        $indices = is_array($qData['correct_option_indices'] ?? null) ? $qData['correct_option_indices'] : [];
+        $correctAnswer = array_map(fn ($i) => (int) $i, $indices);
+
+        foreach ($indices as $idx) {
+            if (isset($options[(int) $idx])) {
+                $options[(int) $idx]['is_correct'] = true;
+            }
+        }
+
+        return ['options' => $options, 'correct_answer' => $correctAnswer];
+    }
+
+    private function buildSingleAnswerPayload(array $qData, int $index, int $topicId): ?array
+    {
+        if (($qData['answer_validation_status'] ?? null) !== 'valid' || ! isset($qData['correct_option_index'])) {
+            $this->logSkippedAiQuestion('single-answer question with missing correct answer', $qData, $index, $topicId);
+            return null;
+        }
+
+        $options = $this->formatAiOptions($qData['options'] ?? []);
+        $correctIdx = (int) $qData['correct_option_index'];
+
+        if (! isset($options[$correctIdx])) {
+            Log::warning('Skipping AI imported single-answer question with out-of-range correct answer', [
+                'topic_id' => $topicId,
+                'index' => $index,
+                'correct_option_index' => $correctIdx,
+                'options_count' => count($options),
+            ]);
+            return null;
+        }
+
+        $options[$correctIdx]['is_correct'] = true;
+
+        return ['options' => $options, 'correct_answer' => $correctIdx];
+    }
+
+    private function formatAiOptions(array $options): array
+    {
+        return array_map(fn ($optText) => [
+            'option' => $this->optionHtml($optText),
+            'is_correct' => false,
+            'partial_weightage' => 0,
+        ], $options);
+    }
+
+    private function logSkippedAiQuestion(string $reason, array $qData, int $index, int $topicId): void
+    {
+        Log::warning('Skipping AI imported '.$reason, [
+            'topic_id' => $topicId,
+            'index' => $index,
+            'question_number' => $qData['question_number'] ?? null,
+            'source_page' => $qData['source_page'] ?? null,
+        ]);
+    }
+
+    private function logAiImportInsertCount(int $topicId, int $userId, int $inputCount, int $insertedCount): void
+    {
+        Log::info('AI import final DB insert count', [
+            'topic_id' => $topicId,
+            'user_id' => $userId,
+            'input_count' => $inputCount,
+            'inserted_count' => $insertedCount,
+        ]);
     }
 
     private function optionHtml($option): string
@@ -1146,5 +1193,46 @@ EOT;
         }
 
         return (string) $option;
+    }
+
+    public function attachImageHtmlToQuestion(array $questions, int $questionIndex, string $imageType, string $imgHtml): array
+    {
+        if (! isset($questions[$questionIndex]) || ! is_array($questions[$questionIndex])) {
+            return $questions;
+        }
+
+        if ($imageType === 'question') {
+            $questions[$questionIndex]['question'] = $this->appendOrReplaceImagePlaceholder(
+                (string) ($questions[$questionIndex]['question'] ?? ''),
+                $imgHtml
+            );
+
+            return $questions;
+        }
+
+        if (! preg_match('/^option_(\d+)$/', $imageType, $matches)) {
+            return $questions;
+        }
+
+        $optionIndex = (int) $matches[1];
+        if (! isset($questions[$questionIndex]['options'][$optionIndex])) {
+            return $questions;
+        }
+
+        $questions[$questionIndex]['options'][$optionIndex] = $this->appendOrReplaceImagePlaceholder(
+            (string) $questions[$questionIndex]['options'][$optionIndex],
+            $imgHtml
+        );
+
+        return $questions;
+    }
+
+    private function appendOrReplaceImagePlaceholder(string $html, string $imgHtml): string
+    {
+        if (str_contains($html, '[IMAGE HERE]')) {
+            return preg_replace('/\[IMAGE HERE\]/', $imgHtml, $html, 1);
+        }
+
+        return trim($html) === '' ? $imgHtml : $html . '<br>' . $imgHtml;
     }
 }

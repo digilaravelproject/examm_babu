@@ -5,6 +5,18 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 
 /**
+ * @property string $id
+ * @property int $user_id
+ * @property int $topic_id
+ * @property string $status
+ * @property string $pdf_path
+ * @property int $start_page
+ * @property int $end_page
+ * @property int $questions_count
+ * @property int $progress
+ * @property string|null $message
+ * @property string|null $error_details
+ * @property array|null $metadata
  * @method static \Illuminate\Database\Eloquent\Builder where($column, $operator = null, $value = null, $boolean = 'and')
  * @method static \App\Models\AiImportBatch|null find($id, $columns = ['*'])
  * @method static \App\Models\AiImportBatch create(array $attributes = [])

@@ -243,3 +243,43 @@ test('ai mcq correct answer normalization uses same zero based indices as normal
     expect($single['correct_option_index'])->toBe(1)
         ->and($multiple['correct_option_indices'])->toBe([1, 3]);
 });
+
+test('question image is attached only to question field', function () {
+    $service = aiImportServiceWithoutConstructor();
+    $questions = [[
+        'question' => 'Question [IMAGE HERE]',
+        'options' => ['A', 'B [IMAGE HERE]'],
+    ]];
+
+    $updated = $service->attachImageHtmlToQuestion($questions, 0, 'question', '<img src="/q.jpg" />');
+
+    expect($updated[0]['question'])->toContain('/q.jpg')
+        ->and($updated[0]['options'][0])->toBe('A')
+        ->and($updated[0]['options'][1])->toBe('B [IMAGE HERE]');
+});
+
+test('option image is attached only to matching option field', function () {
+    $service = aiImportServiceWithoutConstructor();
+    $questions = [[
+        'question' => 'Question [IMAGE HERE]',
+        'options' => ['A [IMAGE HERE]', 'B [IMAGE HERE]'],
+    ]];
+
+    $updated = $service->attachImageHtmlToQuestion($questions, 0, 'option_1', '<img src="/b.jpg" />');
+
+    expect($updated[0]['question'])->toBe('Question [IMAGE HERE]')
+        ->and($updated[0]['options'][0])->toBe('A [IMAGE HERE]')
+        ->and($updated[0]['options'][1])->toContain('/b.jpg');
+});
+
+test('invalid option image target does not fall back to question field', function () {
+    $service = aiImportServiceWithoutConstructor();
+    $questions = [[
+        'question' => 'Question',
+        'options' => ['A', 'B'],
+    ]];
+
+    $updated = $service->attachImageHtmlToQuestion($questions, 0, 'option_9', '<img src="/wrong.jpg" />');
+
+    expect($updated)->toBe($questions);
+});
