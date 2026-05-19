@@ -293,11 +293,19 @@ class AiImportController extends Controller
 
             /** @var \Illuminate\Filesystem\FilesystemAdapter $publicDisk */
             $publicDisk = Storage::disk('public');
-            $publicDisk->put($fileName, $decodedImage);
+            $stored = $publicDisk->put($fileName, $decodedImage);
+
+            if (!$stored || !$publicDisk->exists($fileName)) {
+                Log::error('Cropped image write verification failed', [
+                    'batch_id' => $batchId,
+                    'question_index' => $qIndex,
+                    'image_type' => $imageType,
+                    'path' => $fileName,
+                ]);
+                return response()->json(['success' => false, 'message' => 'Failed to store cropped image.'], 500);
+            }
             
-            // Use relative path for internal storage but return asset URL to frontend
-            // Using asset() instead of Storage::url() to avoid APP_URL issues in subdirectories
-            $imageUrl = asset('storage/' . $fileName);
+            $imageUrl = $this->verifiedPublicStorageUrl($fileName);
 
             // Thread-safe update using Cache Lock
             $lock = Cache::lock('ai_sync_' . $batchId, 10);
@@ -312,7 +320,7 @@ class AiImportController extends Controller
                 }
 
                 if (isset($questions[$qIndex])) {
-                    $imgHtml = '<img src="' . $imageUrl . '" class="ai-img rounded shadow-sm max-w-full my-2" />';
+                    $imgHtml = '<img src="' . e($imageUrl) . '" class="ai-img rounded shadow-sm max-w-full my-2" />';
                     
                     if ($imageType === 'question') {
                         if (isset($questions[$qIndex]['question'])) {
@@ -334,6 +342,13 @@ class AiImportController extends Controller
                             } else {
                                 $questions[$qIndex]['options'][$optIdx] .= '<br>' . $imgHtml;
                             }
+                        } else {
+                            Log::warning('Cropped option image could not be attached because option index was missing', [
+                                'batch_id' => $batchId,
+                                'question_index' => $qIndex,
+                                'image_type' => $imageType,
+                                'option_index' => $optIdx,
+                            ]);
                         }
                     }
                     Storage::put($jsonFile, json_encode($questions));
@@ -344,9 +359,55 @@ class AiImportController extends Controller
 
             return response()->json(['success' => true]);
         } catch (\Exception $e) {
-            Log::error('Cropped Image Upload Error: ' . $e->getMessage());
+            Log::error('Cropped Image Upload Error: ' . $e->getMessage(), [
+                'batch_id' => $batchId,
+                'question_index' => $qIndex,
+                'image_type' => $imageType,
+            ]);
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
+    }
+
+    private function verifiedPublicStorageUrl(string $fileName): string
+    {
+        $publicPath = public_path('storage/' . $fileName);
+
+        if (!file_exists($publicPath)) {
+            Log::warning('Public storage path not directly visible; falling back to request-root URL', [
+                'public_path' => $publicPath,
+                'storage_path' => storage_path('app/public/' . $fileName),
+            ]);
+        }
+
+        return rtrim(request()->root(), '/') . '/storage/' . ltrim($fileName, '/');
+    }
+
+    public function logImageCropFailure(Request $request)
+    {
+        $request->validate([
+            'batch_id' => 'required|string',
+            'failures' => 'required|array',
+        ]);
+
+        /** @var AiImportBatch|null $batch */
+        $batch = AiImportBatch::where('id', $request->batch_id)
+            ->where('user_id', Auth::id())
+            ->first();
+
+        if (!$batch) {
+            return response()->json(['success' => false, 'message' => 'Invalid batch.'], 404);
+        }
+
+        Log::warning('AI import image crop failures reported by browser', [
+            'batch_id' => $request->batch_id,
+            'failures' => $request->failures,
+        ]);
+
+        $metadata = $batch->metadata ?? [];
+        $metadata['image_crop_failures'] = array_merge($metadata['image_crop_failures'] ?? [], $request->failures);
+        $batch->update(['metadata' => $metadata]);
+
+        return response()->json(['success' => true]);
     }
 
     /**
@@ -438,6 +499,7 @@ class AiImportController extends Controller
         Log::info("Attempting to cancel AI Import session", ['batch_id' => $batchId, 'user_id' => Auth::id()]);
 
         try {
+            /** @var AiImportBatch|null $batch */
             $batch = AiImportBatch::where('id', $batchId)
                 ->where('user_id', Auth::id())
                 ->first();

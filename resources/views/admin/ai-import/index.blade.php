@@ -648,8 +648,11 @@
                 const pageGroups = new Map();
 
                 questions.forEach((q, i) => {
-                    if (q.image_box || (q.option_image_boxes && Object.keys(q.option_image_boxes).length > 0)) {
-                        const pageNum = parseInt(q.page_number_extracted || q.source_page || 1);
+                    q.image_box = normalizeImageBox(q.image_box);
+                    q.option_image_boxes = normalizeOptionImageBoxes(q.option_image_boxes);
+
+                    if (q.image_box || Object.keys(q.option_image_boxes).length > 0) {
+                        const pageNum = parseInt(q.source_page || q.page_number_extracted || q.page_number || 1);
                         if (!pageGroups.has(pageNum)) pageGroups.set(pageNum, []);
                         pageGroups.get(pageNum).push({
                             question: q,
@@ -657,7 +660,7 @@
                         });
 
                         if (q.image_box) totalImages++;
-                        if (q.option_image_boxes) totalImages += Object.keys(q.option_image_boxes).length;
+                        totalImages += Object.keys(q.option_image_boxes).length;
                     }
                 });
 
@@ -672,6 +675,7 @@
                 if (processBtn) processBtn.innerHTML = '<i class="fas fa-cut mr-2"></i> Cropping...';
 
                 const sortedPages = Array.from(pageGroups.keys()).sort((a, b) => a - b);
+                const failedCrops = [];
 
                 for (const pageNum of sortedPages) {
                     if (isStopped) break;
@@ -699,27 +703,40 @@
                             if (q.image_box) {
                                 processedCount++;
                                 updateCroppingUI(processedCount, totalImages);
-                                const imgBase64 = crop(canvas, q.image_box);
-                                await uploadImg(batchId, qIdx, imgBase64, 'question');
+                                try {
+                                    const imgBase64 = crop(canvas, q.image_box);
+                                    await uploadImg(batchId, qIdx, imgBase64, 'question');
+                                } catch (cropErr) {
+                                    failedCrops.push({ page: pageNum, question_index: qIdx, type: 'question', error: cropErr.message });
+                                    console.error('Question image crop failed:', cropErr);
+                                }
                             }
 
                             // Options Images
-                            if (q.option_image_boxes) {
-                                for (const key in q.option_image_boxes) {
-                                    processedCount++;
-                                    updateCroppingUI(processedCount, totalImages);
+                            for (const key in q.option_image_boxes) {
+                                processedCount++;
+                                updateCroppingUI(processedCount, totalImages);
+                                try {
                                     const imgBase64 = crop(canvas, q.option_image_boxes[key]);
                                     await uploadImg(batchId, qIdx, imgBase64, 'option_' + key);
+                                } catch (cropErr) {
+                                    failedCrops.push({ page: pageNum, question_index: qIdx, type: 'option_' + key, error: cropErr.message });
+                                    console.error('Option image crop failed:', cropErr);
                                 }
                             }
                         }
                         page.cleanup();
                     } catch (pageErr) {
+                        failedCrops.push({ page: pageNum, question_index: null, type: 'page_render', error: pageErr.message });
                         console.error(`Error rendering page ${pageNum}:`, pageErr);
                     }
                 }
 
                 if (!isStopped) {
+                    if (failedCrops.length > 0) {
+                        console.warn('AI import image crops failed', failedCrops);
+                        await logFailedCrops(batchId, failedCrops);
+                    }
                     statusText.innerText = "Redirecting to preview...";
                     progressBar.style.width = '100%';
                     if (pdfDoc) {
@@ -751,12 +768,63 @@
             document.getElementById('step-processing').classList.add('hidden');
         }
 
+        function normalizeImageBox(box) {
+            if (!Array.isArray(box) || box.length !== 4) return null;
+            const normalized = box.map(Number);
+            if (normalized.some(v => Number.isNaN(v))) return null;
+            const [ymin, xmin, ymax, xmax] = normalized;
+            if (ymin < 0 || xmin < 0 || ymax > 1000 || xmax > 1000 || ymin >= ymax || xmin >= xmax) {
+                return null;
+            }
+            return normalized;
+        }
+
+        function normalizeOptionImageBoxes(optionBoxes) {
+            const normalized = {};
+            if (!optionBoxes) return normalized;
+
+            if (Array.isArray(optionBoxes)) {
+                optionBoxes.forEach((item, idx) => {
+                    if (Array.isArray(item)) {
+                        const box = normalizeImageBox(item);
+                        if (box) normalized[idx] = box;
+                    } else if (item && typeof item === 'object') {
+                        const optionIndex = Number.isInteger(Number(item.index)) ? Number(item.index) : idx;
+                        const box = normalizeImageBox(item.box);
+                        if (box) normalized[optionIndex] = box;
+                    }
+                });
+                return normalized;
+            }
+
+            if (typeof optionBoxes === 'object') {
+                Object.keys(optionBoxes).forEach(key => {
+                    const item = optionBoxes[key];
+                    if (Array.isArray(item)) {
+                        const box = normalizeImageBox(item);
+                        if (box) normalized[key] = box;
+                    } else if (item && typeof item === 'object') {
+                        const optionIndex = Number.isInteger(Number(item.index)) ? Number(item.index) : key;
+                        const box = normalizeImageBox(item.box);
+                        if (box) normalized[optionIndex] = box;
+                    }
+                });
+            }
+
+            return normalized;
+        }
+
         function crop(sourceCanvas, box) {
+            box = normalizeImageBox(box);
+            if (!box) throw new Error('Invalid image coordinates.');
+
             const [ymin, xmin, ymax, xmax] = box;
             const cX = (xmin / 1000) * sourceCanvas.width;
             const cY = (ymin / 1000) * sourceCanvas.height;
             const cW = ((xmax - xmin) / 1000) * sourceCanvas.width;
             const cH = ((ymax - ymin) / 1000) * sourceCanvas.height;
+
+            if (cW <= 0 || cH <= 0) throw new Error('Invalid crop dimensions.');
 
             const cropCanvas = document.createElement('canvas');
             cropCanvas.width = cW;
@@ -769,7 +837,7 @@
         }
 
         async function uploadImg(batchId, qIdx, base64, type) {
-            await fetch("{{ route('admin.ai-import.upload-cropped-image') }}", {
+            const res = await fetch("{{ route('admin.ai-import.upload-cropped-image') }}", {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -782,6 +850,29 @@
                     image_type: type
                 })
             });
+
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.success) {
+                throw new Error(data.message || 'Image upload failed.');
+            }
+        }
+
+        async function logFailedCrops(batchId, failures) {
+            try {
+                await fetch("{{ route('admin.ai-import.log-image-crop-failure') }}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({
+                        batch_id: batchId,
+                        failures
+                    })
+                });
+            } catch (err) {
+                console.warn('Failed to report crop diagnostics:', err);
+            }
         }
 
         async function cancelSession(batchId, skipConfirm = false) {

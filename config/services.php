@@ -37,6 +37,9 @@ return [
 
     'gemini' => [
         'key' => env('GEMINI_API_KEY'),
+        'import_chunk_pages' => env('GEMINI_IMPORT_CHUNK_PAGES', 2),
+        'import_max_retries' => env('GEMINI_IMPORT_MAX_RETRIES', 2),
+        'import_min_questions_per_chunk' => env('GEMINI_IMPORT_MIN_QUESTIONS_PER_CHUNK', 1),
     ],
 
 ];

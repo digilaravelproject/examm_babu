@@ -68,6 +68,7 @@ class ProcessGeminiPdfImportJob implements ShouldQueue
                 $this->batchId,
                 $this->topicId
             );
+            $diagnostics = $aiService->getLastImportDiagnostics();
 
             // 3. Store raw result for verification phase
             $this->updateStatus('processing', 'Formatting extracted questions...', 80);
@@ -76,8 +77,17 @@ class ProcessGeminiPdfImportJob implements ShouldQueue
 
             // 4. Mark as Completed (Ready for review)
             $this->updateStatus('completed', 'AI Extraction Complete! Found ' . count($questions) . ' potential questions.', 100, count($questions));
+            $batch->update([
+                'metadata' => array_merge($batch->metadata ?? [], [
+                    'import_diagnostics' => $diagnostics,
+                    'final_extracted_count' => count($questions),
+                ]),
+            ]);
 
-            Log::info("AI Extraction Finished for Batch: {$this->batchId}", ['count' => count($questions)]);
+            Log::info("AI Extraction Finished for Batch: {$this->batchId}", [
+                'count' => count($questions),
+                'diagnostics' => $diagnostics,
+            ]);
         } catch (\Throwable $e) {
             Log::error("ProcessGeminiPdfImportJob Exception [Batch: {$this->batchId}]: " . $e->getMessage(), [
                 'exception' => get_class($e),
@@ -86,6 +96,9 @@ class ProcessGeminiPdfImportJob implements ShouldQueue
                 'batch_id' => $this->batchId
             ]);
             $this->handleFailure($e);
+            if (str_contains($e->getMessage(), 'Import incomplete')) {
+                return;
+            }
             throw $e;
         }
     }
@@ -120,16 +133,26 @@ class ProcessGeminiPdfImportJob implements ShouldQueue
     {
         $errorMessage = $e->getMessage();
         $isQuota = str_contains($errorMessage, '429') || str_contains($errorMessage, 'Quota') || str_contains($errorMessage, 'limit');
+        $isIncomplete = str_contains($errorMessage, 'Import incomplete');
         
         if ($isQuota) {
             $errorMessage = "AI Quota exceeded. System will automatically retry in a moment...";
+        } elseif ($isIncomplete) {
+            $errorMessage = \Illuminate\Support\Str::limit($errorMessage, 500);
         }
 
         $this->updateStatus($isQuota ? 'processing' : 'failed', $errorMessage, $isQuota ? 50 : 0);
 
         $batch = \App\Models\AiImportBatch::find($this->batchId);
         if ($batch) {
-            $batch->update(['error_details' => $e->getMessage()]);
+            $metadata = $batch->metadata ?? [];
+            $metadata['failure_type'] = $isIncomplete ? 'incomplete_extraction' : 'error';
+            $metadata['failed_at'] = now()->toDateTimeString();
+
+            $batch->update([
+                'error_details' => $e->getMessage(),
+                'metadata' => $metadata,
+            ]);
         }
     }
 

@@ -125,6 +125,7 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('ad
     Route::post('ai-import/process', [AiImportController::class, 'uploadAndProcess'])->name('ai-import.process');
     Route::post('ai-import/update-json/{batch_id}', [AiImportController::class, 'updateQuestions'])->name('ai-import.update-json');
     Route::post('ai-import/upload-cropped-image', [AiImportController::class, 'uploadCroppedImage'])->name('ai-import.upload-cropped-image');
+    Route::post('ai-import/log-image-crop-failure', [AiImportController::class, 'logImageCropFailure'])->name('ai-import.log-image-crop-failure');
     Route::post('ai-import/cancel', [AiImportController::class, 'cancelImport'])->name('ai-import.cancel');
     Route::post('ai-import/approve/{batch_id}', [AiImportController::class, 'approve'])->name('ai-import.approve');
 
