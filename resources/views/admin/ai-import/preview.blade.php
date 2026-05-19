@@ -12,11 +12,11 @@
                         <ol class="inline-flex items-center space-x-2">
                             <li class="inline-flex items-center">
                                 <a href="{{ route('admin.ai-import.index') }}"
-                                    class="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-indigo-600 transition-colors flex items-center">
+                                    class="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-indigo-600 transition-colors flex items-center">
                                     <i class="fas fa-magic mr-1.5"></i> AI Import
                                 </a>
                             </li>
-                            <li class="flex items-center text-slate-300">
+                            <li class="flex items-center text-slate-400">
                                 <i class="fas fa-chevron-right text-[8px]"></i>
                                 <span class="text-[10px] font-black uppercase tracking-widest text-slate-900 ml-2">Review</span>
                             </li>
@@ -58,9 +58,11 @@
                     @if (count($questions) > 0)
                         <div class="flex items-center gap-3">
                             <button onclick="cancelSession('{{ $batchId }}')"
-                                class="flex-1 sm:flex-none px-6 py-3.5 text-xs font-black text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-2xl transition-all uppercase tracking-widest">Discard</button>
+                                class="flex-1 sm:flex-none px-6 py-3.5 text-xs font-black text-slate-600 hover:text-rose-600 hover:bg-rose-50 border-2 border-slate-200/85 hover:border-rose-200 rounded-2xl transition-all uppercase tracking-widest cursor-pointer active:scale-95">
+                                <i class="fas fa-trash mr-1.5 text-[10px]"></i> Discard
+                            </button>
                             <button id="approveBtn"
-                                class="flex-1 sm:flex-none inline-flex items-center justify-center px-8 py-3.5 bg-indigo-600 text-white rounded-2xl font-black hover:bg-indigo-700 hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-indigo-100 uppercase tracking-widest text-xs border border-indigo-500">
+                                class="flex-1 sm:flex-none inline-flex items-center justify-center px-8 py-3.5 bg-indigo-600 text-white rounded-2xl font-black hover:bg-indigo-700 hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-indigo-100 uppercase tracking-widest text-xs border-2 border-indigo-500 cursor-pointer">
                                 <i class="fas fa-cloud-upload-alt mr-2 text-sm"></i> Save to DB
                             </button>
                         </div>
@@ -85,7 +87,7 @@
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">View:</span>
-                        <button class="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl border border-indigo-100">
+                        <button class="p-2.5 bg-indigo-50 text-indigo-700 rounded-xl border-2 border-indigo-200 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 hover:scale-105 active:scale-95 transition-all cursor-pointer shadow-sm hover:shadow-indigo-100 flex items-center justify-center">
                             <i class="fas fa-list-ul"></i>
                         </button>
                     </div>
@@ -115,19 +117,19 @@
                             <thead>
                                 <tr class="bg-slate-50/50">
                                     <th
-                                        class="px-6 py-5 text-[10px] font-black uppercase text-slate-400 tracking-widest w-16 border-b border-slate-200">
+                                        class="px-6 py-5 text-[10px] font-black uppercase text-slate-500 tracking-widest w-16 border-b border-slate-200">
                                         #</th>
                                     <th
-                                        class="px-6 py-5 text-[10px] font-black uppercase text-slate-400 tracking-widest border-b border-slate-200">
+                                        class="px-6 py-5 text-[10px] font-black uppercase text-slate-500 tracking-widest border-b border-slate-200">
                                         Question Preview</th>
                                     <th
-                                        class="px-6 py-5 text-[10px] font-black uppercase text-slate-400 tracking-widest w-24 border-b border-slate-200 text-center">
+                                        class="px-6 py-5 text-[10px] font-black uppercase text-slate-500 tracking-widest w-24 border-b border-slate-200 text-center">
                                         Type</th>
                                     <th
-                                        class="px-6 py-5 text-[10px] font-black uppercase text-slate-400 tracking-widest w-20 border-b border-slate-200 text-center">
+                                        class="px-6 py-5 text-[10px] font-black uppercase text-slate-500 tracking-widest w-20 border-b border-slate-200 text-center">
                                         Page</th>
                                     <th
-                                        class="px-6 py-5 text-[10px] font-black uppercase text-slate-400 tracking-widest w-40 border-b border-slate-200 text-right">
+                                        class="px-6 py-5 text-[10px] font-black uppercase text-slate-500 tracking-widest w-40 border-b border-slate-200 text-right">
                                         Actions</th>
                                 </tr>
                             </thead>
@@ -154,7 +156,7 @@
                                                     </span>
                                                 @endif
                                                 @if (count($q['options'] ?? []) > 0)
-                                                    <span class="text-[9px] font-black uppercase text-slate-400 flex items-center">
+                                                    <span class="text-[9px] font-black uppercase text-slate-500 flex items-center">
                                                         <i class="fas fa-th-list mr-1"></i> {{ count($q['options']) }}
                                                         Options
                                                     </span>
@@ -174,24 +176,29 @@
                                             </span>
                                         </td>
                                         <td class="px-6 py-5 align-top text-center">
-                                            <span class="text-xs font-bold text-slate-400 tabular-nums">
+                                            <span class="text-xs font-bold text-slate-500 tabular-nums">
                                                 P.{{ $q['source_page'] ?? '?' }}
                                             </span>
                                         </td>
-                                        <td class="px-6 py-5 text-right align-top space-x-1">
-                                            <button type="button" onclick="editQuestion({{ $index }}, event)"
-                                                class="w-9 h-9 flex items-center justify-center rounded-xl text-slate-400 hover:bg-white hover:text-indigo-600 hover:shadow-md transition-all">
-                                                <i class="fas fa-edit text-xs"></i>
-                                            </button>
-                                            <button type="button" onclick="deleteQuestion({{ $index }}, event)"
-                                                class="w-9 h-9 inline-flex items-center justify-center rounded-xl text-slate-300 hover:bg-rose-50 hover:text-rose-600 transition-all">
-                                                <i class="fas fa-trash-alt text-xs"></i>
-                                            </button>
-                                            <button type="button"
-                                                class="w-9 h-9 flex items-center justify-center rounded-xl text-slate-300 hover:text-indigo-600 transition-all">
-                                                <i id="icon-{{ $index }}"
-                                                    class="fas fa-chevron-down text-[10px] transition-transform duration-300"></i>
-                                            </button>
+                                        <td class="px-6 py-5 text-right align-top">
+                                            <div class="flex items-center justify-end gap-2">
+                                                <button type="button" onclick="editQuestion({{ $index }}, event)"
+                                                    class="action-btn w-9 h-9 inline-flex items-center justify-center rounded-xl bg-indigo-50 text-indigo-700 border-2 border-indigo-200 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 hover:scale-110 hover:shadow-lg hover:shadow-indigo-100 active:scale-95 transition-all animate-in fade-in zoom-in-95 duration-200 cursor-pointer"
+                                                    title="Edit Question">
+                                                    <i class="fas fa-edit text-xs"></i>
+                                                </button>
+                                                <button type="button" onclick="deleteQuestion({{ $index }}, event)"
+                                                    class="action-btn w-9 h-9 inline-flex items-center justify-center rounded-xl bg-rose-50 text-rose-700 border-2 border-rose-200 hover:bg-rose-600 hover:text-white hover:border-rose-600 hover:scale-110 hover:shadow-lg hover:shadow-rose-100 active:scale-95 transition-all animate-in fade-in zoom-in-95 duration-200 cursor-pointer"
+                                                    title="Delete Question">
+                                                    <i class="fas fa-trash-alt text-xs"></i>
+                                                </button>
+                                                <button type="button"
+                                                    class="action-btn w-9 h-9 inline-flex items-center justify-center rounded-xl bg-slate-50 text-slate-750 border-2 border-slate-200 hover:bg-slate-600 hover:text-white hover:border-slate-600 hover:scale-110 hover:shadow-lg hover:shadow-slate-100 active:scale-95 transition-all duration-300 cursor-pointer"
+                                                    title="Toggle Details">
+                                                    <i id="icon-{{ $index }}"
+                                                        class="fas fa-chevron-down text-[10px] transition-transform duration-300"></i>
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                     {{-- Detailed View --}}
@@ -279,8 +286,8 @@
                                                     @if (!empty($q['solution']))
                                                         <div class="space-y-2">
                                                             <label
-                                                                class="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-2">
-                                                                <i class="fas fa-lightbulb text-amber-400"></i> AI Solution
+                                                                class="text-[10px] font-black uppercase text-slate-500 tracking-widest flex items-center gap-2">
+                                                                <i class="fas fa-lightbulb text-amber-500"></i> AI Solution
                                                             </label>
                                                             <div
                                                                 class="p-4 bg-slate-100/50 rounded-2xl text-[11px] text-slate-600 leading-relaxed font-medium italic border border-slate-200/50">
@@ -291,8 +298,8 @@
                                                     @if (!empty($q['hint']))
                                                         <div class="space-y-2">
                                                             <label
-                                                                class="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-2">
-                                                                <i class="fas fa-info-circle text-blue-400"></i> AI Hint
+                                                                class="text-[10px] font-black uppercase text-slate-500 tracking-widest flex items-center gap-2">
+                                                                <i class="fas fa-info-circle text-blue-500"></i> AI Hint
                                                             </label>
                                                             <div
                                                                 class="p-4 bg-slate-100/50 rounded-2xl text-[11px] text-slate-600 leading-relaxed font-medium italic border border-slate-200/50">
@@ -341,13 +348,13 @@
                                 class="w-full px-6 py-5 bg-slate-50 border-2 border-slate-100 rounded-3xl text-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white transition-all font-bold leading-relaxed"></textarea>
                             <div class="flex flex-wrap gap-2">
                                 <label
-                                    class="inline-flex items-center px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-indigo-600 hover:border-indigo-200 cursor-pointer">
-                                    <i class="fas fa-image mr-2"></i> Add Question Image
+                                    class="inline-flex items-center px-4 py-2.5 bg-indigo-50/60 text-indigo-700 border border-indigo-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all cursor-pointer">
+                                    <i class="fas fa-image mr-2 text-xs"></i> Add Question Image
                                     <input type="file" accept="image/*" class="hidden manual-image-input" data-target="question">
                                 </label>
                                 <button type="button" onclick="removeImagesFromField('question')"
-                                    class="px-4 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-rose-600 hover:border-rose-200">
-                                    Remove Question Images
+                                    class="px-4 py-2.5 bg-rose-50/60 text-rose-700 border border-rose-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-600 hover:text-white hover:border-rose-600 transition-all">
+                                    <i class="fas fa-trash-alt mr-2 text-xs"></i> Remove Question Images
                                 </button>
                             </div>
                         </div>
@@ -421,7 +428,7 @@
 
         function toggleDetails(index, event) {
             // Prevent trigger if clicking on specific buttons
-            if (event.target.closest('button') && !event.target.closest('button').classList.contains('w-9')) return;
+            if (event.target.closest('button') && !event.target.closest('button').classList.contains('action-btn')) return;
 
             const row = document.getElementById(`details-${index}`);
             const icon = document.getElementById(`icon-${index}`);
@@ -489,21 +496,21 @@
 
                     const div = document.createElement('div');
                     div.className =
-                        `p-5 rounded-3xl border-2 transition-all ${isCorrect ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-100'}`;
+                        `p-5 rounded-3xl border-2 transition-all ${isCorrect ? 'bg-emerald-50/50 border-emerald-200' : 'bg-slate-50 border-slate-100'}`;
                     div.innerHTML = `
                         <div class="flex items-center gap-2 mb-3">
-                            <span class="text-[10px] font-black text-slate-400 tracking-tighter">OPTION ${String.fromCharCode(65 + optIdx)}</span>
+                            <span class="text-[10px] font-black text-slate-500 tracking-tighter">OPTION ${String.fromCharCode(65 + optIdx)}</span>
                             ${isCorrect ? '<span class="ml-auto text-[9px] font-black text-emerald-600 uppercase bg-emerald-100 px-1.5 py-0.5 rounded">Correct</span>' : ''}
                         </div>
                         <textarea class="option-input w-full bg-white border border-slate-200 rounded-2xl p-3 text-xs font-bold focus:ring-2 focus:ring-indigo-500 transition-all" data-idx="${optIdx}" rows="2">${opt}</textarea>
                         <div class="flex flex-wrap gap-2 mt-3">
-                            <label class="inline-flex items-center px-3 py-2 bg-white border border-slate-200 rounded-xl text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-indigo-600 hover:border-indigo-200 cursor-pointer">
-                                <i class="fas fa-image mr-1.5"></i> Add Image
+                            <label class="inline-flex items-center px-3.5 py-2 bg-indigo-50/60 text-indigo-700 border border-indigo-100 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all cursor-pointer">
+                                <i class="fas fa-image mr-1.5 text-xs"></i> Add Image
                                 <input type="file" accept="image/*" class="hidden manual-image-input" data-target="option_${optIdx}">
                             </label>
                             <button type="button" onclick="removeImagesFromField('option_${optIdx}')"
-                                class="px-3 py-2 bg-white border border-slate-200 rounded-xl text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-rose-600 hover:border-rose-200">
-                                Remove Images
+                                class="px-3.5 py-2 bg-rose-50/60 text-rose-700 border border-rose-100 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-rose-600 hover:text-white hover:border-rose-600 transition-all">
+                                <i class="fas fa-trash-alt mr-1.5 text-xs"></i> Remove Images
                             </button>
                         </div>
                     `;
@@ -528,12 +535,15 @@
                 container.innerHTML = `
                     <label class="block text-[11px] font-black uppercase text-slate-500 tracking-widest">Correct Options</label>
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        ${options.map((_, idx) => `
-                            <label class="flex items-center gap-2 p-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold cursor-pointer">
-                                <input type="checkbox" class="correct-answer-input" value="${idx}" ${(q.correct_option_indices || []).includes(idx) ? 'checked' : ''}>
-                                Option ${String.fromCharCode(65 + idx)}
-                            </label>
-                        `).join('')}
+                        ${options.map((_, idx) => {
+                            const checked = (q.correct_option_indices || []).includes(idx);
+                            return `
+                                <label class="flex items-center gap-2 p-3 rounded-2xl text-xs font-bold cursor-pointer transition-all border-2 ${checked ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-slate-50 border-slate-100 text-slate-700 hover:bg-slate-100'}">
+                                    <input type="checkbox" class="correct-answer-input rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" value="${idx}" ${checked ? 'checked' : ''} onchange="this.parentElement.className = 'flex items-center gap-2 p-3 rounded-2xl text-xs font-bold cursor-pointer transition-all border-2 ' + (this.checked ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-slate-50 border-slate-100 text-slate-700 hover:bg-slate-100')">
+                                    Option ${String.fromCharCode(65 + idx)}
+                                </label>
+                            `;
+                        }).join('')}
                     </div>
                 `;
                 return;
@@ -543,12 +553,15 @@
                 container.innerHTML = `
                     <label class="block text-[11px] font-black uppercase text-slate-500 tracking-widest">Correct Option</label>
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        ${options.map((_, idx) => `
-                            <label class="flex items-center gap-2 p-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold cursor-pointer">
-                                <input type="radio" name="correct-answer-radio" class="correct-answer-input" value="${idx}" ${q.correct_option_index == idx ? 'checked' : ''}>
-                                Option ${String.fromCharCode(65 + idx)}
-                            </label>
-                        `).join('')}
+                        ${options.map((_, idx) => {
+                            const checked = q.correct_option_index == idx;
+                            return `
+                                <label class="flex items-center gap-2 p-3 rounded-2xl text-xs font-bold cursor-pointer transition-all border-2 ${checked ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-slate-50 border-slate-100 text-slate-700 hover:bg-slate-100'}">
+                                    <input type="radio" name="correct-answer-radio" class="correct-answer-input border-slate-300 text-emerald-600 focus:ring-emerald-500" value="${idx}" ${checked ? 'checked' : ''} onchange="document.getElementsByName('correct-answer-radio').forEach(r => r.parentElement.className = 'flex items-center gap-2 p-3 rounded-2xl text-xs font-bold cursor-pointer transition-all border-2 bg-slate-50 border-slate-100 text-slate-700 hover:bg-slate-100'); this.parentElement.className = 'flex items-center gap-2 p-3 rounded-2xl text-xs font-bold cursor-pointer transition-all border-2 bg-emerald-50 border-emerald-200 text-emerald-800'">
+                                    Option ${String.fromCharCode(65 + idx)}
+                                </label>
+                            `;
+                        }).join('')}
                     </div>
                 `;
                 return;
