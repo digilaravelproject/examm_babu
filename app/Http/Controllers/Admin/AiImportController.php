@@ -238,7 +238,13 @@ class AiImportController extends Controller
             return response()->json(['success' => false, 'message' => 'Batch not found.']);
         }
 
-        Storage::put($filePath, json_encode($request->questions));
+        $questions = array_map(function ($question) {
+            return is_array($question)
+                ? $this->aiService->normalizeCorrectAnswerFields($question)
+                : $question;
+        }, $request->questions);
+
+        Storage::put($filePath, json_encode($questions));
 
         return response()->json(['success' => true, 'message' => 'JSON updated successfully.']);
     }
@@ -433,6 +439,11 @@ class AiImportController extends Controller
         }
 
         $questions = json_decode(Storage::get($jsonFile), true) ?? [];
+        $questions = array_map(function ($question) {
+            return is_array($question)
+                ? $this->aiService->normalizeCorrectAnswerFields($question)
+                : $question;
+        }, $questions);
 
         if ($request->ajax() || $request->has('json')) {
             return response()->json($questions);

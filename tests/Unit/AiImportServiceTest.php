@@ -155,3 +155,91 @@ test('verified public image url uses current request root to avoid stale app url
 
     expect($url)->toBe('http://xampp.test/storage/ai_extracted/batch/img_1.jpg');
 });
+
+test('maps single correct answers from label number text and legacy fields', function () {
+    $service = aiImportServiceWithoutConstructor();
+
+    $byLabel = $service->normalizeCorrectAnswerFields([
+        'type' => 'MSA',
+        'question' => 'Q',
+        'options' => ['Alpha', 'Beta', 'Gamma', 'Delta'],
+        'correct_option_label' => 'C',
+    ]);
+
+    $byOneBasedNumber = $service->normalizeCorrectAnswerFields([
+        'type' => 'MSA',
+        'question' => 'Q',
+        'options' => ['Alpha', 'Beta', 'Gamma', 'Delta'],
+        'correct_answer' => '2',
+    ]);
+
+    $byText = $service->normalizeCorrectAnswerFields([
+        'type' => 'MSA',
+        'question' => 'Q',
+        'options' => ['Alpha', 'Beta', 'Gamma', 'Delta'],
+        'correct_answer_text' => 'Gamma',
+    ]);
+
+    expect($byLabel['correct_option_index'])->toBe(2)
+        ->and($byOneBasedNumber['correct_option_index'])->toBe(1)
+        ->and($byText['correct_option_index'])->toBe(2)
+        ->and($byText['answer_validation_status'])->toBe('valid');
+});
+
+test('flags missing single correct answer instead of guessing option one', function () {
+    $service = aiImportServiceWithoutConstructor();
+
+    $normalized = $service->normalizeCorrectAnswerFields([
+        'type' => 'MSA',
+        'question' => 'Q',
+        'options' => ['Alpha', 'Beta', 'Gamma', 'Delta'],
+    ]);
+
+    expect($normalized['answer_validation_status'])->toBe('missing')
+        ->and($normalized)->not->toHaveKey('correct_option_index');
+});
+
+test('maps multiple correct answers and legacy is correct option flags', function () {
+    $service = aiImportServiceWithoutConstructor();
+
+    $fromLabels = $service->normalizeCorrectAnswerFields([
+        'type' => 'MMA',
+        'question' => 'Q',
+        'options' => ['Alpha', 'Beta', 'Gamma', 'Delta'],
+        'correct_answer' => 'A, D',
+    ]);
+
+    $fromFlags = $service->normalizeCorrectAnswerFields([
+        'type' => 'MMA',
+        'question' => 'Q',
+        'options' => [
+            ['option' => 'Alpha', 'is_correct' => true],
+            ['option' => 'Beta', 'is_correct' => false],
+            ['option' => 'Gamma', 'is_correct' => true],
+        ],
+    ]);
+
+    expect($fromLabels['correct_option_indices'])->toBe([0, 3])
+        ->and($fromFlags['correct_option_indices'])->toBe([0, 2]);
+});
+
+test('ai mcq correct answer normalization uses same zero based indices as normal import flow', function () {
+    $service = aiImportServiceWithoutConstructor();
+
+    $single = $service->normalizeCorrectAnswerFields([
+        'type' => 'MSA',
+        'question' => 'Q',
+        'options' => ['Alpha', 'Beta', 'Gamma', 'Delta'],
+        'correct_answer' => 'B',
+    ]);
+
+    $multiple = $service->normalizeCorrectAnswerFields([
+        'type' => 'MMA',
+        'question' => 'Q',
+        'options' => ['Alpha', 'Beta', 'Gamma', 'Delta'],
+        'correct_answer' => 'B, D',
+    ]);
+
+    expect($single['correct_option_index'])->toBe(1)
+        ->and($multiple['correct_option_indices'])->toBe([1, 3]);
+});

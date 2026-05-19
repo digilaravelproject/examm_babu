@@ -353,6 +353,9 @@ class AiImportService
                         'type' => 'ARRAY',
                         'items' => ['type' => 'INTEGER'],
                     ],
+                    'correct_option_label' => ['type' => 'STRING'],
+                    'correct_option_text' => ['type' => 'STRING'],
+                    'correct_answer' => ['type' => 'STRING'],
                     'correct_answer_text' => ['type' => 'STRING'],
                     'solution' => ['type' => 'STRING'],
                     'hint' => ['type' => 'STRING'],
@@ -486,6 +489,9 @@ class AiImportService
   - FIB: Fill in the blank (Provide correct_answer_text).
   - SAQ: Descriptive/Short Answer (Provide detailed solution/solution).
 - **Correctness:** Analyze the text deeply to identify the correct option. If the PDF has an answer key at the end, use it!
+- **MCQ Answer Mapping:** For MSA/TOF, return exactly one correct option using `correct_option_index` as a 0-based index. Also include `correct_option_label` (A/B/C/D) or `correct_option_text` when visible.
+- **Multiple Answer Mapping:** For MMA, return all correct options in `correct_option_indices` as 0-based indices.
+- **Do Not Guess:** If the answer is unclear or absent, leave the correct answer fields empty so the import can flag it for review.
 
 ---
 ### 4. OUTPUT FORMAT
@@ -651,6 +657,7 @@ EOT;
 
             $optionBoxes = $this->normalizeOptionImageBoxes($question['option_image_boxes'] ?? []);
             $question['option_image_boxes'] = $optionBoxes;
+            $question = $this->normalizeCorrectAnswerFields($question);
 
             $normalized[] = $question;
         }
@@ -722,6 +729,227 @@ EOT;
         ksort($normalized, SORT_NUMERIC);
 
         return $normalized;
+    }
+
+    public function normalizeCorrectAnswerFields(array $question): array
+    {
+        $type = strtoupper((string) ($question['type'] ?? 'MSA'));
+        $options = array_values($question['options'] ?? []);
+        $optionCount = count($options);
+
+        unset($question['answer_validation_message']);
+        $question['answer_validation_status'] = 'not_required';
+
+        if (in_array($type, ['MSA', 'TOF'], true)) {
+            $resolved = $this->resolveSingleCorrectOptionIndex($question, $options);
+
+            if ($resolved === null) {
+                unset($question['correct_option_index']);
+                $question['answer_validation_status'] = 'missing';
+                $question['answer_validation_message'] = 'Correct answer missing or unclear. Please review before approval.';
+            } else {
+                $question['correct_option_index'] = $resolved;
+                $question['correct_option_indices'] = [];
+                $question['correct_option_label'] = chr(65 + $resolved);
+                $question['correct_option_text'] = $this->plainOptionText($options[$resolved] ?? '');
+                $question['answer_validation_status'] = 'valid';
+            }
+
+            return $question;
+        }
+
+        if ($type === 'MMA') {
+            $indices = $this->resolveMultipleCorrectOptionIndices($question, $options);
+
+            if (count($indices) === 0) {
+                unset($question['correct_option_indices']);
+                $question['answer_validation_status'] = 'missing';
+                $question['answer_validation_message'] = 'Multiple-answer correct options missing or unclear. Please review before approval.';
+            } else {
+                $question['correct_option_indices'] = $indices;
+                unset($question['correct_option_index']);
+                $question['answer_validation_status'] = 'valid';
+            }
+
+            return $question;
+        }
+
+        if (in_array($type, ['FIB', 'SAQ'], true)) {
+            if (! empty($question['correct_answer_text'])) {
+                $question['answer_validation_status'] = 'valid';
+            } else {
+                $question['answer_validation_status'] = 'missing';
+                $question['answer_validation_message'] = 'Correct answer text missing or unclear. Please review before approval.';
+            }
+        }
+
+        return $question;
+    }
+
+    private function resolveSingleCorrectOptionIndex(array $question, array $options): ?int
+    {
+        $optionCount = count($options);
+        if ($optionCount === 0) {
+            return null;
+        }
+
+        if (array_key_exists('correct_option_index', $question) && $question['correct_option_index'] !== null && $question['correct_option_index'] !== '') {
+            $idx = (int) $question['correct_option_index'];
+            if ($idx >= 0 && $idx < $optionCount) {
+                return $idx;
+            }
+        }
+
+        $candidateFields = [
+            'correct_option_label',
+            'correct_option_text',
+            'correct_answer',
+            'answer',
+            'correct_answer_text',
+        ];
+
+        foreach ($candidateFields as $field) {
+            if (! array_key_exists($field, $question)) {
+                continue;
+            }
+
+            $idx = $this->resolveOptionReference($question[$field], $options);
+            if ($idx !== null) {
+                return $idx;
+            }
+        }
+
+        return $this->resolveOptionMarkedCorrect($options, false);
+    }
+
+    private function resolveMultipleCorrectOptionIndices(array $question, array $options): array
+    {
+        $optionCount = count($options);
+        if ($optionCount === 0) {
+            return [];
+        }
+
+        $resolved = [];
+
+        if (isset($question['correct_option_indices']) && is_array($question['correct_option_indices'])) {
+            foreach ($question['correct_option_indices'] as $idx) {
+                if (is_numeric($idx) && (int) $idx >= 0 && (int) $idx < $optionCount) {
+                    $resolved[] = (int) $idx;
+                }
+            }
+        }
+
+        foreach (['correct_answer', 'answer', 'correct_answer_text', 'correct_option_text', 'correct_option_label'] as $field) {
+            if (! array_key_exists($field, $question)) {
+                continue;
+            }
+
+            $values = is_array($question[$field])
+                ? $question[$field]
+                : preg_split('/\s*,\s*|\s*;\s*/', (string) $question[$field], -1, PREG_SPLIT_NO_EMPTY);
+
+            foreach ($values as $value) {
+                $idx = $this->resolveOptionReference($value, $options);
+                if ($idx !== null) {
+                    $resolved[] = $idx;
+                }
+            }
+        }
+
+        $marked = $this->resolveOptionMarkedCorrect($options, true);
+        if (is_array($marked)) {
+            $resolved = array_merge($resolved, $marked);
+        }
+
+        $resolved = array_values(array_unique(array_filter($resolved, fn ($idx) => $idx >= 0 && $idx < $optionCount)));
+        sort($resolved);
+
+        return $resolved;
+    }
+
+    private function resolveOptionReference($value, array $options): ?int
+    {
+        if (is_array($value)) {
+            if (array_key_exists('index', $value)) {
+                return $this->resolveOptionReference($value['index'], $options);
+            }
+            if (array_key_exists('option', $value)) {
+                return $this->resolveOptionReference($value['option'], $options);
+            }
+            if (array_key_exists('text', $value)) {
+                return $this->resolveOptionReference($value['text'], $options);
+            }
+
+            return null;
+        }
+
+        $raw = trim((string) $value);
+        if ($raw === '') {
+            return null;
+        }
+
+        $optionCount = count($options);
+
+        if (preg_match('/^(?:option\s*)?([A-Z])$/i', $raw, $matches)) {
+            $idx = ord(strtoupper($matches[1])) - 65;
+            return ($idx >= 0 && $idx < $optionCount) ? $idx : null;
+        }
+
+        if (preg_match('/^(?:option\s*)?(\d+)$/i', $raw, $matches)) {
+            $number = (int) $matches[1];
+            if ($number >= 1 && $number <= $optionCount) {
+                return $number - 1;
+            }
+            if ($number === 0 && $optionCount > 0) {
+                return 0;
+            }
+        }
+
+        $needle = $this->normalizeAnswerText($raw);
+        foreach ($options as $idx => $option) {
+            if ($needle !== '' && $needle === $this->normalizeAnswerText($this->plainOptionText($option))) {
+                return (int) $idx;
+            }
+        }
+
+        return null;
+    }
+
+    private function resolveOptionMarkedCorrect(array $options, bool $multiple)
+    {
+        $indices = [];
+        foreach ($options as $idx => $option) {
+            if (is_array($option) && ! empty($option['is_correct'])) {
+                $indices[] = (int) $idx;
+            }
+        }
+
+        if ($multiple) {
+            return $indices;
+        }
+
+        return count($indices) === 1 ? $indices[0] : null;
+    }
+
+    private function plainOptionText($option): string
+    {
+        if (is_array($option)) {
+            $option = $option['option'] ?? $option['text'] ?? '';
+        }
+
+        $text = str_replace('[IMAGE HERE]', '', (string) $option);
+        return trim(strip_tags($text));
+    }
+
+    private function normalizeAnswerText(string $text): string
+    {
+        $text = strtolower(trim(strip_tags($text)));
+        $text = str_replace('[image here]', '', $text);
+        $text = preg_replace('/^\(?[a-z]\)?[\.\)\-:]\s*/i', '', $text);
+        $text = preg_replace('/^\(?\d+\)?[\.\)\-:]\s*/', '', $text);
+        $text = preg_replace('/\s+/', ' ', $text);
+
+        return trim($text);
     }
 
     private function guessQuestionNumber(string $question, int $index): string
@@ -808,6 +1036,8 @@ EOT;
                     continue;
                 }
 
+                $qData = $this->normalizeCorrectAnswerFields($qData);
+
                 $cleanPrefix = strtolower(trim(substr(strip_tags($qData['question']), 0, 100)));
                 if (in_array($cleanPrefix, $existingPrefixes)) {
                     continue;
@@ -821,18 +1051,52 @@ EOT;
 
                 switch ($typeCode) {
                     case 'MMA':
+                        if (($qData['answer_validation_status'] ?? null) !== 'valid') {
+                            Log::warning('Skipping AI imported MMA question with missing correct answers', [
+                                'topic_id' => $topicId,
+                                'index' => $index,
+                                'question_number' => $qData['question_number'] ?? null,
+                                'source_page' => $qData['source_page'] ?? null,
+                            ]);
+                            continue 2;
+                        }
                         foreach (($qData['options'] ?? []) as $optText) {
-                            $formattedOptions[] = ['option' => $optText, 'partial_weightage' => 0];
+                            $formattedOptions[] = ['option' => $this->optionHtml($optText), 'is_correct' => false, 'partial_weightage' => 0];
                         }
                         $indices = is_array($qData['correct_option_indices'] ?? null) ? $qData['correct_option_indices'] : [];
-                        $correctAnswer = array_map(fn ($i) => (int) $i + 1, $indices);
+                        $correctAnswer = array_map(fn ($i) => (int) $i, $indices);
+                        foreach ($indices as $idx) {
+                            if (isset($formattedOptions[(int) $idx])) {
+                                $formattedOptions[(int) $idx]['is_correct'] = true;
+                            }
+                        }
                         break;
                     case 'TOF':
                     case 'MSA':
-                        foreach (($qData['options'] ?? []) as $optText) {
-                            $formattedOptions[] = ['option' => $optText, 'partial_weightage' => 0];
+                        if (($qData['answer_validation_status'] ?? null) !== 'valid' || ! isset($qData['correct_option_index'])) {
+                            Log::warning('Skipping AI imported single-answer question with missing correct answer', [
+                                'topic_id' => $topicId,
+                                'index' => $index,
+                                'question_number' => $qData['question_number'] ?? null,
+                                'source_page' => $qData['source_page'] ?? null,
+                            ]);
+                            continue 2;
                         }
-                        $correctAnswer = (isset($qData['correct_option_index']) ? (int) $qData['correct_option_index'] : 0) + 1;
+                        foreach (($qData['options'] ?? []) as $optText) {
+                            $formattedOptions[] = ['option' => $this->optionHtml($optText), 'is_correct' => false, 'partial_weightage' => 0];
+                        }
+                        $correctIdx = (int) $qData['correct_option_index'];
+                        if (! isset($formattedOptions[$correctIdx])) {
+                            Log::warning('Skipping AI imported single-answer question with out-of-range correct answer', [
+                                'topic_id' => $topicId,
+                                'index' => $index,
+                                'correct_option_index' => $correctIdx,
+                                'options_count' => count($formattedOptions),
+                            ]);
+                            continue 2;
+                        }
+                        $formattedOptions[$correctIdx]['is_correct'] = true;
+                        $correctAnswer = $correctIdx;
                         break;
                     case 'FIB':
                     case 'SAQ':
@@ -873,5 +1137,14 @@ EOT;
 
             return $insertedCount;
         });
+    }
+
+    private function optionHtml($option): string
+    {
+        if (is_array($option)) {
+            return (string) ($option['option'] ?? $option['text'] ?? '');
+        }
+
+        return (string) $option;
     }
 }

@@ -159,6 +159,12 @@
                                                         Options
                                                     </span>
                                                 @endif
+                                                @if (($q['answer_validation_status'] ?? 'valid') === 'missing')
+                                                    <span
+                                                        class="text-[9px] font-black uppercase text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100 flex items-center">
+                                                        <i class="fas fa-exclamation-triangle mr-1"></i> Answer Review
+                                                    </span>
+                                                @endif
                                             </div>
                                         </td>
                                         <td class="px-6 py-5 align-top text-center">
@@ -203,6 +209,14 @@
                                                 </div>
 
                                                 {{-- Options Grid --}}
+                                                @if (($q['answer_validation_status'] ?? 'valid') === 'missing')
+                                                    <div
+                                                        class="p-4 bg-amber-50 border-2 border-amber-100 rounded-2xl text-amber-800 text-xs font-bold flex items-center gap-3">
+                                                        <i class="fas fa-exclamation-triangle text-amber-500"></i>
+                                                        <span>{{ $q['answer_validation_message'] ?? 'Correct answer missing or unclear. Please review the JSON before approval.' }}</span>
+                                                    </div>
+                                                @endif
+
                                                 @if (isset($q['options']) && is_array($q['options']) && count($q['options']) > 0)
                                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                                                         @foreach ($q['options'] as $optIdx => $opt)
