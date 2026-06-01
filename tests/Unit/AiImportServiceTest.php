@@ -90,10 +90,10 @@ test('normalizes question and option image boxes including legacy formats', func
 
     $normalized = $service->normalizeExtractedQuestionsForImport($questions, 3, 3);
 
-    expect($normalized[0]['image_box'])->toBe([100, 200, 300, 400])
+    expect($normalized[0]['image_box'])->toBe([94, 194, 306, 406])
         ->and($normalized[0]['option_image_boxes'])->toBe([
-            '0' => [300, 100, 400, 200],
-            '2' => [410, 110, 501, 230],
+            '0' => [294, 94, 406, 206],
+            '2' => [404, 104, 507, 236],
         ]);
 });
 
@@ -103,7 +103,129 @@ test('rejects malformed coordinates', function () {
     expect($service->normalizeImageBox([100, 200, 50, 400]))->toBeNull()
         ->and($service->normalizeImageBox([100, -1, 200, 400]))->toBeNull()
         ->and($service->normalizeImageBox([100, 200, 200]))->toBeNull()
-        ->and($service->normalizeImageBox([100, 200, 300, 400]))->toBe([100, 200, 300, 400]);
+        ->and($service->normalizeImageBox([100, 200, 300, 400]))->toBe([94, 194, 306, 406]);
+});
+
+test('keeps english and math text while filtering multilingual duplicates', function () {
+    $service = aiImportServiceWithoutConstructor();
+    $questions = [[
+        'type' => 'MSA',
+        'question' => "What is acceleration due to gravity?\nगुरुत्वीय त्वरण का मान क्या है?\n\\frac{a}{b} + \\sqrt{x}",
+        'source_page' => 1,
+        'options' => [
+            "9.8 m/s^2\n९.८ मी/से^2",
+            '10 m/s^2',
+            '\\frac{1}{2}x^2',
+            'None of these',
+        ],
+    ]];
+
+    $normalized = $service->normalizeExtractedQuestionsForImport($questions, 1, 1);
+
+    expect($normalized)->toHaveCount(1)
+        ->and($normalized[0]['question'])->toContain('What is acceleration due to gravity?')
+        ->and($normalized[0]['question'])->not->toContain('गुरुत्वीय')
+        ->and($normalized[0]['question'])->toContain('\\frac{a}{b} + \\sqrt{x}')
+        ->and($normalized[0]['options'][0])->toBe('9.8 m/s^2')
+        ->and($normalized[0]['options'][2])->toBe('\\frac{1}{2}x^2');
+});
+
+test('drops uncertain mixed language question blocks and tracks diagnostics', function () {
+    $service = aiImportServiceWithoutConstructor();
+    $questions = [[
+        'type' => 'MSA',
+        'question' => 'What is गुरुत्व acceleration?',
+        'source_page' => 1,
+        'options' => ['A', 'B', 'C', 'D'],
+    ]];
+
+    $normalized = $service->normalizeExtractedQuestionsForImport($questions, 1, 1);
+    $diagnostics = $service->getLastImportDiagnostics();
+
+    expect($normalized)->toBe([])
+        ->and($diagnostics['validation']['english_filter']['questions_dropped'])->toBe(1)
+        ->and($diagnostics['validation']['english_filter']['mixed_blocks_detected'])->toBeGreaterThan(0);
+});
+
+test('canonicalizes extended question types from type text and question content', function () {
+    $service = aiImportServiceWithoutConstructor();
+    $questions = [
+        [
+            'type' => 'Match the Following',
+            'question' => 'Match the following:',
+            'options' => ['A -> 1', 'B -> 2'],
+            'source_page' => 1,
+        ],
+        [
+            'type' => 'ordering',
+            'question' => 'Arrange the following in correct sequence.',
+            'options' => ['One', 'Two', 'Three'],
+            'source_page' => 1,
+        ],
+        [
+            'type' => 'custom',
+            'question' => 'Assertion (A): ... Reason (R): ...',
+            'options' => ['A', 'B', 'C', 'D'],
+            'source_page' => 1,
+        ],
+        [
+            'type' => 'subjective long answer',
+            'question' => 'Explain in detail.',
+            'options' => [],
+            'source_page' => 1,
+        ],
+        [
+            'type' => 'numerical',
+            'question' => 'Compute the value.',
+            'options' => [],
+            'source_page' => 1,
+        ],
+    ];
+
+    $normalized = $service->normalizeExtractedQuestionsForImport($questions, 1, 1);
+
+    expect($normalized[0]['type'])->toBe('MTF')
+        ->and($normalized[1]['type'])->toBe('ORD')
+        ->and($normalized[2]['type'])->toBe('MSA')
+        ->and($normalized[3]['type'])->toBe('LAQ')
+        ->and($normalized[4]['type'])->toBe('SAQ');
+});
+
+test('final validation diagnostics include numbering type english image and math checks', function () {
+    $service = aiImportServiceWithoutConstructor();
+    $questions = [
+        [
+            'type' => 'MSA',
+            'question_number' => '1',
+            'question' => 'Q1 with math \\frac{a}{b}',
+            'options' => ['A', 'B', 'C', 'D'],
+            'image_box' => [100, 100, 200, 200],
+            'source_page' => 1,
+        ],
+        [
+            'type' => 'MSA',
+            'question_number' => '3',
+            'question' => 'Q3',
+            'options' => ['A', 'B', 'C', 'D'],
+            'option_image_boxes' => [['index' => 0, 'box' => [300, 200, 380, 280]]],
+            'source_page' => 1,
+        ],
+    ];
+
+    $normalized = $service->normalizeExtractedQuestionsForImport($questions, 1, 1);
+    callAiImportPrivate($service, 'finalizeValidationDiagnostics', [$normalized]);
+    $diagnostics = $service->getLastImportDiagnostics();
+
+    expect($diagnostics)->toHaveKey('validation')
+        ->and($diagnostics['validation']['total_extracted_count'])->toBe(2)
+        ->and($diagnostics['validation']['numbering']['checked'])->toBe(2)
+        ->and($diagnostics['validation']['numbering']['is_continuous'])->toBeFalse()
+        ->and($diagnostics['validation']['numbering']['missing_numbers'])->toBe([2])
+        ->and($diagnostics['validation']['type_distribution']['MSA'])->toBe(2)
+        ->and($diagnostics['validation']['english_filter']['questions_retained'])->toBe(2)
+        ->and($diagnostics['validation']['image_mapping']['questions_with_image'])->toBe(1)
+        ->and($diagnostics['validation']['image_mapping']['options_with_image'])->toBe(1)
+        ->and($diagnostics['validation']['math_preservation']['items_with_latex'])->toBeGreaterThan(0);
 });
 
 test('repairs truncated gemini json and reports it as repaired', function () {

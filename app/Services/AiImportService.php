@@ -16,6 +16,8 @@ use Illuminate\Support\Str;
 
 class AiImportService
 {
+    private const IMAGE_BOX_PADDING = 6;
+
     protected $repository;
 
     protected $settings;
@@ -124,6 +126,7 @@ class AiImportService
             'chunks' => [],
             'deduped' => [],
             'final_count' => 0,
+            'validation' => $this->defaultValidationDiagnostics(),
         ];
 
         $merged = [];
@@ -243,6 +246,7 @@ class AiImportService
 
         $deduped = $this->dedupeExtractedQuestions($merged, $batchId);
         $this->lastImportDiagnostics['final_count'] = count($deduped);
+        $this->finalizeValidationDiagnostics($deduped);
 
         if (count($deduped) === 0) {
             throw new \RuntimeException('Import incomplete: no questions were extracted from the selected PDF range.');
@@ -340,7 +344,7 @@ class AiImportService
                 'properties' => [
                     'type' => [
                         'type' => 'STRING',
-                        'enum' => ['MSA', 'MMA', 'TOF', 'FIB', 'SAQ'],
+                        'enum' => ['MSA', 'MMA', 'TOF', 'FIB', 'SAQ', 'MTF', 'ORD', 'LAQ'],
                     ],
                     'question_number' => ['type' => 'STRING'],
                     'question' => ['type' => 'STRING'],
@@ -470,14 +474,17 @@ class AiImportService
 - **Sequential Scan:** Scan the document line-by-line. If you find a question marker (e.g., 1., Q2, i), a), etc.), you MUST extract it.
 - **High Density:** Even if a page has 20+ small questions, extract every single one. Use your massive token limit (30,000) to provide the full list.
 - **Math & Science:** Use LaTeX syntax for EVERY formula, equation, or scientific symbol (e.g., use $ \frac{-b \pm \sqrt{b^2-4ac}}{2a} $ or $ H_{2}O $).
+- **Math Fidelity:** Preserve equations exactly as written. Never simplify, rewrite, or convert formula notation into plain text.
 - **Question Number:** If a visible question number/marker exists, return it in `question_number`.
+- **Multilingual Papers:** If the same content appears in multiple languages, return ONLY English text. Do not mix scripts in a single question or option.
 
 ---
 ### 2. SPATIAL & IMAGE INTELLIGENCE
-- **Coordinate Precision:** For ANY diagram, graph, map, or complex illustration, provide pixel-perfect [ymin, xmin, ymax, xmax] boxes (0-1000).
+- **Coordinate Precision:** For ANY diagram, graph, map, or complex illustration, provide [ymin, xmin, ymax, xmax] boxes (0-1000) with a small safe padding margin around the visual.
 - **Placeholder Injection:** In the 'question' or 'options' text, insert "[IMAGE HERE]" at the EXACT location where the visual element appears relative to the text.
 - **Option Images:** If options are images (common in geometry), you MUST provide 'option_image_boxes' as objects like {"index":0,"box":[ymin,xmin,ymax,xmax]}.
 - **Coordinate Format:** All image boxes must be [ymin, xmin, ymax, xmax], normalized from 0 to 1000 for the full PDF page.
+- **Ownership:** Keep image ownership strict. Question-level image belongs only to the question field; option image belongs only to its specific option index.
 
 ---
 ### 3. DATA STRUCTURE & MAPPING
@@ -487,7 +494,10 @@ class AiImportService
   - MMA: Multiple correct answers.
   - TOF: True/False.
   - FIB: Fill in the blank (Provide correct_answer_text).
-  - SAQ: Descriptive/Short Answer (Provide detailed solution/solution).
+  - SAQ: Descriptive/Short Answer.
+  - MTF: Match the Following.
+  - ORD: Ordering/Sequence.
+  - LAQ: Long Answer/Subjective.
 - **Correctness:** Analyze the text deeply to identify the correct option. If the PDF has an answer key at the end, use it!
 - **MCQ Answer Mapping:** For MSA/TOF, return exactly one correct option using `correct_option_index` as a 0-based index. Also include `correct_option_label` (A/B/C/D) or `correct_option_text` when visible.
 - **Multiple Answer Mapping:** For MMA, return all correct options in `correct_option_indices` as 0-based indices.
@@ -624,6 +634,7 @@ EOT;
 
     public function normalizeExtractedQuestionsForImport(array $questions, int $chunkStart = 1, int $chunkEnd = 1): array
     {
+        $this->ensureValidationDiagnosticsInitialized();
         $normalized = [];
 
         foreach ($questions as $index => $question) {
@@ -646,10 +657,27 @@ EOT;
 
             $question['source_page'] = $sourcePage;
             $question['page_number_extracted'] = $sourcePage;
+            $rawType = strtoupper(trim((string) ($question['type'] ?? '')));
+            $question['type'] = $this->resolveCanonicalQuestionType($question);
             $question['question_number'] = isset($question['question_number'])
                 ? trim((string) $question['question_number'])
                 : $this->guessQuestionNumber($question['question'] ?? '', $index);
+            if ($rawType !== '' && $rawType !== $question['type']) {
+                $this->lastImportDiagnostics['validation']['type_corrections'][] = [
+                    'from' => $rawType,
+                    'to' => $question['type'],
+                    'source_page' => $sourcePage,
+                    'question_number' => $question['question_number'] ?? null,
+                ];
+            }
 
+            $languageFiltered = $this->filterQuestionToEnglishOnly($question);
+            if ($languageFiltered === null) {
+                $this->lastImportDiagnostics['validation']['english_filter']['questions_dropped']++;
+                continue;
+            }
+
+            $question = $languageFiltered;
             $question['image_box'] = $this->normalizeImageBox($question['image_box'] ?? null);
             if ($question['image_box'] === null) {
                 unset($question['image_box']);
@@ -659,6 +687,7 @@ EOT;
             $question['option_image_boxes'] = $optionBoxes;
             $question = $this->normalizeCorrectAnswerFields($question);
 
+            $this->updateValidationDiagnosticsForQuestion($question);
             $normalized[] = $question;
         }
 
@@ -688,11 +717,359 @@ EOT;
             return null;
         }
 
+        $ymin -= self::IMAGE_BOX_PADDING;
+        $xmin -= self::IMAGE_BOX_PADDING;
+        $ymax += self::IMAGE_BOX_PADDING;
+        $xmax += self::IMAGE_BOX_PADDING;
+
+        $ymin = max(0, min(1000, $ymin));
+        $xmin = max(0, min(1000, $xmin));
+        $ymax = max(0, min(1000, $ymax));
+        $xmax = max(0, min(1000, $xmax));
+
+        if ($ymin >= $ymax || $xmin >= $xmax) {
+            return null;
+        }
+
         return [
             (int) round($ymin),
             (int) round($xmin),
             (int) round($ymax),
             (int) round($xmax),
+        ];
+    }
+
+    private function resolveCanonicalQuestionType(array $question): string
+    {
+        $allowed = ['MSA', 'MMA', 'TOF', 'FIB', 'SAQ', 'MTF', 'ORD', 'LAQ'];
+        $rawType = strtoupper(trim((string) ($question['type'] ?? '')));
+        $questionText = strtolower(strip_tags((string) ($question['question'] ?? '')));
+
+        if (in_array($rawType, $allowed, true)) {
+            return $rawType;
+        }
+
+        if (preg_match('/\b(match(\s+the)?\s+following|column\s*i|column\s*ii)\b/i', $rawType.' '.$questionText)) {
+            return 'MTF';
+        }
+
+        if (preg_match('/\b(arrange|order|ordering|sequence)\b/i', $rawType.' '.$questionText)) {
+            return 'ORD';
+        }
+
+        if (preg_match('/\b(assertion|reason)\b/i', $rawType.' '.$questionText)) {
+            return 'MSA';
+        }
+
+        if (preg_match('/\b(long\s*answer|subjective|descriptive|essay)\b/i', $rawType.' '.$questionText)) {
+            return 'LAQ';
+        }
+
+        if (preg_match('/\bfill\s*in\b|_{3,}/i', $rawType.' '.$questionText)) {
+            return 'FIB';
+        }
+
+        if (preg_match('/\btrue\s*\/?\s*false\b/i', $rawType.' '.$questionText)) {
+            return 'TOF';
+        }
+
+        return 'SAQ';
+    }
+
+    private function filterQuestionToEnglishOnly(array $question): ?array
+    {
+        $textFields = ['question', 'solution', 'hint', 'correct_answer_text'];
+        $mixedDetected = false;
+
+        foreach ($textFields as $field) {
+            if (! isset($question[$field]) || ! is_string($question[$field])) {
+                continue;
+            }
+
+            $filtered = $this->filterEnglishText($question[$field]);
+            $mixedDetected = $mixedDetected || $filtered['mixed_detected'];
+
+            if ($filtered['uncertain']) {
+                $this->lastImportDiagnostics['validation']['english_filter']['mixed_blocks_detected']++;
+                return null;
+            }
+
+            if ($filtered['changed']) {
+                $question[$field] = $filtered['text'];
+            }
+        }
+
+        $filteredOptions = [];
+        $optionsFilteredCount = 0;
+
+        foreach (array_values($question['options'] ?? []) as $option) {
+            $optionText = is_array($option)
+                ? (string) ($option['option'] ?? $option['text'] ?? '')
+                : (string) $option;
+
+            $filteredOption = $this->filterEnglishText($optionText);
+            $mixedDetected = $mixedDetected || $filteredOption['mixed_detected'];
+
+            if ($filteredOption['uncertain']) {
+                $this->lastImportDiagnostics['validation']['english_filter']['mixed_blocks_detected']++;
+                return null;
+            }
+
+            if ($filteredOption['text'] === '') {
+                $optionsFilteredCount++;
+                continue;
+            }
+
+            if (is_array($option)) {
+                $option['option'] = $filteredOption['text'];
+                $filteredOptions[] = $option;
+            } else {
+                $filteredOptions[] = $filteredOption['text'];
+            }
+        }
+
+        if (isset($question['options']) && is_array($question['options'])) {
+            $question['options'] = $filteredOptions;
+        }
+
+        if ($optionsFilteredCount > 0) {
+            $this->lastImportDiagnostics['validation']['english_filter']['options_filtered'] += $optionsFilteredCount;
+        }
+
+        if ($mixedDetected) {
+            $this->lastImportDiagnostics['validation']['english_filter']['mixed_blocks_detected']++;
+        }
+
+        return $question;
+    }
+
+    private function filterEnglishText(string $text): array
+    {
+        $asLines = preg_replace('/<br\s*\/?>/i', "\n", str_replace(["\r\n", "\r"], "\n", $text));
+        $lines = preg_split('/\n+/', (string) $asLines, -1, PREG_SPLIT_NO_EMPTY);
+
+        if (! is_array($lines) || count($lines) === 0) {
+            return ['text' => trim($text), 'changed' => false, 'uncertain' => false, 'mixed_detected' => false];
+        }
+
+        $kept = [];
+        $removed = false;
+        $uncertain = false;
+        $mixedDetected = false;
+
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if ($line === '') {
+                continue;
+            }
+
+            $hasLatin = (bool) preg_match('/[A-Za-z]/u', $line);
+            $hasRegionalScript = (bool) preg_match('/[\p{Devanagari}\p{Bengali}\p{Gujarati}\p{Gurmukhi}\p{Tamil}\p{Telugu}\p{Kannada}\p{Malayalam}\p{Oriya}]/u', $line);
+
+            if ($hasLatin && $hasRegionalScript) {
+                $uncertain = true;
+                $mixedDetected = true;
+                continue;
+            }
+
+            if ($hasRegionalScript && ! $hasLatin) {
+                $removed = true;
+                continue;
+            }
+
+            if (! $hasLatin && ! $this->looksMathContent($line) && preg_match('/[\p{L}]/u', $line)) {
+                $removed = true;
+                continue;
+            }
+
+            $kept[] = $line;
+        }
+
+        $filteredText = trim(implode("\n", $kept));
+
+        return [
+            'text' => $filteredText,
+            'changed' => $filteredText !== trim($text),
+            'uncertain' => $uncertain,
+            'mixed_detected' => $mixedDetected || $removed,
+        ];
+    }
+
+    private function looksMathContent(string $text): bool
+    {
+        return (bool) preg_match('/\\\\[a-zA-Z]+|[\^\_\=\+\-\*\/<>≤≥≠≈±√∑∫∞]|[0-9]+\s*[\+\-\*\/]\s*[0-9]/u', $text);
+    }
+
+    private function ensureValidationDiagnosticsInitialized(): void
+    {
+        if (! isset($this->lastImportDiagnostics['validation']) || ! is_array($this->lastImportDiagnostics['validation'])) {
+            $this->lastImportDiagnostics['validation'] = $this->defaultValidationDiagnostics();
+            return;
+        }
+
+        $this->lastImportDiagnostics['validation'] = array_replace_recursive(
+            $this->defaultValidationDiagnostics(),
+            $this->lastImportDiagnostics['validation']
+        );
+    }
+
+    private function defaultValidationDiagnostics(): array
+    {
+        return [
+            'total_extracted_count' => 0,
+            'numbering' => [
+                'checked' => 0,
+                'is_continuous' => true,
+                'missing_numbers' => [],
+            ],
+            'type_distribution' => [],
+            'type_corrections' => [],
+            'english_filter' => [
+                'questions_retained' => 0,
+                'questions_dropped' => 0,
+                'options_filtered' => 0,
+                'mixed_blocks_detected' => 0,
+            ],
+            'image_mapping' => [
+                'questions_with_image' => 0,
+                'options_with_image' => 0,
+            ],
+            'math_preservation' => [
+                'items_with_math' => 0,
+                'items_with_latex' => 0,
+            ],
+        ];
+    }
+
+    private function updateValidationDiagnosticsForQuestion(array $question): void
+    {
+        $type = strtoupper((string) ($question['type'] ?? 'SAQ'));
+        $this->lastImportDiagnostics['validation']['english_filter']['questions_retained']++;
+        $this->lastImportDiagnostics['validation']['type_distribution'][$type] =
+            ($this->lastImportDiagnostics['validation']['type_distribution'][$type] ?? 0) + 1;
+
+        if (isset($question['image_box'])) {
+            $this->lastImportDiagnostics['validation']['image_mapping']['questions_with_image']++;
+        }
+        $this->lastImportDiagnostics['validation']['image_mapping']['options_with_image'] += count($question['option_image_boxes'] ?? []);
+
+        $textFields = [
+            (string) ($question['question'] ?? ''),
+            (string) ($question['solution'] ?? ''),
+            (string) ($question['hint'] ?? ''),
+            (string) ($question['correct_answer_text'] ?? ''),
+        ];
+
+        foreach ($question['options'] ?? [] as $option) {
+            $textFields[] = is_array($option)
+                ? (string) ($option['option'] ?? $option['text'] ?? '')
+                : (string) $option;
+        }
+
+        foreach ($textFields as $text) {
+            if ($text === '') {
+                continue;
+            }
+            if ($this->looksMathContent($text)) {
+                $this->lastImportDiagnostics['validation']['math_preservation']['items_with_math']++;
+            }
+            if (preg_match('/\\\\[a-zA-Z]+/', $text)) {
+                $this->lastImportDiagnostics['validation']['math_preservation']['items_with_latex']++;
+            }
+        }
+    }
+
+    private function finalizeValidationDiagnostics(array $questions): void
+    {
+        $this->ensureValidationDiagnosticsInitialized();
+        $this->lastImportDiagnostics['validation']['total_extracted_count'] = count($questions);
+        $this->lastImportDiagnostics['validation']['numbering'] = $this->buildNumberingContinuityDiagnostics($questions);
+
+        // Recalculate final type/image/math from the deduped output snapshot.
+        $this->lastImportDiagnostics['validation']['type_distribution'] = [];
+        $this->lastImportDiagnostics['validation']['image_mapping'] = [
+            'questions_with_image' => 0,
+            'options_with_image' => 0,
+        ];
+        $this->lastImportDiagnostics['validation']['math_preservation'] = [
+            'items_with_math' => 0,
+            'items_with_latex' => 0,
+        ];
+
+        foreach ($questions as $question) {
+            if (! is_array($question)) {
+                continue;
+            }
+
+            $type = strtoupper((string) ($question['type'] ?? 'SAQ'));
+            $this->lastImportDiagnostics['validation']['type_distribution'][$type] =
+                ($this->lastImportDiagnostics['validation']['type_distribution'][$type] ?? 0) + 1;
+
+            if (isset($question['image_box'])) {
+                $this->lastImportDiagnostics['validation']['image_mapping']['questions_with_image']++;
+            }
+            $this->lastImportDiagnostics['validation']['image_mapping']['options_with_image'] += count($question['option_image_boxes'] ?? []);
+
+            $textFields = [
+                (string) ($question['question'] ?? ''),
+                (string) ($question['solution'] ?? ''),
+                (string) ($question['hint'] ?? ''),
+                (string) ($question['correct_answer_text'] ?? ''),
+            ];
+
+            foreach ($question['options'] ?? [] as $option) {
+                $textFields[] = is_array($option)
+                    ? (string) ($option['option'] ?? $option['text'] ?? '')
+                    : (string) $option;
+            }
+
+            foreach ($textFields as $text) {
+                if ($text === '') {
+                    continue;
+                }
+                if ($this->looksMathContent($text)) {
+                    $this->lastImportDiagnostics['validation']['math_preservation']['items_with_math']++;
+                }
+                if (preg_match('/\\\\[a-zA-Z]+/', $text)) {
+                    $this->lastImportDiagnostics['validation']['math_preservation']['items_with_latex']++;
+                }
+            }
+        }
+    }
+
+    private function buildNumberingContinuityDiagnostics(array $questions): array
+    {
+        $numbers = [];
+        foreach ($questions as $question) {
+            $raw = trim((string) ($question['question_number'] ?? ''));
+            if (preg_match('/^\d+$/', $raw)) {
+                $numbers[] = (int) $raw;
+            }
+        }
+
+        $numbers = array_values(array_unique($numbers));
+        sort($numbers);
+
+        if (count($numbers) === 0) {
+            return [
+                'checked' => 0,
+                'is_continuous' => true,
+                'missing_numbers' => [],
+            ];
+        }
+
+        $missing = [];
+        $set = array_flip($numbers);
+        for ($n = $numbers[0]; $n <= $numbers[count($numbers) - 1]; $n++) {
+            if (! isset($set[$n])) {
+                $missing[] = $n;
+            }
+        }
+
+        return [
+            'checked' => count($numbers),
+            'is_continuous' => count($missing) === 0,
+            'missing_numbers' => $missing,
         ];
     }
 
@@ -774,7 +1151,7 @@ EOT;
             return $question;
         }
 
-        if (in_array($type, ['FIB', 'SAQ'], true)) {
+        if (in_array($type, ['FIB', 'SAQ', 'LAQ'], true)) {
             if (! empty($question['correct_answer_text'])) {
                 $question['answer_validation_status'] = 'valid';
             } else {
@@ -1077,9 +1454,14 @@ EOT;
             return null;
         }
 
+        $qData['type'] = $this->resolveCanonicalQuestionType($qData);
         $qData = $this->normalizeCorrectAnswerFields($qData);
-        $typeCode = $qData['type'] ?? 'MSA';
-        $type = $qTypes->get($typeCode) ?: $qTypes->get('MSA');
+        $typeCode = strtoupper((string) ($qData['type'] ?? 'SAQ'));
+        $type = $qTypes->get($typeCode) ?: $qTypes->get('SAQ') ?: $qTypes->get('MSA');
+        if ($type && isset($type->code)) {
+            $typeCode = strtoupper((string) $type->code);
+            $qData['type'] = $typeCode;
+        }
         $answerPayload = $this->buildAnswerPayload($qData, $typeCode, $index, $topicId);
 
         if ($answerPayload === null) {
@@ -1101,7 +1483,13 @@ EOT;
         return match ($typeCode) {
             'MMA' => $this->buildMultipleAnswerPayload($qData, $index, $topicId),
             'MSA', 'TOF' => $this->buildSingleAnswerPayload($qData, $index, $topicId),
+            'MTF' => $this->buildMatchTheFollowingPayload($qData),
+            'ORD' => $this->buildOrderingPayload($qData),
             'FIB', 'SAQ' => [
+                'options' => [],
+                'correct_answer' => $qData['correct_answer_text'] ?? '',
+            ],
+            'LAQ' => [
                 'options' => [],
                 'correct_answer' => $qData['correct_answer_text'] ?? '',
             ],
@@ -1155,6 +1543,53 @@ EOT;
         $options[$correctIdx]['is_correct'] = true;
 
         return ['options' => $options, 'correct_answer' => $correctIdx];
+    }
+
+    private function buildMatchTheFollowingPayload(array $qData): array
+    {
+        $formatted = [];
+
+        foreach (array_values($qData['options'] ?? []) as $option) {
+            if (is_array($option)) {
+                $left = trim($this->optionHtml($option['option'] ?? $option['text'] ?? ''));
+                $pair = trim($this->optionHtml($option['pair'] ?? ''));
+            } else {
+                $raw = trim((string) $option);
+                $left = $raw;
+                $pair = '';
+
+                if (preg_match('/^(.*?)\s*(?:\-\>|=>|\|)\s*(.+)$/u', $raw, $matches)) {
+                    $left = trim($matches[1]);
+                    $pair = trim($matches[2]);
+                } elseif (preg_match('/^(.*?)[,:;]\s+(.+)$/u', $raw, $matches)) {
+                    $left = trim($matches[1]);
+                    $pair = trim($matches[2]);
+                }
+            }
+
+            if ($left === '') {
+                continue;
+            }
+
+            $formatted[] = [
+                'option' => $left,
+                'pair' => $pair,
+                'partial_weightage' => 0,
+            ];
+        }
+
+        return [
+            'options' => $formatted,
+            'correct_answer' => null,
+        ];
+    }
+
+    private function buildOrderingPayload(array $qData): array
+    {
+        return [
+            'options' => $this->formatAiOptions($qData['options'] ?? []),
+            'correct_answer' => null,
+        ];
     }
 
     private function formatAiOptions(array $options): array
