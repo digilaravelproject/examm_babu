@@ -27,7 +27,6 @@ Route::controller(SiteController::class)->group(function () {
     Route::get('/categories/{slug}', 'category')->name('store.categories.show');
 
     // Pricing
-    Route::get('/pricing', 'pricing')->name('pricing');
     Route::get('/pricing/{subCategory?}', 'pricing')->name('pricing');
 
     // Exam Details
