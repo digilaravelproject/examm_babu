@@ -21,7 +21,9 @@ class FortifyServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // This app defines auth routes explicitly in routes/auth.php.
+        // Prevent Fortify from auto-registering duplicates (e.g., password.confirm).
+        Fortify::ignoreRoutes();
     }
 
     /**
