@@ -22,6 +22,8 @@
         "maatwebsite/excel": "^3.1",
         "phpoption/phpoption": "*",
         "razorpay/razorpay": "^2.9",
+        "setasign/fpdf": "^1.9",
+        "setasign/fpdi": "^2.6",
         "smalot/pdfparser": "^2.12",
         "spatie/laravel-activitylog": "^4.10",
         "spatie/laravel-fractal": "^6.3",

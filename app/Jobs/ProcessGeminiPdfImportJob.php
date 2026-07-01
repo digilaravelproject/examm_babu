@@ -66,7 +66,10 @@ class ProcessGeminiPdfImportJob implements ShouldQueue
                 $this->startPage,
                 $this->endPage,
                 $this->batchId,
-                $this->topicId
+                $this->topicId,
+                function (int $percent, string $message) {
+                    $this->updateStatus('processing', $message, $percent);
+                }
             );
             $diagnostics = $aiService->getLastImportDiagnostics();
 

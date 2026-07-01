@@ -35,7 +35,7 @@ class AiImportService
         return $this->lastImportDiagnostics;
     }
 
-    public function callGeminiApi($pdfPath, $startPage = 1, $endPage = 50, $batchId = null, $topicId = null)
+    public function callGeminiApi($pdfPath, $startPage = 1, $endPage = 50, $batchId = null, $topicId = null, callable $progressCallback = null)
     {
         set_time_limit(1200);
 
@@ -49,9 +49,7 @@ class AiImportService
             ? $this->settings->custom_model
             : ($this->settings->model_name ?: 'gemini-2.5-flash');
 
-        // Fallback for older models that are no longer available to new users
         if ($model === 'gemini-2.0-flash' || $model === 'gemini-1.5-flash') {
-            // Check for 2.5-flash as it's the newer recommended model for this key
             $model = 'gemini-2.5-flash';
         }
 
@@ -65,26 +63,15 @@ class AiImportService
             throw new \Exception('PDF file not found at path: '.$pdfPath);
         }
 
-        $fileUri = null;
-        $fileName = null;
-
         try {
-            Log::info('Uploading PDF to Gemini File API', ['batch_id' => $batchId, 'path' => $pdfPath]);
-            $uploadResult = $this->uploadToGemini($pdfPath, $apiKey);
-            $fileUri = $uploadResult['file']['uri'];
-            $fileName = $uploadResult['file']['name'];
-
-            Log::info('Waiting for Gemini File Processing', ['batch_id' => $batchId, 'file_name' => $fileName]);
-            $this->waitForFile($fileName, $apiKey);
-
-            Log::info('Requesting chunked Gemini extraction', [
+            Log::info('Requesting chunked Gemini extraction with FPDI slicing', [
                 'batch_id' => $batchId,
                 'model' => $model,
                 'pages' => "{$startPage}-{$endPage}",
                 'topic_id' => $topicId,
             ]);
 
-            $questions = $this->extractGeminiChunks($fileUri, $apiKey, $model, $startPage, $endPage, $batchId, $topicId);
+            $questions = $this->extractGeminiChunks($pdfPath, $apiKey, $model, $startPage, $endPage, $batchId, $topicId, $progressCallback);
 
             Log::info("Gemini Extraction Successful for Batch: {$batchId}", [
                 'pages' => "{$startPage}-{$endPage}",
@@ -102,18 +89,29 @@ class AiImportService
                 'topic_id' => $topicId,
             ]);
             throw $e;
-        } finally {
-            if ($fileName) {
-                try {
-                    $this->deleteFromGemini($fileName, $apiKey);
-                } catch (\Exception $ex) {
-                    Log::warning("Failed to delete temp file from Gemini: {$fileName}", ['error' => $ex->getMessage()]);
-                }
-            }
         }
     }
 
-    private function extractGeminiChunks(string $fileUri, string $apiKey, string $model, int $startPage, int $endPage, ?string $batchId, ?int $topicId): array
+    public function slicePdf(string $sourcePdf, int $startPage, int $endPage): string
+    {
+        $pdf = new \setasign\Fpdi\Fpdi();
+        $pageCount = $pdf->setSourceFile($sourcePdf);
+        
+        $endPage = min($endPage, $pageCount);
+        
+        for ($i = $startPage; $i <= $endPage; $i++) {
+            $templateId = $pdf->importPage($i);
+            $size = $pdf->getTemplateSize($templateId);
+            $pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
+            $pdf->useTemplate($templateId);
+        }
+        
+        $chunkPath = tempnam(sys_get_temp_dir(), 'pdf_chunk_') . '.pdf';
+        $pdf->Output('F', $chunkPath);
+        return $chunkPath;
+    }
+
+    private function extractGeminiChunks(string $pdfPath, string $apiKey, string $model, int $startPage, int $endPage, ?string $batchId, ?int $topicId, callable $progressCallback = null): array
     {
         $chunkSize = max(1, (int) config('services.gemini.import_chunk_pages', 2));
         $maxRetries = max(0, (int) config('services.gemini.import_max_retries', 2));
@@ -131,6 +129,8 @@ class AiImportService
 
         $merged = [];
         $failedChunks = [];
+        $totalPagesToProcess = max(1, $endPage - $startPage + 1);
+        $processedPages = 0;
 
         for ($chunkStart = $startPage; $chunkStart <= $endPage; $chunkStart += $chunkSize) {
             $chunkEnd = min($endPage, $chunkStart + $chunkSize - 1);
@@ -144,79 +144,94 @@ class AiImportService
 
             $chunkQuestions = null;
             $lastReason = null;
+            $slicedPdfPath = null;
+            $fileName = null;
 
-            for ($attempt = 1; $attempt <= ($maxRetries + 1); $attempt++) {
-                try {
-                    Log::info('Gemini chunk extraction attempt', [
-                        'batch_id' => $batchId,
-                        'topic_id' => $topicId,
-                        'pages' => $chunkKey,
-                        'attempt' => $attempt,
-                    ]);
+            try {
+                // 1. Slice the PDF for this chunk
+                $slicedPdfPath = $this->slicePdf($pdfPath, $chunkStart, $chunkEnd);
+                
+                // 2. Upload the sliced PDF to Gemini
+                $uploadResult = $this->uploadToGemini($slicedPdfPath, $apiKey);
+                $fileUri = $uploadResult['file']['uri'];
+                $fileName = $uploadResult['file']['name'];
+                
+                $this->waitForFile($fileName, $apiKey);
 
-                    $result = $this->requestGeminiChunk($fileUri, $apiKey, $model, $chunkStart, $chunkEnd, $attempt);
-                    $normalized = $this->normalizeExtractedQuestionsForImport($result['questions'], $chunkStart, $chunkEnd);
-                    $count = count($normalized);
-
-                    $retryReason = null;
-                    if ($result['finish_reason'] === 'MAX_TOKENS') {
-                        $retryReason = 'MAX_TOKENS';
-                    } elseif ($result['repaired']) {
-                        $retryReason = 'truncated_json_repaired';
-                    } elseif ($count === 0) {
-                        $retryReason = 'zero_question_chunk';
-                    } elseif ($count < $minQuestionsPerChunk && ($chunkEnd - $chunkStart + 1) > 0) {
-                        $retryReason = 'suspiciously_low_count';
-                    }
-
-                    $chunkDiagnostics['attempts'][] = [
-                        'attempt' => $attempt,
-                        'count' => $count,
-                        'finish_reason' => $result['finish_reason'],
-                        'repaired' => $result['repaired'],
-                        'retry_reason' => $retryReason,
-                    ];
-
-                    if ($retryReason && $attempt <= $maxRetries) {
-                        Log::warning('Retrying Gemini chunk extraction', [
+                for ($attempt = 1; $attempt <= ($maxRetries + 1); $attempt++) {
+                    try {
+                        Log::info('Gemini chunk extraction attempt', [
                             'batch_id' => $batchId,
                             'pages' => $chunkKey,
                             'attempt' => $attempt,
-                            'reason' => $retryReason,
+                        ]);
+
+                        $result = $this->requestGeminiChunk($fileUri, $apiKey, $model, $chunkStart, $chunkEnd, $attempt);
+                        $normalized = $this->normalizeExtractedQuestionsForImport($result['questions'], $chunkStart, $chunkEnd);
+                        $count = count($normalized);
+
+                        $retryReason = null;
+                        if ($result['finish_reason'] === 'MAX_TOKENS') {
+                            $retryReason = 'MAX_TOKENS';
+                        } elseif ($result['repaired']) {
+                            $retryReason = 'truncated_json_repaired';
+                        } elseif ($count === 0) {
+                            $retryReason = 'zero_question_chunk';
+                        } elseif ($count < $minQuestionsPerChunk && ($chunkEnd - $chunkStart + 1) > 0) {
+                            $retryReason = 'suspiciously_low_count';
+                        }
+
+                        $chunkDiagnostics['attempts'][] = [
+                            'attempt' => $attempt,
                             'count' => $count,
-                        ]);
-                        $lastReason = $retryReason;
-                        continue;
-                    }
+                            'finish_reason' => $result['finish_reason'],
+                            'repaired' => $result['repaired'],
+                            'retry_reason' => $retryReason,
+                        ];
 
-                    if ($retryReason) {
-                        $lastReason = $retryReason;
+                        if ($retryReason && $attempt <= $maxRetries) {
+                            $lastReason = $retryReason;
+                            continue;
+                        }
+
+                        if ($retryReason) {
+                            $lastReason = $retryReason;
+                            break;
+                        }
+
+                        $chunkQuestions = $normalized;
+                        $chunkDiagnostics['question_count'] = $count;
+                        $chunkDiagnostics['status'] = 'completed';
                         break;
-                    }
-
-                    $chunkQuestions = $normalized;
-                    $chunkDiagnostics['question_count'] = $count;
-                    $chunkDiagnostics['status'] = 'completed';
-                    break;
-                } catch (\Throwable $e) {
-                    $lastReason = $e->getMessage();
-                    $chunkDiagnostics['attempts'][] = [
-                        'attempt' => $attempt,
-                        'count' => 0,
-                        'finish_reason' => null,
-                        'repaired' => false,
-                        'retry_reason' => 'exception: '.$e->getMessage(),
-                    ];
-
-                    if ($attempt <= $maxRetries) {
-                        Log::warning('Retrying failed Gemini chunk extraction', [
-                            'batch_id' => $batchId,
-                            'pages' => $chunkKey,
+                    } catch (\Throwable $e) {
+                        $lastReason = $e->getMessage();
+                        $chunkDiagnostics['attempts'][] = [
                             'attempt' => $attempt,
-                            'error' => $e->getMessage(),
-                        ]);
-                        continue;
+                            'count' => 0,
+                            'finish_reason' => null,
+                            'repaired' => false,
+                            'retry_reason' => 'exception: '.$e->getMessage(),
+                        ];
+
+                        if ($attempt <= $maxRetries) {
+                            continue;
+                        }
                     }
+                }
+            } catch (\Throwable $e) {
+                $lastReason = 'Upload/Slice Error: ' . $e->getMessage();
+            } finally {
+                // Cleanup temp Gemini file
+                if ($fileName) {
+                    try {
+                        $this->deleteFromGemini($fileName, $apiKey);
+                    } catch (\Exception $ex) {
+                        Log::warning("Failed to delete temp file from Gemini", ['error' => $ex->getMessage()]);
+                    }
+                }
+                // Cleanup local temp file
+                if ($slicedPdfPath && file_exists($slicedPdfPath)) {
+                    @unlink($slicedPdfPath);
                 }
             }
 
@@ -224,24 +239,24 @@ class AiImportService
                 $chunkDiagnostics['status'] = 'failed';
                 $chunkDiagnostics['failure_reason'] = $lastReason ?: 'unknown_failure';
                 $failedChunks[] = $chunkDiagnostics;
+                Log::warning('Chunk failed, skipping', ['pages' => $chunkKey, 'reason' => $lastReason]);
+                // Do NOT throw exception here, just continue to next chunk
             } else {
                 $merged = array_merge($merged, $chunkQuestions);
             }
 
             $this->lastImportDiagnostics['chunks'][] = $chunkDiagnostics;
-
-            Log::info('Gemini chunk extraction finished', [
-                'batch_id' => $batchId,
-                'pages' => $chunkKey,
-                'status' => $chunkDiagnostics['status'],
-                'question_count' => $chunkDiagnostics['question_count'],
-                'attempts' => count($chunkDiagnostics['attempts']),
-            ]);
+            
+            $processedPages += ($chunkEnd - $chunkStart + 1);
+            if ($progressCallback) {
+                $percent = min(95, 10 + round(($processedPages / $totalPagesToProcess) * 85)); // From 10 to 95
+                $progressCallback($percent, "Processed pages {$chunkStart} to {$chunkEnd}...");
+            }
         }
 
         if ($failedChunks) {
             $this->lastImportDiagnostics['failed_chunks'] = $failedChunks;
-            throw new \RuntimeException('Import incomplete: failed to extract all detectable questions. Failed chunks: '.json_encode($failedChunks));
+            Log::warning('Import had failed chunks, but continuing with extracted data.', ['failed_chunks' => $failedChunks]);
         }
 
         $deduped = $this->dedupeExtractedQuestions($merged, $batchId);
@@ -481,7 +496,7 @@ class AiImportService
 ---
 ### 2. SPATIAL & IMAGE INTELLIGENCE
 - **Coordinate Precision:** For ANY diagram, graph, map, or complex illustration, provide [ymin, xmin, ymax, xmax] boxes (0-1000) with a small safe padding margin around the visual.
-- **Placeholder Injection:** In the 'question' or 'options' text, insert "[IMAGE HERE]" at the EXACT location where the visual element appears relative to the text.
+- **Placeholder Injection:** In the 'question' or 'options' text, you MUST insert a markdown image tag `![Diagram](IMAGE_HERE)` at the EXACT location where the visual element appears.
 - **Option Images:** If options are images (common in geometry), you MUST provide 'option_image_boxes' as objects like {"index":0,"box":[ymin,xmin,ymax,xmax]}.
 - **Coordinate Format:** All image boxes must be [ymin, xmin, ymax, xmax], normalized from 0 to 1000 for the full PDF page.
 - **Ownership:** Keep image ownership strict. Question-level image belongs only to the question field; option image belongs only to its specific option index.

@@ -1,6 +1,11 @@
 @extends('layouts.admin')
 
 @section('content')
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {delimiters: [{left: '$$', right: '$$', display: true}, {left: '$', right: '$', display: false}]});"></script>
+
     <div class="min-h-screen bg-[#f8fafc] py-6 px-3 sm:px-6 lg:px-8">
         <div class="max-w-7xl mx-auto">
             {{-- Header Section --}}
@@ -569,6 +574,21 @@
                 jsonEditor.value = JSON.stringify(questions, null, 4);
                 currentBatchId = batchId;
                 document.getElementById('jsonModal').classList.remove('hidden');
+                
+                // Render Math after modal opens
+                if (window.renderMathInElement) {
+                    setTimeout(() => {
+                        renderMathInElement(document.getElementById('jsonModal'), {
+                            delimiters: [
+                                {left: '$$', right: '$$', display: true},
+                                {left: '$', right: '$', display: false},
+                                {left: '\\(', right: '\\)', display: false},
+                                {left: '\\[', right: '\\]', display: true}
+                            ],
+                            throwOnError: false
+                        });
+                    }, 100);
+                }
             } catch (e) {
                 alert("Failed to load JSON data.");
             }
