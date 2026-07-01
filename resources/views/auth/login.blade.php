@@ -138,6 +138,15 @@
                 <p class="mt-1 text-sm text-gray-500">Please login to your account</p>
             </div>
 
+            @if ($errors->any())
+                <div class="p-4 mb-4 text-sm text-red-700 bg-red-50 rounded-xl border border-red-100 flex items-start gap-2" role="alert">
+                    <i class="fas fa-exclamation-circle mt-0.5 shrink-0"></i>
+                    <div>
+                        <span class="font-bold">Error:</span> {{ $errors->first() }}
+                    </div>
+                </div>
+            @endif
+
             <form action="{{ route('login') }}" method="POST" class="space-y-5">
                 @csrf
                 <div>
