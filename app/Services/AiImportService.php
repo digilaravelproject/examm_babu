@@ -303,7 +303,7 @@ class AiImportService
                     'responseMimeType' => 'application/json',
                     'responseSchema' => $this->geminiQuestionResponseSchema(),
                     'temperature' => 0.1,
-                    'maxOutputTokens' => 30000,
+                    'maxOutputTokens' => 8192,
                 ],
             ]);
 
