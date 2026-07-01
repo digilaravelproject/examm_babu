@@ -18,9 +18,9 @@ class AiImportService
 {
     private const IMAGE_BOX_PADDING = 6;
 
-    protected $repository;
+    protected QuestionRepository $repository;
 
-    protected $settings;
+    protected AiSettings $settings;
 
     protected array $lastImportDiagnostics = [];
 
@@ -35,7 +35,20 @@ class AiImportService
         return $this->lastImportDiagnostics;
     }
 
-    public function callGeminiApi($pdfPath, $startPage = 1, $endPage = 50, $batchId = null, $topicId = null, callable $progressCallback = null)
+    /**
+     * Calls the Gemini API to extract questions from a PDF.
+     *
+     * @param  string  $pdfPath  Path to the PDF file
+     * @param  int  $startPage  Starting page number
+     * @param  int  $endPage  Ending page number
+     * @param  string|null  $batchId  Batch ID for logging
+     * @param  int|null  $topicId  Topic ID for database insertion
+     * @param  callable|null  $progressCallback  Callback function for progress updates
+     * @return array Array of extracted questions
+     *
+     * @throws \Exception
+     */
+    public function callGeminiApi($pdfPath, $startPage = 1, $endPage = 50, $batchId = null, $topicId = null, ?callable $progressCallback = null)
     {
         set_time_limit(1200);
 
@@ -94,24 +107,25 @@ class AiImportService
 
     public function slicePdf(string $sourcePdf, int $startPage, int $endPage): string
     {
-        $pdf = new \setasign\Fpdi\Fpdi();
+        $pdf = new \setasign\Fpdi\Fpdi;
         $pageCount = $pdf->setSourceFile($sourcePdf);
-        
+
         $endPage = min($endPage, $pageCount);
-        
+
         for ($i = $startPage; $i <= $endPage; $i++) {
             $templateId = $pdf->importPage($i);
             $size = $pdf->getTemplateSize($templateId);
             $pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
             $pdf->useTemplate($templateId);
         }
-        
-        $chunkPath = tempnam(sys_get_temp_dir(), 'pdf_chunk_') . '.pdf';
+
+        $chunkPath = tempnam(sys_get_temp_dir(), 'pdf_chunk_').'.pdf';
         $pdf->Output('F', $chunkPath);
+
         return $chunkPath;
     }
 
-    private function extractGeminiChunks(string $pdfPath, string $apiKey, string $model, int $startPage, int $endPage, ?string $batchId, ?int $topicId, callable $progressCallback = null): array
+    private function extractGeminiChunks(string $pdfPath, string $apiKey, string $model, int $startPage, int $endPage, ?string $batchId, ?int $topicId, ?callable $progressCallback = null): array
     {
         $chunkSize = max(1, (int) config('services.gemini.import_chunk_pages', 2));
         $maxRetries = max(0, (int) config('services.gemini.import_max_retries', 2));
@@ -150,12 +164,12 @@ class AiImportService
             try {
                 // 1. Slice the PDF for this chunk
                 $slicedPdfPath = $this->slicePdf($pdfPath, $chunkStart, $chunkEnd);
-                
+
                 // 2. Upload the sliced PDF to Gemini
                 $uploadResult = $this->uploadToGemini($slicedPdfPath, $apiKey);
                 $fileUri = $uploadResult['file']['uri'];
                 $fileName = $uploadResult['file']['name'];
-                
+
                 $this->waitForFile($fileName, $apiKey);
 
                 for ($attempt = 1; $attempt <= ($maxRetries + 1); $attempt++) {
@@ -191,6 +205,7 @@ class AiImportService
 
                         if ($retryReason && $attempt <= $maxRetries) {
                             $lastReason = $retryReason;
+
                             continue;
                         }
 
@@ -219,14 +234,14 @@ class AiImportService
                     }
                 }
             } catch (\Throwable $e) {
-                $lastReason = 'Upload/Slice Error: ' . $e->getMessage();
+                $lastReason = 'Upload/Slice Error: '.$e->getMessage();
             } finally {
                 // Cleanup temp Gemini file
                 if ($fileName) {
                     try {
                         $this->deleteFromGemini($fileName, $apiKey);
                     } catch (\Exception $ex) {
-                        Log::warning("Failed to delete temp file from Gemini", ['error' => $ex->getMessage()]);
+                        Log::warning('Failed to delete temp file from Gemini', ['error' => $ex->getMessage()]);
                     }
                 }
                 // Cleanup local temp file
@@ -246,7 +261,7 @@ class AiImportService
             }
 
             $this->lastImportDiagnostics['chunks'][] = $chunkDiagnostics;
-            
+
             $processedPages += ($chunkEnd - $chunkStart + 1);
             if ($progressCallback) {
                 $percent = min(95, 10 + round(($processedPages / $totalPagesToProcess) * 85)); // From 10 to 95
@@ -314,6 +329,14 @@ class AiImportService
         ];
     }
 
+    /**
+     * Handles Gemini API errors and throws appropriate exceptions.
+     *
+     * @param  \Illuminate\Http\Client\Response  $response  The HTTP response from the API
+     * @param  string  $model  The Gemini model being used
+     *
+     * @throws \Exception
+     */
     private function handleGeminiError($response, string $model): void
     {
         $errorResponse = $response->json();
@@ -404,6 +427,13 @@ class AiImportService
         ];
     }
 
+    /**
+     * Uploads a PDF file to Gemini.
+     *
+     * @param  string  $filePath  Path to the PDF file
+     * @param  string  $apiKey  Gemini API key
+     * @return array Array containing file details
+     */
     private function uploadToGemini($filePath, $apiKey)
     {
         $fileSize = filesize($filePath);
@@ -441,6 +471,14 @@ class AiImportService
         return $response->json();
     }
 
+    /**
+     * Waits for the uploaded file to be processed by Gemini.
+     *
+     * @param  string  $fileName  The name of the uploaded file
+     * @param  string  $apiKey  Gemini API key
+     *
+     * @throws \Exception
+     */
     private function waitForFile($fileName, $apiKey)
     {
         $maxAttempts = 30;
@@ -462,16 +500,30 @@ class AiImportService
         throw new \Exception('Gemini File Processing Timeout.');
     }
 
+    /**
+     * Deletes an uploaded file from Gemini.
+     *
+     * @param  string  $fileName  The name of the file to delete
+     * @param  string  $apiKey  Gemini API key
+     */
     private function deleteFromGemini($fileName, $apiKey)
     {
         Http::withOptions(['verify' => false])
             ->delete("https://generativelanguage.googleapis.com/v1beta/{$fileName}?key={$apiKey}");
     }
 
+    /**
+     * Gets the ultra-efficient prompt for Gemini.
+     *
+     * @param  int  $startPage  Starting page number
+     * @param  int  $endPage  Ending page number
+     * @param  int  $attempt  Current attempt number
+     * @return string The ultra-efficient prompt
+     */
     private function getUltraEfficientPrompt($startPage, $endPage, int $attempt = 1)
     {
-        $pageInstruction = ($startPage == 1 && $endPage >= 50) 
-            ? "Extract EVERYTHING from ALL pages." 
+        $pageInstruction = ($startPage == 1 && $endPage >= 50)
+            ? 'Extract EVERYTHING from ALL pages.'
             : "Extract EVERYTHING from pages {$startPage} to {$endPage}.";
         $retryInstruction = $attempt > 1
             ? "\n### RETRY MODE\nA previous attempt for this exact page range was incomplete, malformed, empty, or too short. Re-scan every line and return a complete JSON array for this page range only."
@@ -524,16 +576,28 @@ Return a STRICT JSON ARRAY of objects. No preamble, no commentary. Just raw, hig
 EOT;
     }
 
+    /**
+     * Parses the AI response and extracts questions.
+     *
+     * @param  string  $content  The response content from the API
+     * @return array Array of questions
+     */
     private function parseAiResponse($content)
     {
         return $this->parseAiResponseWithMeta($content)['questions'];
     }
 
+    /**
+     * Parses the AI response and extracts questions.
+     *
+     * @param  string  $content  The response content from the API
+     * @return array Array of questions
+     */
     private function parseAiResponseWithMeta($content): array
     {
         $cleanContent = trim($content);
         $repaired = false;
-        
+
         // Remove Markdown code blocks if present
         if (preg_match('/^```(?:json)?\s*(.*?)\s*```$/is', $cleanContent, $matches)) {
             $cleanContent = trim($matches[1]);
@@ -559,7 +623,7 @@ EOT;
                 }
             }
 
-            if (! $decoded || !is_array($decoded)) {
+            if (! $decoded || ! is_array($decoded)) {
                 throw new \Exception('Invalid JSON structure from AI (Expected Array).');
             }
 
@@ -585,6 +649,9 @@ EOT;
 
     /**
      * Repairs truncated JSON by closing open brackets and braces.
+     *
+     * @param  string  $json  The potentially truncated JSON string
+     * @return string The repaired JSON string
      */
     private function repairTruncatedJson($json)
     {
@@ -599,7 +666,7 @@ EOT;
             if ($openBrackets > $closeBrackets) {
                 $sliced .= str_repeat(']', $openBrackets - $closeBrackets);
             }
-            
+
             $decoded = json_decode($sliced, true);
             if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
                 return $sliced;
@@ -608,7 +675,7 @@ EOT;
 
         // 2. Character-by-character fallback repair
         $json = preg_replace('/,\s*$/', '', $json);
-        
+
         $len = strlen($json);
         $stack = [];
         $inString = false;
@@ -619,26 +686,33 @@ EOT;
 
             if ($escaped) {
                 $escaped = false;
+
                 continue;
             }
 
             if ($char === '\\') {
                 $escaped = true;
+
                 continue;
             }
 
             if ($char === '"') {
-                $inString = !$inString;
+                $inString = ! $inString;
+
                 continue;
             }
 
-            if (!$inString) {
+            if (! $inString) {
                 if ($char === '{' || $char === '[') {
                     $stack[] = $char;
                 } elseif ($char === '}') {
-                    if (end($stack) === '{') array_pop($stack);
+                    if (end($stack) === '{') {
+                        array_pop($stack);
+                    }
                 } elseif ($char === ']') {
-                    if (end($stack) === '[') array_pop($stack);
+                    if (end($stack) === '[') {
+                        array_pop($stack);
+                    }
                 }
             }
         }
@@ -648,7 +722,7 @@ EOT;
         }
 
         // Close brackets/braces in reverse order
-        while (!empty($stack)) {
+        while (! empty($stack)) {
             $opener = array_pop($stack);
             if ($opener === '{') {
                 $json .= '}';
@@ -663,6 +737,7 @@ EOT;
     private function looksTruncatedJson(string $json): bool
     {
         $trimmed = rtrim($json);
+
         return $trimmed !== '' && ! str_ends_with($trimmed, ']');
     }
 
@@ -708,6 +783,7 @@ EOT;
             $languageFiltered = $this->filterQuestionToEnglishOnly($question);
             if ($languageFiltered === null) {
                 $this->lastImportDiagnostics['validation']['english_filter']['questions_dropped']++;
+
                 continue;
             }
 
@@ -728,6 +804,12 @@ EOT;
         return $normalized;
     }
 
+    /**
+     * Normalizes the image box array.
+     *
+     * @param  mixed  $box  The image box array
+     * @return array|null The normalized image box array or null if invalid
+     */
     public function normalizeImageBox($box): ?array
     {
         if (is_object($box)) {
@@ -825,6 +907,7 @@ EOT;
 
             if ($filtered['uncertain']) {
                 $this->lastImportDiagnostics['validation']['english_filter']['mixed_blocks_detected']++;
+
                 return null;
             }
 
@@ -846,11 +929,13 @@ EOT;
 
             if ($filteredOption['uncertain']) {
                 $this->lastImportDiagnostics['validation']['english_filter']['mixed_blocks_detected']++;
+
                 return null;
             }
 
             if ($filteredOption['text'] === '') {
                 $optionsFilteredCount++;
+
                 continue;
             }
 
@@ -903,16 +988,19 @@ EOT;
             if ($hasLatin && $hasRegionalScript) {
                 $uncertain = true;
                 $mixedDetected = true;
+
                 continue;
             }
 
             if ($hasRegionalScript && ! $hasLatin) {
                 $removed = true;
+
                 continue;
             }
 
             if (! $hasLatin && ! $this->looksMathContent($line) && preg_match('/[\p{L}]/u', $line)) {
                 $removed = true;
+
                 continue;
             }
 
@@ -938,6 +1026,7 @@ EOT;
     {
         if (! isset($this->lastImportDiagnostics['validation']) || ! is_array($this->lastImportDiagnostics['validation'])) {
             $this->lastImportDiagnostics['validation'] = $this->defaultValidationDiagnostics();
+
             return;
         }
 
@@ -1107,6 +1196,12 @@ EOT;
         ];
     }
 
+    /**
+     * Normalizes the option image boxes array.
+     *
+     * @param  mixed  $boxes  The option image boxes array
+     * @return array The normalized option image boxes array
+     */
     public function normalizeOptionImageBoxes($boxes): array
     {
         if (is_object($boxes)) {
@@ -1278,6 +1373,13 @@ EOT;
         return $resolved;
     }
 
+    /**
+     * Resolves an option reference to its index in the options array.
+     *
+     * @param  mixed  $value  The option reference value
+     * @param  array  $options  The options array
+     * @return int|null The index of the option or null if not found
+     */
     private function resolveOptionReference($value, array $options): ?int
     {
         if (is_array($value)) {
@@ -1303,6 +1405,7 @@ EOT;
 
         if (preg_match('/^(?:option\s*)?([A-Z])$/i', $raw, $matches)) {
             $idx = ord(strtoupper($matches[1])) - 65;
+
             return ($idx >= 0 && $idx < $optionCount) ? $idx : null;
         }
 
@@ -1342,6 +1445,12 @@ EOT;
         return count($indices) === 1 ? $indices[0] : null;
     }
 
+    /**
+     * Gets the plain text of an option.
+     *
+     * @param  mixed  $option  The option to get the plain text from
+     * @return string The plain text of the option
+     */
     private function plainOptionText($option): string
     {
         if (is_array($option)) {
@@ -1349,6 +1458,7 @@ EOT;
         }
 
         $text = str_replace('[IMAGE HERE]', '', (string) $option);
+
         return trim(strip_tags($text));
     }
 
@@ -1392,6 +1502,7 @@ EOT;
                 ];
                 $this->lastImportDiagnostics['deduped'][] = $dedupeLog;
                 Log::info('AI import deduped exact composite duplicate', $dedupeLog);
+
                 continue;
             }
 
@@ -1482,6 +1593,14 @@ EOT;
             ->toArray();
     }
 
+    /**
+     * Prepares an AI question for creation.
+     *
+     * @param  array  $qData  The AI question data
+     * @param  int  $index  The index of the question in the batch
+     * @param  int  $topicId  The ID of the topic
+     * @return array|null The prepared question data or null if invalid
+     */
     private function prepareAiQuestionForCreate($qData, int $index, int $topicId, $qTypes): ?array
     {
         if (! is_array($qData) || empty($qData['question'])) {
@@ -1538,6 +1657,7 @@ EOT;
     {
         if (($qData['answer_validation_status'] ?? null) !== 'valid') {
             $this->logSkippedAiQuestion('MMA question with missing correct answers', $qData, $index, $topicId);
+
             return null;
         }
 
@@ -1558,6 +1678,7 @@ EOT;
     {
         if (($qData['answer_validation_status'] ?? null) !== 'valid' || ! isset($qData['correct_option_index'])) {
             $this->logSkippedAiQuestion('single-answer question with missing correct answer', $qData, $index, $topicId);
+
             return null;
         }
 
@@ -1571,6 +1692,7 @@ EOT;
                 'correct_option_index' => $correctIdx,
                 'options_count' => count($options),
             ]);
+
             return null;
         }
 
@@ -1655,6 +1777,12 @@ EOT;
         ]);
     }
 
+    /**
+     * Gets the HTML representation of an option.
+     *
+     * @param  mixed  $option  The option to get the HTML representation from
+     * @return string The HTML representation of the option
+     */
     private function optionHtml($option): string
     {
         if (is_array($option)) {
@@ -1702,6 +1830,6 @@ EOT;
             return preg_replace('/\[IMAGE HERE\]/', $imgHtml, $html, 1);
         }
 
-        return trim($html) === '' ? $imgHtml : $html . '<br>' . $imgHtml;
+        return trim($html) === '' ? $imgHtml : $html.'<br>'.$imgHtml;
     }
 }
