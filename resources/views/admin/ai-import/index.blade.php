@@ -329,6 +329,11 @@
                             </tbody>
                         </table>
                     </div>
+                    @if($recentBatches->hasPages())
+                        <div class="px-8 py-5 border-t border-slate-100 bg-slate-50/20">
+                            {{ $recentBatches->links() }}
+                        </div>
+                    @endif
                 </div>
             </div>
 

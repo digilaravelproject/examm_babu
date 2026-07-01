@@ -43,8 +43,7 @@ class AiImportController extends Controller
         $recentBatches = AiImportBatch::where('user_id', Auth::id())
             ->with('topic:id,name')
             ->latest()
-            ->limit(5)
-            ->get();
+            ->paginate(10);
             
         $activeModel = ($this->settings->model_name === 'custom') 
             ? $this->settings->custom_model 
