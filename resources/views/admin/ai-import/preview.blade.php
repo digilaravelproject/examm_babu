@@ -1,6 +1,10 @@
 @extends('layouts.admin')
 
 @section('content')
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+
     <div class="min-h-screen bg-slate-50 py-6 sm:py-12 px-2 sm:px-6 lg:px-8">
         <div class="max-w-7xl mx-auto">
 
@@ -774,6 +778,19 @@
         }
 
         document.addEventListener('DOMContentLoaded', function () {
+            // Render Math immediately
+            if (window.renderMathInElement) {
+                renderMathInElement(document.body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$', right: '$', display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+
             const approveBtn = document.getElementById('approveBtn');
             const statusMsg = document.getElementById('status-message');
 
