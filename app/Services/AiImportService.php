@@ -131,10 +131,23 @@ class AiImportService
         $maxRetries = max(0, (int) config('services.gemini.import_max_retries', 2));
         $minQuestionsPerChunk = max(0, (int) config('services.gemini.import_min_questions_per_chunk', 1));
 
+        // Step 1: Pre-scan for Answer Key at the end of the range
+        if ($progressCallback) {
+            $progressCallback(5, "Pre-scanning PDF for Answer Keys...");
+        }
+        $answerKeyMap = $this->preScanAnswerKey($pdfPath, $apiKey, $model, $endPage);
+
+        // Step 2: Calculate local baseline count using smalot/pdfparser
+        if ($progressCallback) {
+            $progressCallback(8, "Calculating local question baseline count...");
+        }
+        $baselineCount = $this->calculateBaselineQuestionCount($pdfPath, $startPage, $endPage);
+
         $this->lastImportDiagnostics = [
             'chunk_size' => $chunkSize,
             'max_retries' => $maxRetries,
             'page_range' => "{$startPage}-{$endPage}",
+            'baseline_count' => $baselineCount,
             'chunks' => [],
             'deduped' => [],
             'final_count' => 0,
@@ -146,7 +159,8 @@ class AiImportService
         $totalPagesToProcess = max(1, $endPage - $startPage + 1);
         $processedPages = 0;
 
-        for ($chunkStart = $startPage; $chunkStart <= $endPage; $chunkStart += $chunkSize) {
+        $chunkStart = $startPage;
+        while ($chunkStart <= $endPage) {
             $chunkEnd = min($endPage, $chunkStart + $chunkSize - 1);
             $chunkKey = "{$chunkStart}-{$chunkEnd}";
             $chunkDiagnostics = [
@@ -209,7 +223,7 @@ class AiImportService
                             break;
                         }
 
-                        $normalized = $this->normalizeExtractedQuestionsForImport($result['questions'], $chunkStart, $chunkEnd);
+                        $normalized = $this->normalizeExtractedQuestionsForImport($result['questions'], $chunkStart, $chunkEnd, $answerKeyMap);
                         $count = count($normalized);
 
                         $retryReason = null;
@@ -282,7 +296,6 @@ class AiImportService
                 $chunkDiagnostics['failure_reason'] = $lastReason ?: 'unknown_failure';
                 $failedChunks[] = $chunkDiagnostics;
                 Log::warning('Chunk failed, skipping', ['pages' => $chunkKey, 'reason' => $lastReason]);
-                // Do NOT throw exception here, just continue to next chunk
             } else {
                 $merged = array_merge($merged, $chunkQuestions);
             }
@@ -293,6 +306,13 @@ class AiImportService
             if ($progressCallback) {
                 $percent = min(95, 10 + round(($processedPages / $totalPagesToProcess) * 85)); // From 10 to 95
                 $progressCallback($percent, "Processed pages {$chunkStart} to {$chunkEnd}...");
+            }
+
+            // Slide window using overlapping technique
+            if ($chunkSize > 1 && $chunkEnd < $endPage) {
+                $chunkStart = $chunkEnd; // overlap by 1 page
+            } else {
+                $chunkStart = $chunkEnd + 1;
             }
         }
 
@@ -768,7 +788,7 @@ EOT;
         return $trimmed !== '' && ! str_ends_with($trimmed, ']');
     }
 
-    public function normalizeExtractedQuestionsForImport(array $questions, int $chunkStart = 1, int $chunkEnd = 1): array
+    public function normalizeExtractedQuestionsForImport(array $questions, int $chunkStart = 1, int $chunkEnd = 1, array $answerKeyMap = []): array
     {
         $this->ensureValidationDiagnosticsInitialized();
         $normalized = [];
@@ -805,6 +825,18 @@ EOT;
                     'source_page' => $sourcePage,
                     'question_number' => $question['question_number'] ?? null,
                 ];
+            }
+
+            // Answer Key Mapping
+            $qNum = trim((string)($question['question_number'] ?? ''));
+            $qNumClean = preg_replace('/[^0-9]/', '', $qNum);
+            if ($qNumClean !== '' && isset($answerKeyMap[$qNumClean])) {
+                $ans = $answerKeyMap[$qNumClean];
+                $question['correct_option_index'] = isset($ans['index']) ? (int)$ans['index'] : ($question['correct_option_index'] ?? null);
+                $question['correct_option_label'] = $ans['label'] ?? ($question['correct_option_label'] ?? null);
+                if (!empty($ans['text']) && empty($question['correct_answer_text'])) {
+                    $question['correct_answer_text'] = $ans['text'];
+                }
             }
 
             $languageFiltered = $this->filterQuestionToEnglishOnly($question);
@@ -1858,5 +1890,110 @@ EOT;
         }
 
         return trim($html) === '' ? $imgHtml : $html.'<br>'.$imgHtml;
+    }
+
+    private function preScanAnswerKey(string $pdfPath, string $apiKey, string $model, int $endPage): array
+    {
+        $startScan = max(1, $endPage - 1);
+        $slicedPath = null;
+        $fileName = null;
+        try {
+            $slicedPath = $this->slicePdf($pdfPath, $startScan, $endPage);
+            $uploadResult = $this->uploadToGemini($slicedPath, $apiKey);
+            $fileUri = $uploadResult['file']['uri'];
+            $fileName = $uploadResult['file']['name'];
+            $this->waitForFile($fileName, $apiKey);
+
+            $prompt = <<<EOT
+Analyze the provided PDF pages and check if there is an Answer Key (a list or table matching question numbers to their correct option labels, e.g. 1-A, 2-B, or Q1: 3, Q2: 1).
+If an answer key is found, extract it as a JSON object mapping the string question number to the correct option index (0-based) and label.
+Example output format:
+{
+  "has_answer_key": true,
+  "answers": {
+    "1": {"index": 0, "label": "A", "text": "Option A text"},
+    "2": {"index": 2, "label": "C", "text": "Option C text"}
+  }
+}
+If no answer key is found on these pages, return:
+{
+  "has_answer_key": false,
+  "answers": {}
+}
+Return STRICT JSON only. No preamble, no markdown formatting.
+EOT;
+
+            $response = Http::timeout(180)->withOptions(['verify' => false])
+                ->post("https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$apiKey}", [
+                    'contents' => [
+                        [
+                            'role' => 'user',
+                            'parts' => [
+                                ['text' => $prompt],
+                                ['fileData' => ['mimeType' => 'application/pdf', 'fileUri' => $fileUri]],
+                            ],
+                        ],
+                    ],
+                    'generationConfig' => [
+                        'responseMimeType' => 'application/json',
+                        'temperature' => 0.1,
+                    ],
+                ]);
+
+            if ($response->successful()) {
+                $res = $response->json();
+                $text = $res['candidates'][0]['content']['parts'][0]['text'] ?? '{}';
+                $clean = trim($text);
+                if (preg_match('/^```(?:json)?\s*(.*?)\s*```$/is', $clean, $matches)) {
+                    $clean = trim($matches[1]);
+                }
+                $decoded = json_decode($clean, true);
+                if (isset($decoded['has_answer_key']) && $decoded['has_answer_key'] && !empty($decoded['answers'])) {
+                    Log::info('Answer Key pre-scan successful', ['answers_count' => count($decoded['answers'])]);
+                    return $decoded['answers'];
+                }
+            }
+        } catch (\Exception $e) {
+            Log::warning('Answer key pre-scan failed, proceeding without it', ['error' => $e->getMessage()]);
+        } finally {
+            if ($fileName) {
+                try { $this->deleteFromGemini($fileName, $apiKey); } catch (\Exception $ex) {}
+            }
+            if ($slicedPath && file_exists($slicedPath)) {
+                @unlink($slicedPath);
+            }
+        }
+        return [];
+    }
+
+    private function calculateBaselineQuestionCount(string $pdfPath, int $startPage, int $endPage): int
+    {
+        try {
+            $parser = new \Smalot\PdfParser\Parser();
+            $pdf = $parser->parseFile($pdfPath);
+            $pages = $pdf->getPages();
+
+            $totalCount = 0;
+            $endPage = min($endPage, count($pages));
+
+            for ($p = $startPage - 1; $p < $endPage; $p++) {
+                if (isset($pages[$p])) {
+                    $text = $pages[$p]->getText();
+                    $matchesCount = preg_match_all('/(?:^|\n|\r)\s*(?:Q(?:uestion)?\s*)?\(?\s*\d+\s*[\.\)]/i', $text);
+                    $totalCount += $matchesCount;
+                }
+            }
+
+            Log::info('Local baseline question count calculated', [
+                'start_page' => $startPage,
+                'end_page' => $endPage,
+                'baseline_count' => $totalCount,
+            ]);
+
+            return $totalCount;
+        } catch (\Exception $e) {
+            Log::warning('Failed to calculate baseline question count, skipping', ['error' => $e->getMessage()]);
+            return 0;
+        }
     }
 }
