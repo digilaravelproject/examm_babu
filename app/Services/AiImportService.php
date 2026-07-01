@@ -84,7 +84,12 @@ class AiImportService
                 'topic_id' => $topicId,
             ]);
 
-            $questions = $this->extractGeminiChunks($pdfPath, $apiKey, $model, $startPage, $endPage, $batchId, $topicId, $progressCallback);
+            if ($progressCallback) {
+                $progressCallback(5, "Pre-scanning PDF for Answer Keys...");
+            }
+            $answerKeyMap = $this->preScanAnswerKey($pdfPath, $apiKey, $model, $endPage);
+
+            $questions = $this->extractGeminiChunks($pdfPath, $apiKey, $model, $startPage, $endPage, $batchId, $topicId, $progressCallback, $answerKeyMap);
 
             Log::info("Gemini Extraction Successful for Batch: {$batchId}", [
                 'pages' => "{$startPage}-{$endPage}",
@@ -125,29 +130,16 @@ class AiImportService
         return $chunkPath;
     }
 
-    private function extractGeminiChunks(string $pdfPath, string $apiKey, string $model, int $startPage, int $endPage, ?string $batchId, ?int $topicId, ?callable $progressCallback = null): array
+    private function extractGeminiChunks(string $pdfPath, string $apiKey, string $model, int $startPage, int $endPage, ?string $batchId, ?int $topicId, ?callable $progressCallback = null, array $answerKeyMap = []): array
     {
         $chunkSize = max(1, (int) config('services.gemini.import_chunk_pages', 2));
         $maxRetries = max(0, (int) config('services.gemini.import_max_retries', 2));
         $minQuestionsPerChunk = max(0, (int) config('services.gemini.import_min_questions_per_chunk', 1));
 
-        // Step 1: Pre-scan for Answer Key at the end of the range
-        if ($progressCallback) {
-            $progressCallback(5, "Pre-scanning PDF for Answer Keys...");
-        }
-        $answerKeyMap = $this->preScanAnswerKey($pdfPath, $apiKey, $model, $endPage);
-
-        // Step 2: Calculate local baseline count using smalot/pdfparser
-        if ($progressCallback) {
-            $progressCallback(8, "Calculating local question baseline count...");
-        }
-        $baselineCount = $this->calculateBaselineQuestionCount($pdfPath, $startPage, $endPage);
-
         $this->lastImportDiagnostics = [
             'chunk_size' => $chunkSize,
             'max_retries' => $maxRetries,
             'page_range' => "{$startPage}-{$endPage}",
-            'baseline_count' => $baselineCount,
             'chunks' => [],
             'deduped' => [],
             'final_count' => 0,
@@ -213,7 +205,8 @@ class AiImportService
                             
                             // Process each page individually
                             for ($p = $chunkStart; $p <= $chunkEnd; $p++) {
-                                $subQuestions = $this->extractGeminiChunks($pdfPath, $apiKey, $model, $p, $p, $batchId, $topicId, $progressCallback);
+                                // Pass null for progressCallback to prevent progress bar rubber-banding on sub-chunks
+                                $subQuestions = $this->extractGeminiChunks($pdfPath, $apiKey, $model, $p, $p, $batchId, $topicId, null, $answerKeyMap);
                                 $merged = array_merge($merged, $subQuestions);
                             }
                             
@@ -619,7 +612,11 @@ class AiImportService
 
 ---
 ### 4. OUTPUT FORMAT
-Return a STRICT JSON ARRAY of objects. No preamble, no commentary. Just raw, high-fidelity data.
+Return a STRICT JSON ARRAY of objects.
+Do NOT wrap the output in ```json or ``` markdown blocks.
+Do NOT include any preamble, headers, or commentary.
+The output MUST begin with `[` and end with `]`.
+Just raw, high-fidelity data.
 EOT;
     }
 
@@ -1968,32 +1965,6 @@ EOT;
 
     private function calculateBaselineQuestionCount(string $pdfPath, int $startPage, int $endPage): int
     {
-        try {
-            $parser = new \Smalot\PdfParser\Parser();
-            $pdf = $parser->parseFile($pdfPath);
-            $pages = $pdf->getPages();
-
-            $totalCount = 0;
-            $endPage = min($endPage, count($pages));
-
-            for ($p = $startPage - 1; $p < $endPage; $p++) {
-                if (isset($pages[$p])) {
-                    $text = $pages[$p]->getText();
-                    $matchesCount = preg_match_all('/(?:^|\n|\r)\s*(?:Q(?:uestion)?\s*)?\(?\s*\d+\s*[\.\)]/i', $text);
-                    $totalCount += $matchesCount;
-                }
-            }
-
-            Log::info('Local baseline question count calculated', [
-                'start_page' => $startPage,
-                'end_page' => $endPage,
-                'baseline_count' => $totalCount,
-            ]);
-
-            return $totalCount;
-        } catch (\Exception $e) {
-            Log::warning('Failed to calculate baseline question count, skipping', ['error' => $e->getMessage()]);
-            return 0;
-        }
+        return 0; // Disabled due to Smalot\PdfParser performance issues on large PDFs (parses whole file structure causing massive delays)
     }
 }
