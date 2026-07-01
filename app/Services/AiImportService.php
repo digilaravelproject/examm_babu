@@ -181,6 +181,34 @@ class AiImportService
                         ]);
 
                         $result = $this->requestGeminiChunk($fileUri, $apiKey, $model, $chunkStart, $chunkEnd, $attempt);
+                        
+                        // Adaptive Splitting: If chunk hit MAX_TOKENS and chunk size is > 1 page, split it dynamically
+                        $chunkSizeCurrent = $chunkEnd - $chunkStart + 1;
+                        if ($result['finish_reason'] === 'MAX_TOKENS' && $chunkSizeCurrent > 1) {
+                            Log::warning("Chunk {$chunkKey} hit MAX_TOKENS. Dynamically splitting into 1-page sub-chunks.");
+                            
+                            // Cleanup resources for this chunk first
+                            if ($fileName) {
+                                try { $this->deleteFromGemini($fileName, $apiKey); } catch (\Exception $ex) {}
+                                $fileName = null;
+                            }
+                            if ($slicedPdfPath && file_exists($slicedPdfPath)) {
+                                @unlink($slicedPdfPath);
+                                $slicedPdfPath = null;
+                            }
+                            
+                            // Process each page individually
+                            for ($p = $chunkStart; $p <= $chunkEnd; $p++) {
+                                $subQuestions = $this->extractGeminiChunks($pdfPath, $apiKey, $model, $p, $p, $batchId, $topicId, $progressCallback);
+                                $merged = array_merge($merged, $subQuestions);
+                            }
+                            
+                            $chunkQuestions = []; // Marked as handled
+                            $chunkDiagnostics['status'] = 'completed';
+                            $chunkDiagnostics['question_count'] = count($merged);
+                            break;
+                        }
+
                         $normalized = $this->normalizeExtractedQuestionsForImport($result['questions'], $chunkStart, $chunkEnd);
                         $count = count($normalized);
 
@@ -205,7 +233,6 @@ class AiImportService
 
                         if ($retryReason && $attempt <= $maxRetries) {
                             $lastReason = $retryReason;
-
                             continue;
                         }
 
