@@ -549,12 +549,13 @@ EOT;
                 $repaired = true;
 
                 if (json_last_error() !== JSON_ERROR_NONE) {
+                    $errorMsg = json_last_error_msg();
                     Log::error('Gemini JSON Parsing Failed after repair attempt', [
-                        'error' => json_last_error_msg(),
+                        'error' => $errorMsg,
                         'raw_content_preview' => substr($content, 0, 1000).'...',
                         'last_chars' => substr($cleanContent, -50),
                     ]);
-                    throw new \Exception('Failed to parse AI JSON response: '.json_last_error_msg());
+                    throw new \Exception('Failed to parse AI JSON response: '.$errorMsg);
                 }
             }
 
@@ -587,8 +588,26 @@ EOT;
      */
     private function repairTruncatedJson($json)
     {
-        // Remove trailing comma if present (common in truncated arrays)
-        $json = preg_replace('/,\s*$/', '', trim($json));
+        $json = trim($json);
+
+        // 1. Clean slice method: truncate at the last complete object brace and close the array
+        $lastBrace = strrpos($json, '}');
+        if ($lastBrace !== false) {
+            $sliced = substr($json, 0, $lastBrace + 1);
+            $openBrackets = substr_count($sliced, '[');
+            $closeBrackets = substr_count($sliced, ']');
+            if ($openBrackets > $closeBrackets) {
+                $sliced .= str_repeat(']', $openBrackets - $closeBrackets);
+            }
+            
+            $decoded = json_decode($sliced, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                return $sliced;
+            }
+        }
+
+        // 2. Character-by-character fallback repair
+        $json = preg_replace('/,\s*$/', '', $json);
         
         $len = strlen($json);
         $stack = [];
