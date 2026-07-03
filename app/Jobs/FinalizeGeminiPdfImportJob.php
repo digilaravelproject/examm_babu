@@ -62,12 +62,11 @@ class FinalizeGeminiPdfImportJob implements ShouldQueue
                 'count' => count($questions)
             ]);
 
-            // Cleanup the original uploaded PDF to free up disk space
-            if (Storage::exists($this->pdfPath)) {
-                Storage::delete($this->pdfPath);
-            }
-
-        } catch (\Throwable $e) {
+            // DO NOT delete the PDF here. The frontend UI needs to download it to crop images using pdf.js.
+            // Cleanup will be handled by a scheduled command for old files.
+            // if (Storage::exists($this->pdfPath)) {
+            //     Storage::delete($this->pdfPath);
+            // }
             Log::error("FinalizeGeminiPdfImportJob Exception [Batch: {$this->batchId}]: " . $e->getMessage());
             $this->updateStatus('failed', 'Error during finalization: ' . $e->getMessage(), 0);
             throw $e;

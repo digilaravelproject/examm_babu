@@ -48,7 +48,7 @@ class AiImportService
      *
      * @throws \Exception
      */
-    public function callGeminiApi($pdfPath, $startPage = 1, $endPage = 50, $batchId = null, $topicId = null, ?callable $progressCallback = null)
+    public function callGeminiApi(string $pdfPath, int $startPage, int $endPage, ?string $batchId = null, ?int $topicId = null, ?callable $progressCallback = null, array $answerKeyMap = []): array
     {
         set_time_limit(1200);
 
@@ -85,9 +85,9 @@ class AiImportService
             ]);
 
             if ($progressCallback) {
-                $progressCallback(5, "Pre-scanning PDF for Answer Keys...");
+                $progressCallback(5, "Processing PDF chunk...");
             }
-            $answerKeyMap = $this->preScanAnswerKey($pdfPath, $apiKey, $model, $endPage);
+            // preScanAnswerKey is now handled by PreScanAnswerKeyJob to avoid redundant scans
 
             $questions = $this->extractGeminiChunks($pdfPath, $apiKey, $model, $startPage, $endPage, $batchId, $topicId, $progressCallback, $answerKeyMap);
 
@@ -1886,6 +1886,9 @@ EOT;
 
     private function appendOrReplaceImagePlaceholder(string $html, string $imgHtml): string
     {
+        if (str_contains($html, '![Diagram](IMAGE_HERE)')) {
+            return str_replace('![Diagram](IMAGE_HERE)', $imgHtml, $html);
+        }
         if (str_contains($html, '[IMAGE HERE]')) {
             return preg_replace('/\[IMAGE HERE\]/', $imgHtml, $html, 1);
         }

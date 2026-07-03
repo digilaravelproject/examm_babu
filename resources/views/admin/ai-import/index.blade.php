@@ -498,6 +498,11 @@
                     fd.append('end_page', endPageInput.value);
                 }
 
+                const extractAnswerKeyCheckbox = document.getElementById('extractAnswerKey');
+                if (extractAnswerKeyCheckbox && extractAnswerKeyCheckbox.checked) {
+                    fd.append('extract_answer_key', '1');
+                }
+
                 const res = await fetch("{{ route('admin.ai-import.process') }}", {
                     method: 'POST',
                     body: fd,

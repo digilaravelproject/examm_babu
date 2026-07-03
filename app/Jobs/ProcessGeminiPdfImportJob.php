@@ -67,8 +67,22 @@ class ProcessGeminiPdfImportJob implements ShouldQueue
                 $this->endPage,
                 $this->batchId,
                 $this->topicId,
-                function (int $percent, string $message) {
-                    $this->updateStatus('processing', $message, $percent);
+                function (int $percent, string $message) use ($batch) {
+                    $metadata = $batch->fresh()->metadata ?? [];
+                    $processedPages = $metadata['processed_pages'] ?? 0;
+                    $totalPages = max(1, (int)($metadata['total_pages'] ?? 1));
+                    
+                    // Base progress from previous jobs
+                    $baseProgress = ($processedPages / $totalPages) * 90;
+                    
+                    // Current job progress contribution
+                    $currentJobPages = $this->endPage - $this->startPage + 1;
+                    $currentJobMaxProgress = ($currentJobPages / $totalPages) * 90;
+                    
+                    // Overall progress
+                    $globalProgress = min(95, round($baseProgress + ($percent / 100 * $currentJobMaxProgress)));
+                    
+                    $this->updateStatus('processing', "Extracting pages {$this->startPage}-{$this->endPage}: {$message}", $globalProgress);
                 }
             );
             $diagnostics = $aiService->getLastImportDiagnostics();
