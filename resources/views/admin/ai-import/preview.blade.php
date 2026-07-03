@@ -5,7 +5,7 @@
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
 
-    <div class="min-h-screen bg-slate-50 py-6 sm:py-12 px-2 sm:px-6 lg:px-8">
+    <div class="bg-slate-50 py-6 sm:py-12 px-2 sm:px-6 lg:px-8">
         <div class="max-w-7xl mx-auto">
 
             {{-- Header Section --}}
