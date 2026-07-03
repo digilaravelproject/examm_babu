@@ -114,7 +114,9 @@ class AiImportController extends Controller
                     'message' => 'Queuing PDF for AI extraction...',
                     'metadata' => [
                         'start_time' => Carbon::now('Asia/Kolkata')->format('d-M-Y h:i:s A'),
-                        'original_filename' => $pdfFile->getClientOriginalName()
+                        'original_filename' => $pdfFile->getClientOriginalName(),
+                        'total_pages' => $endPage - $startPage + 1,
+                        'processed_pages' => 0
                     ]
                 ]);
             }
@@ -126,15 +128,28 @@ class AiImportController extends Controller
                 'progress' => 0
             ], 3600);
 
-            // Dispatch Background Job
-            \App\Jobs\ProcessGeminiPdfImportJob::dispatch(
-                $batchId, 
-                $pdfPath, 
-                (int)$topicId, 
-                (int)$userId, 
-                (int)$startPage, 
-                (int)$endPage
-            );
+            // Dispatch Background Job Chaining
+            $chunkSize = max(1, (int) config('services.gemini.import_chunk_pages', 2));
+            $jobs = [];
+            
+            for ($p = $startPage; $p <= $endPage; $p += $chunkSize) {
+                $cEnd = min($endPage, $p + $chunkSize - 1);
+                $jobs[] = new \App\Jobs\ProcessGeminiPdfImportJob(
+                    $batchId, 
+                    $pdfPath, 
+                    (int)$topicId, 
+                    (int)$userId, 
+                    (int)$p, 
+                    (int)$cEnd
+                );
+            }
+            
+            // Add Finalize Job to the end of the chain
+            $jobs[] = new \App\Jobs\FinalizeGeminiPdfImportJob($batchId, $pdfPath);
+
+            // Dispatch the first job and chain the rest
+            $firstJob = array_shift($jobs);
+            dispatch($firstJob->chain($jobs));
 
             Log::info("AI Import Batch Created", [
                 'batch_id' => $batchId,

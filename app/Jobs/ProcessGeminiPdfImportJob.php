@@ -74,22 +74,32 @@ class ProcessGeminiPdfImportJob implements ShouldQueue
             $diagnostics = $aiService->getLastImportDiagnostics();
 
             // 3. Store raw result for verification phase
-            $this->updateStatus('processing', 'Formatting extracted questions...', 80);
             $questionsJsonPath = 'temp/ai_batch_' . $this->batchId . '_questions.json';
-            Storage::put($questionsJsonPath, json_encode($questions));
+            $existing = [];
+            if (Storage::exists($questionsJsonPath)) {
+                $existing = json_decode(Storage::get($questionsJsonPath), true) ?? [];
+            }
+            $allQuestions = array_merge($existing, $questions);
+            Storage::put($questionsJsonPath, json_encode($allQuestions));
 
-            // 4. Mark as Completed (Ready for review)
-            $this->updateStatus('completed', 'AI Extraction Complete! Found ' . count($questions) . ' potential questions.', 100, count($questions));
+            // Update processed pages count in metadata
+            $metadata = $batch->metadata ?? [];
+            $processedPages = ($metadata['processed_pages'] ?? 0) + ($this->endPage - $this->startPage + 1);
+            $metadata['processed_pages'] = $processedPages;
+            
+            // Do NOT mark as completed here, let FinalizeGeminiPdfImportJob do it.
             $batch->update([
-                'metadata' => array_merge($batch->metadata ?? [], [
-                    'import_diagnostics' => $diagnostics,
-                    'final_extracted_count' => count($questions),
-                ]),
+                'metadata' => $metadata
             ]);
+            
+            // Calculate global progress
+            $totalPages = max(1, (int)($metadata['total_pages'] ?? 1));
+            $globalProgress = min(95, round(($processedPages / $totalPages) * 95));
+            $this->updateStatus('processing', "Processed pages up to {$this->endPage}...", $globalProgress, count($allQuestions));
 
-            Log::info("AI Extraction Finished for Batch: {$this->batchId}", [
-                'count' => count($questions),
-                'diagnostics' => $diagnostics,
+            Log::info("AI Extraction chunk finished for Batch: {$this->batchId}", [
+                'chunk' => "{$this->startPage}-{$this->endPage}",
+                'count' => count($questions)
             ]);
         } catch (\Throwable $e) {
             Log::error("ProcessGeminiPdfImportJob Exception [Batch: {$this->batchId}]: " . $e->getMessage(), [
