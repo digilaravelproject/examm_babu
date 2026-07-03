@@ -591,9 +591,10 @@ class AiImportService
 
 ---
 ### 2. SPATIAL & IMAGE INTELLIGENCE
-- **Coordinate Precision:** For ANY diagram, graph, map, or complex illustration, provide [ymin, xmin, ymax, xmax] boxes (0-1000) with a small safe padding margin around the visual.
+- **Coordinate Precision:** For ANY diagram, graph, map, or complex illustration, provide [ymin, xmin, ymax, xmax] boxes (0-1000). Ensure the box completely covers the visual element.
 - **Placeholder Injection:** In the 'question' or 'options' text, you MUST insert a markdown image tag `![Diagram](IMAGE_HERE)` at the EXACT location where the visual element appears.
-- **Option Images:** If options are images (common in geometry), you MUST provide 'option_image_boxes' as objects like {"index":0,"box":[ymin,xmin,ymax,xmax]}.
+- **Option Images (CRITICAL):** If the answer options (A, B, C, D) are images or diagrams (like non-verbal reasoning, visual puzzles, geometry), you MUST fetch EACH option's image coordinates separately and provide them in 'option_image_boxes'. Example: {"0":[ymin,xmin,ymax,xmax], "1":[ymin,xmin,ymax,xmax]}.
+- **Do Not Group:** DO NOT group option figures into the question's `image_box`. Options must have their own separate boxes in `option_image_boxes`.
 - **Coordinate Format:** All image boxes must be [ymin, xmin, ymax, xmax], normalized from 0 to 1000 for the full PDF page.
 - **Ownership:** Keep image ownership strict. Question-level image belongs only to the question field; option image belongs only to its specific option index.
 
@@ -1886,14 +1887,21 @@ EOT;
 
     private function appendOrReplaceImagePlaceholder(string $html, string $imgHtml): string
     {
+        $hasReplaced = false;
+
         if (str_contains($html, '![Diagram](IMAGE_HERE)')) {
-            return str_replace('![Diagram](IMAGE_HERE)', $imgHtml, $html);
-        }
-        if (str_contains($html, '[IMAGE HERE]')) {
-            return preg_replace('/\[IMAGE HERE\]/', $imgHtml, $html, 1);
+            $html = preg_replace('/\!\[Diagram\]\(IMAGE_HERE\)/i', $imgHtml, $html, 1);
+            $hasReplaced = true;
+        } elseif (str_contains($html, '[IMAGE HERE]')) {
+            $html = preg_replace('/\[IMAGE HERE\]/i', $imgHtml, $html, 1);
+            $hasReplaced = true;
         }
 
-        return trim($html) === '' ? $imgHtml : $html.'<br>'.$imgHtml;
+        // Clean up any remaining/stray placeholders
+        $html = str_ireplace('![Diagram](IMAGE_HERE)', '', $html);
+        $html = str_ireplace('[IMAGE HERE]', '', $html);
+
+        return $hasReplaced ? $html : (trim($html) === '' ? $imgHtml : $html . '<br>' . $imgHtml);
     }
 
     private function preScanAnswerKey(string $pdfPath, string $apiKey, string $model, int $endPage): array

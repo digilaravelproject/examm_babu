@@ -448,6 +448,12 @@ class AiImportController extends Controller
             return response()->json($questions);
         }
 
+        // Image cropping is complete once we reach the HTML preview page.
+        // We can safely delete the PDF now to free up server disk space.
+        if ($batch && Storage::exists($batch->pdf_path)) {
+            Storage::delete($batch->pdf_path);
+        }
+
         return view('admin.ai-import.preview', compact('questions', 'batchId'));
     }
 
