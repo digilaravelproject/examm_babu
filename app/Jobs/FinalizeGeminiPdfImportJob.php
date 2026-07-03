@@ -67,6 +67,8 @@ class FinalizeGeminiPdfImportJob implements ShouldQueue
             // if (Storage::exists($this->pdfPath)) {
             //     Storage::delete($this->pdfPath);
             // }
+
+        } catch (\Throwable $e) {
             Log::error("FinalizeGeminiPdfImportJob Exception [Batch: {$this->batchId}]: " . $e->getMessage());
             $this->updateStatus('failed', 'Error during finalization: ' . $e->getMessage(), 0);
             throw $e;
