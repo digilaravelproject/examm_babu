@@ -587,7 +587,7 @@ class AiImportService
 - **Math & Science:** Use LaTeX syntax for EVERY formula, equation, or scientific symbol (e.g., use $ \frac{-b \pm \sqrt{b^2-4ac}}{2a} $ or $ H_{2}O $).
 - **Math Fidelity:** Preserve equations exactly as written. Never simplify, rewrite, or convert formula notation into plain text.
 - **Question Number:** If a visible question number/marker exists, return it in `question_number`.
-- **Multilingual Papers:** If the same content appears in multiple languages, return ONLY English text. Do not mix scripts in a single question or option.
+- **STRICTLY ENGLISH ONLY:** You MUST ONLY extract text that is in English. Completely ignore and skip any text, questions, or options written in Marathi, Hindi, or any other regional language. If a question is entirely in a regional language, SKIP IT completely.
 
 ---
 ### 2. SPATIAL & IMAGE INTELLIGENCE
