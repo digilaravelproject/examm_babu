@@ -144,6 +144,15 @@
                                             <div>
                                                 <p class="text-xl font-black text-slate-900 tracking-tight">Upload PDF Document</p>
                                                 <p class="text-sm text-slate-400 mt-2 font-medium">Drag and drop your file here or <span class="text-indigo-600 font-bold">browse</span></p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="mt-4 flex items-center justify-center">
+                                        <label class="inline-flex items-center cursor-pointer">
+                                            <input type="checkbox" name="extract_answer_key" id="extractAnswerKey" class="form-checkbox h-5 w-5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500" value="1">
+                                            <span class="ml-2 text-sm text-gray-700 font-medium">Pre-scan Answer Keys (Takes extra time)</span>
+                                        </label>
+                                    </div>
                                                 <p class="text-[10px] text-slate-300 mt-3 font-bold uppercase tracking-widest">Maximum Size: 50MB</p>
                                             </div>
                                         </div>
