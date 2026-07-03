@@ -123,7 +123,7 @@
                                     </div>
                                 </div>
 
-                                //-- File Upload --//
+                                {{-- File Upload --}}
                                 <div class="space-y-3">
                                     <label
                                         class="block text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">
