@@ -204,10 +204,14 @@ class AiImportService
                             }
                             
                             // Process each page individually
-                            for ($p = $chunkStart; $p <= $chunkEnd; $p++) {
-                                // Pass null for progressCallback to prevent progress bar rubber-banding on sub-chunks
-                                $subQuestions = $this->extractGeminiChunks($pdfPath, $apiKey, $model, $p, $p, $batchId, $topicId, null, $answerKeyMap);
-                                $merged = array_merge($merged, $subQuestions);
+                            try {
+                                for ($p = $chunkStart; $p <= $chunkEnd; $p++) {
+                                    // Pass null for progressCallback to prevent progress bar rubber-banding on sub-chunks
+                                    $subQuestions = $this->extractGeminiChunks($pdfPath, $apiKey, $model, $p, $p, $batchId, $topicId, null, $answerKeyMap);
+                                    $merged = array_merge($merged, $subQuestions);
+                                }
+                            } catch (\Throwable $e) {
+                                Log::warning("Sub-chunk failed during dynamic split. Skipping remaining pages in this chunk to prevent 403 loop.", ['error' => $e->getMessage()]);
                             }
                             
                             $chunkQuestions = []; // Marked as handled
